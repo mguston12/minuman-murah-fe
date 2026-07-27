@@ -22,7 +22,7 @@
         <h1
           class="text-3xl sm:text-4xl md:text-6xl font-black uppercase tracking-tight text-white leading-none"
         >
-          Coming <span class="text-brand-gold">Soon!!!</span>
+          Coming <span class="text-brand-gold">Soon</span>
         </h1>
         <p class="text-base sm:text-xl text-brand-muted font-medium">
           Minuman Terbaik Dengan Harga Terbaik Segera Hadir!
