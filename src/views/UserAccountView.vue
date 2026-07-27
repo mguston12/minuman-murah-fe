@@ -1,6 +1,6 @@
 <script setup>
 import { ref } from "vue";
-import { useCartStore } from "@/stores/cart"; // 1. Import Store Keranjang
+import { useCartStore } from "../stores/cart";
 
 const cartStore = useCartStore(); // 2. Inisialisasi Store
 
