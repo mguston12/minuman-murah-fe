@@ -1,11 +1,32 @@
 <script setup>
-import { ref } from "vue";
+import { ref, onMounted } from "vue";
 import logoMM from "../assets/logo-2.png";
 import { useCartStore } from "../stores/cart";
-import CartDrawer from "./CartDrawer.vue"; // 1. Import komponen CartDrawer
+import { useAuth } from "../composables/useAuth";
+import CartDrawer from "./CartDrawer.vue";
 
 const searchQuery = ref("");
-const isCartOpen = ref(false); // 2. State untuk mengontrol buka/tutup drawer
+const isCartOpen = ref(false);
+const isProfileMenuOpen = ref(false);
+
+// Ambil state reaktif dari useAuth
+const { isLoggedIn, user, logout, setAuthData } = useAuth();
+
+// Pastikan state reaktif membaca nilai terbaru dari localStorage saat mounted
+onMounted(() => {
+  const currentToken = localStorage.getItem("auth_token");
+  const currentUser = localStorage.getItem("auth_user");
+  if (currentToken) {
+    setAuthData(currentToken, currentUser ? JSON.parse(currentUser) : null);
+  }
+});
+
+const handleLogout = () => {
+  isProfileMenuOpen.value = false;
+  logout();
+
+  window.location.href = "/";
+};
 
 const categories = [
   { name: "Promo", href: "#", isHighlight: true },
@@ -18,7 +39,6 @@ const categories = [
   { name: "Beer", href: "#" },
 ];
 
-// Inisialisasi Cart Store Pinia
 const cartStore = useCartStore();
 </script>
 
@@ -78,20 +98,70 @@ const cartStore = useCartStore();
 
         <!-- Auth & Cart Action -->
         <div class="flex items-center gap-2 md:gap-3 text-sm flex-shrink-0">
-          <a
-            href="#"
-            class="text-gray-700 hover:text-black font-medium px-2 py-1"
-          >
-            Masuk
-          </a>
-          <a
-            href="#"
-            class="bg-[#1C1A17] hover:bg-black text-yellow-300 font-medium px-4 py-1.5 rounded-lg transition-colors"
-          >
-            Daftar
-          </a>
+          <!-- JIKA USER SUDAH LOGIN: Tampilkan Button Profil + Dropdown Menu -->
+          <div v-if="isLoggedIn" class="relative">
+            <button
+              @click="isProfileMenuOpen = !isProfileMenuOpen"
+              type="button"
+              class="bg-[#1C1A17] hover:bg-black text-yellow-300 font-medium px-4 py-1.5 rounded-lg transition-colors flex items-center gap-1.5"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                class="h-4 w-4"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+                />
+              </svg>
+              <span>Profil</span>
+            </button>
 
-          <!-- Cart Button (Mengontrol Drawer, bukan Pindah Halaman) -->
+            <!-- Dropdown Menu Logout / Akun -->
+            <div
+              v-if="isProfileMenuOpen"
+              class="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-100 py-1 z-50 text-gray-700"
+            >
+              <router-link
+                to="/account"
+                @click="isProfileMenuOpen = false"
+                class="block px-4 py-2 hover:bg-gray-50 text-xs font-medium"
+              >
+                Akun Saya
+              </router-link>
+              <button
+                @click="handleLogout"
+                type="button"
+                class="w-full text-left px-4 py-2 hover:bg-red-50 text-red-600 text-xs font-medium border-t border-gray-100"
+              >
+                Keluar (Logout)
+              </button>
+            </div>
+          </div>
+
+          <!-- JIKA USER BELUM LOGIN: Tampilkan Button Masuk & Daftar -->
+          <template v-else>
+            <router-link
+              to="/login"
+              class="text-gray-700 hover:text-black font-medium px-2 py-1"
+            >
+              Masuk
+            </router-link>
+
+            <router-link
+              to="/register"
+              class="bg-[#1C1A17] hover:bg-black text-yellow-300 font-medium px-4 py-1.5 rounded-lg transition-colors"
+            >
+              Daftar
+            </router-link>
+          </template>
+
+          <!-- Cart Button -->
           <button
             @click="isCartOpen = true"
             type="button"
@@ -113,7 +183,6 @@ const cartStore = useCartStore();
             </svg>
             <span class="hidden sm:inline">Keranjang</span>
 
-            <!-- BADGE CART REAKTIF -->
             <span
               v-if="cartStore.totalCount > 0"
               class="ml-1 bg-[#E25C38] text-white text-xs px-1.5 py-0.5 rounded-full font-bold"
