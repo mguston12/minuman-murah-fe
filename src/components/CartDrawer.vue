@@ -14,8 +14,8 @@ const cartStore = useCartStore();
 const router = useRouter();
 
 const handleCheckout = () => {
-  emit("close"); // Tutup drawer
-  router.push("/checkout"); // Pindah ke halaman Checkout
+  emit("close"); 
+  router.push("/checkout");
 };
 </script>
 

@@ -21,7 +21,6 @@ const fetchBlogDetail = async (slug) => {
   try {
     const response = await api.get(`/blogs/slug/${slug}`);
 
-    // Debugging: Cek isi response dari backend di Console Browser
     console.log("Response Full:", response);
     console.log("Data Blog:", response.data?.data);
 
@@ -71,7 +70,6 @@ const fetchRelatedArticles = async (currentSlug) => {
 
     const resBlogs = response.data.data?.blogs || [];
 
-    // Filter agar artikel yang sedang dibuka tidak muncul di list
     relatedArticles.value = resBlogs
       .filter((b) => b.slug !== currentSlug)
       .slice(0, 3)
@@ -96,7 +94,6 @@ const fetchRelatedArticles = async (currentSlug) => {
   }
 };
 
-// Watcher dengan { immediate: true } untuk eksekusi saat pertama kali komponen di-mount / di-refresh
 watch(
   () => route.params.slug,
   (newSlug) => {

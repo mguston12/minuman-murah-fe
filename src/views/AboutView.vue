@@ -1,7 +1,6 @@
 <script setup>
 import { ref } from "vue";
 
-// Data Brand Pilihan
 const featuredBrands = ref([
   {
     id: 1,

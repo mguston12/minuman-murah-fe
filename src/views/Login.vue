@@ -1,13 +1,12 @@
 <script setup>
 import { ref, computed, onMounted, onBeforeUnmount } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import axios from "axios"; // Gunakan axios atau instance API/fetch milik Anda
+import axios from "axios";
 import { useAuth } from "../composables/useAuth";
 
 const route = useRoute();
 const router = useRouter();
 
-// Ambil setAuthData dari composable useAuth Anda
 const { setAuthData } = useAuth();
 
 const showPassword = ref(false);
@@ -91,7 +90,6 @@ const handleLogin = async () => {
 
       isLoading.value = false;
 
-      // Redirect ke halaman asal atau ke Home
       const redirect = route.query.redirect || "/";
       router.push(redirect);
     } else {

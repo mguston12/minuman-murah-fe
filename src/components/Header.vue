@@ -9,10 +9,8 @@ const searchQuery = ref("");
 const isCartOpen = ref(false);
 const isProfileMenuOpen = ref(false);
 
-// Ambil state reaktif dari useAuth
 const { isLoggedIn, user, logout, setAuthData } = useAuth();
 
-// Pastikan state reaktif membaca nilai terbaru dari localStorage saat mounted
 onMounted(() => {
   const currentToken = localStorage.getItem("auth_token");
   const currentUser = localStorage.getItem("auth_user");

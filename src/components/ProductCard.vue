@@ -1,5 +1,5 @@
 <script setup>
-import { useCartStore } from "../stores/cart"; // Sesuaikan path relatif ke cart store kamu
+import { useCartStore } from "../stores/cart";
 
 const props = defineProps({
   product: {
@@ -10,7 +10,6 @@ const props = defineProps({
 
 defineEmits(["quick-view"]);
 
-// Inisialisasi Cart Store
 const cartStore = useCartStore();
 
 const handleAddToCart = () => {

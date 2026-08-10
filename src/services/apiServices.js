@@ -10,13 +10,13 @@ export const authService = {
 
 // Blog API
 export const blogService = {
-  getBlogs: (params) => api.get('/blogs/filter', { params }), //[cite: 1]
-  getBlogBySlug: (slug) => api.get(`/blogs/slug/${slug}`), //[cite: 1]
-  getCategories: () => api.get('/category-blogs/active'), //[cite: 1]
+  getBlogs: (params) => api.get('/blogs/filter', { params }), 
+  getBlogBySlug: (slug) => api.get(`/blogs/slug/${slug}`), 
+  getCategories: () => api.get('/category-blogs/active'),
 };
 
 // Product API
 export const productService = {
-  getProducts: () => api.get('/products'), //[cite: 1]
-  getProductById: (id) => api.get(`/products/${id}`), //[cite: 1]
+  getProducts: () => api.get('/products'),
+  getProductById: (id) => api.get(`/products/${id}`), 
 };
