@@ -27,14 +27,14 @@ const handleLogout = () => {
 };
 
 const categories = [
-  { name: "Promo", href: "#", isHighlight: true },
-  { name: "Wine", href: "#" },
-  { name: "Whisky", href: "#" },
-  { name: "Vodka", href: "#" },
-  { name: "Gin", href: "#" },
-  { name: "Rum", href: "#" },
-  { name: "Cognac", href: "#" },
-  { name: "Beer", href: "#" },
+  { name: "Promo", href: "/products", isHighlight: true },
+  { name: "Wine", href: "/products" },
+  { name: "Whisky", href: "/products" },
+  { name: "Vodka", href: "/products" },
+  { name: "Gin", href: "/products" },
+  { name: "Rum", href: "/products" },
+  { name: "Cognac", href: "/products" },
+  { name: "Beer", href: "/products" },
 ];
 
 const cartStore = useCartStore();

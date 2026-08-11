@@ -59,7 +59,7 @@ const routes = [
     component: () => import("../views/PrivacyPolicyView.vue"),
   },
   {
-    path: "/about",
+    path: "/about-us",
     name: "about",
     component: () => import("../views/AboutView.vue"),
   },

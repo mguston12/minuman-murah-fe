@@ -5,16 +5,16 @@ const currentYear = new Date().getFullYear();
 
 const footerNav = {
   belanja: [
-    { name: "Wine", href: "#" },
-    { name: "Whisky", href: "#" },
-    { name: "Beer & Cider", href: "#" },
-    { name: "Promo Spesial", href: "#" },
+    { name: "Wine", href: "/blog" },
+    { name: "Whisky", href: "/blog" },
+    { name: "Beer & Cider", href: "/blog" },
+    { name: "Promo Spesial", href: "/blog" },
   ],
   bantuan: [
-    { name: "Cara Belanja", href: "#" },
+    { name: "Cara Belanja", href: "/privacy-policy" },
     { name: "Pengiriman", href: "#" },
     { name: "Pembayaran", href: "#" },
-    { name: "Hubungi Kami", href: "#" },
+    { name: "Hubungi Kami", href: "/about-us" },
   ],
   sosmed: [
     { name: "Instagram", href: "#" },

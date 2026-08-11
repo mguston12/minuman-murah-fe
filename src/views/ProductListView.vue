@@ -108,6 +108,8 @@ const products = ref([
     title: "Captain Morgan Spiced",
     category: "RUM",
     price: 288000,
+
+    
     badge: "Hemat 25%",
     image:
       "https://images.unsplash.com/photo-1608270586620-248524c67de9?auto=format&fit=crop&q=80&w=400",

@@ -164,11 +164,12 @@ const handleQuickView = (product) => {
           Ribuan pilihan minuman favorit, diskon hingga 50% untuk pesanan
           pertama kamu.
         </p>
-        <button
+        <router-link
+          to="/products"
           class="bg-[#1C1A17] hover:bg-black text-yellow-300 px-6 py-2.5 rounded-lg text-xs font-semibold transition-colors inline-block"
         >
           Belanja Sekarang
-        </button>
+        </router-link>
       </div>
 
       <div
@@ -186,20 +187,20 @@ const handleQuickView = (product) => {
     <section class="space-y-4">
       <div class="flex items-center justify-between">
         <h2 class="text-base font-bold text-gray-900">Kategori Pilihan</h2>
-        <a
-          href="#"
+        <router-link
+          to="/products"
           class="text-xs font-semibold text-[#E25C38] hover:underline flex items-center gap-1"
         >
           Lihat semua &rarr;
-        </a>
+        </router-link>
       </div>
 
       <!-- Grid dengan Card Putih (Rounded) -->
       <div class="grid grid-cols-4 sm:grid-cols-8 gap-3">
-        <a
+        <router-link
           v-for="item in categories"
           :key="item.name"
-          href="#"
+          to="/products"
           class="bg-white rounded-2xl p-4 flex flex-col items-center justify-center gap-3 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all group"
         >
           <!-- Gambar Lingkaran -->
@@ -219,7 +220,7 @@ const handleQuickView = (product) => {
           >
             {{ item.name }}
           </span>
-        </a>
+        </router-link>
       </div>
     </section>
 
@@ -227,19 +228,19 @@ const handleQuickView = (product) => {
     <section class="space-y-4">
       <div class="flex items-center justify-between">
         <h2 class="text-base font-bold text-gray-900">Top Brands</h2>
-        <a
-          href="#"
+        <router-link
+          to="/products"
           class="text-xs font-semibold text-[#E25C38] hover:underline flex items-center gap-1"
         >
           Lihat semua &rarr;
-        </a>
+        </router-link>
       </div>
 
       <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
-        <a
+        <router-link
           v-for="brand in topBrands"
           :key="brand.name"
-          href="#"
+          to="/products"
           class="aspect-[4/3] rounded-xl overflow-hidden border border-gray-100 group shadow-sm hover:shadow-md transition-all"
         >
           <img
@@ -247,7 +248,7 @@ const handleQuickView = (product) => {
             :alt="brand.name"
             class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
           />
-        </a>
+        </router-link>
       </div>
     </section>
 
@@ -270,12 +271,12 @@ const handleQuickView = (product) => {
     <section class="space-y-4">
       <div class="flex items-center justify-between">
         <h2 class="text-base font-bold text-gray-900">Produk Terlaris</h2>
-        <a
-          href="#"
+        <router-link
+          to="/products"
           class="text-xs font-semibold text-[#E25C38] hover:underline flex items-center gap-1"
         >
           Lihat semua &rarr;
-        </a>
+        </router-link>
       </div>
 
       <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
@@ -293,12 +294,12 @@ const handleQuickView = (product) => {
     <section class="space-y-4">
       <div class="flex items-center justify-between">
         <h2 class="text-base font-bold text-gray-900">Harga Murah</h2>
-        <a
-          href="#"
+        <router-link
+          to="/products"
           class="text-xs font-semibold text-[#E25C38] hover:underline flex items-center gap-1"
         >
           Lihat semua &rarr;
-        </a>
+        </router-link>
       </div>
 
       <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
