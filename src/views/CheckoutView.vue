@@ -222,7 +222,7 @@ const deleteAddress = (id) => {
           </div>
 
           <!-- 3. METODE PEMBAYARAN -->
-          <div class="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+          <!-- <div class="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
             <h2 class="text-sm font-bold text-gray-900 mb-3">Metode Pembayaran</h2>
 
             <div class="space-y-2.5">
@@ -246,7 +246,7 @@ const deleteAddress = (id) => {
                 <span class="text-xs font-bold text-gray-800">{{ method.name }}</span>
               </label>
             </div>
-          </div>
+          </div>-->
 
         </div>
 
