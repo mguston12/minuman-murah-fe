@@ -19,42 +19,55 @@ const handleAddToCart = () => {
 
 <template>
   <div
-    class="bg-white rounded-xl border border-gray-100 overflow-hidden shadow-sm hover:shadow-md transition-all group flex flex-col justify-between"
+    class="bg-white rounded-2xl border border-gray-100 overflow-hidden shadow-sm hover:shadow-md transition-all group flex flex-col justify-between p-3"
   >
     <div>
       <!-- Product Image -->
-      <div class="relative aspect-square overflow-hidden bg-gray-50">
+      <div
+        class="relative aspect-square overflow-hidden bg-gray-50 rounded-xl mb-3"
+      >
         <img
-          :src="product.image"
+          :src="
+            product.image ||
+            'https://images.unsplash.com/photo-1527281400683-1aae777175f8?auto=format&fit=crop&q=80&w=400'
+          "
           :alt="product.name"
           class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
         />
+        <span
+          v-if="product.is_freeshiping === 'ACTIVE'"
+          class="absolute top-2 left-2 bg-emerald-600 text-white text-[9px] font-extrabold px-2 py-0.5 rounded-md"
+        >
+          Bebas Ongkir
+        </span>
       </div>
 
       <!-- Product Info -->
-      <div class="p-3">
+      <div>
         <span
-          class="text-[10px] font-bold uppercase tracking-wider text-gray-400 block mb-0.5"
+          class="text-[9px] font-bold uppercase tracking-wider text-gray-400 block mb-0.5"
         >
-          {{ product.category }}
+          {{
+            typeof product.category === "object"
+              ? product.category?.taxonomy_name
+              : product.category || "SPIRITS"
+          }}
         </span>
         <h3
-          class="text-xs font-semibold text-gray-800 line-clamp-1 group-hover:text-[#E25C38] transition-colors"
+          class="text-xs font-bold text-gray-900 line-clamp-2 group-hover:text-[#E25C38] transition-colors"
         >
           {{ product.name }}
         </h3>
-        <p class="text-xs font-bold text-[#E25C38] mt-1">
+        <p class="text-xs font-extrabold text-[#E25C38] mt-1">
           Rp {{ product.price ? product.price.toLocaleString("id-ID") : 0 }}
         </p>
       </div>
     </div>
 
-    <!-- Actions (Quick View & Add to Cart) -->
-    <div
-      class="pb-3 px-3 flex items-center gap-1.5 border-t border-gray-50 pt-2"
-    >
+    <!-- Actions -->
+    <div class="flex items-center gap-1.5 pt-3 mt-2 border-t border-gray-50">
       <router-link
-        :to="`/product/${product.id}`"
+        :to="`/product/${product.slug || product.id}`"
         class="p-2 border border-gray-200 rounded-lg text-gray-500 hover:bg-gray-50 hover:text-black transition-colors"
         title="Lihat Detail"
       >
@@ -73,14 +86,12 @@ const handleAddToCart = () => {
         </svg>
       </router-link>
 
-      <!-- TOMBOL DENGAN HANDLER LANGSUNG KE STORE -->
       <button
         @click="handleAddToCart"
-        class="p-1.5 rounded-lg bg-[#1C1A17] text-white hover:bg-black transition-colors flex items-center justify-center"
+        class="p-1.5 rounded-lg bg-[#1C1A17] text-white hover:bg-black transition-colors flex items-center justify-center flex-1"
         title="Tambah ke Keranjang"
       >
         <svg
-          xmlns="http://www.w3.org/2000/svg"
           class="h-4 w-4"
           fill="none"
           viewBox="0 0 24 24"

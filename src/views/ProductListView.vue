@@ -1,195 +1,300 @@
 <script setup>
-import { ref, computed } from "vue";
+import { ref, computed, onMounted, watch } from "vue";
+import ProductCard from "../components/ProductCard.vue";
+import {
+  taxonomyService,
+  brandService,
+  attributeService,
+  productService,
+} from "../services/apiServices";
 
-// --- STATE FILTER ---
-const activeFilters = ref([
-  { id: "cat-1", label: "Air Mineral" },
-  { id: "cat-2", label: "Aqua 1L" },
-  { id: "cat-3", label: "Diskon" },
-]);
-
-const filterSections = ref([
-  {
-    id: "kategori",
-    name: "Kategori",
-    open: true,
-    options: [
-      { id: "air-mineral", label: "Air Mineral", checked: true },
-      { id: "soft-drink", label: "Soft Drink", checked: false },
-      { id: "kopi", label: "Kopi", checked: false },
-      { id: "teh", label: "Teh", checked: false },
-      { id: "bir-wine", label: "Bir & Wine", checked: false },
-    ],
-  },
-  { id: "brand", name: "Brand", open: false, options: [] },
-  { id: "tipe", name: "Tipe Minuman", open: false, options: [] },
-  { id: "rasa", name: "Rasa", open: false, options: [] },
-  { id: "ukuran", name: "Ukuran", open: false, options: [] },
-  { id: "harga", name: "Harga", open: false, options: [] },
-]);
-
+const priceMin = ref(null);
+const priceMax = ref(null);
 const sortBy = ref("Paling Sesuai");
 
-const removeFilter = (index) => {
-  activeFilters.value.splice(index, 1);
-};
-
-const clearAllFilters = () => {
-  activeFilters.value = [];
-};
-
-// --- DUMMY PRODUCTS DATA ---
-const products = ref([
-  {
-    id: 1,
-    title: "Jägermeister 700ml",
-    category: "LIQUEUR",
-    price: 365000,
-    badge: "Hemat 25%",
-    image:
-      "https://images.unsplash.com/photo-1527281400683-1aae777175f8?auto=format&fit=crop&q=80&w=400",
-  },
-  {
-    id: 2,
-    title: "Glenfiddich 12 Years",
-    category: "WHISKY",
-    price: 725000,
-    badge: null,
-    image:
-      "https://images.unsplash.com/photo-1514362545857-3bc16c4c7d1b?auto=format&fit=crop&q=80&w=400",
-  },
-  {
-    id: 3,
-    title: "Hennessy XO 700ml",
-    category: "COGNAC",
-    price: 3145000,
-    badge: null,
-    image:
-      "https://images.unsplash.com/photo-1569529465841-dfecdab7503b?auto=format&fit=crop&q=80&w=400",
-  },
-  {
-    id: 4,
-    title: "Casillero del Diablo",
-    category: "WINE",
-    price: 420000,
-    badge: null,
-    image:
-      "https://images.unsplash.com/photo-1510812431401-41d2bd2722f3?auto=format&fit=crop&q=80&w=400",
-  },
-  {
-    id: 5,
-    title: "Patrón Silver 750ml",
-    category: "TEQUILA",
-    price: 1250000,
-    badge: null,
-    image:
-      "https://images.unsplash.com/photo-1514362545857-3bc16c4c7d1b?auto=format&fit=crop&q=80&w=400",
-  },
-  {
-    id: 6,
-    title: "Johnnie Walker Red Label",
-    category: "WHISKY",
-    price: 385000,
-    badge: null,
-    image:
-      "https://images.unsplash.com/photo-1527281400683-1aae777175f8?auto=format&fit=crop&q=80&w=400",
-  },
-  {
-    id: 7,
-    title: "Smirnoff Vodka 700ml",
-    category: "VODKA",
-    price: 275000,
-    badge: null,
-    image:
-      "https://images.unsplash.com/photo-1569529465841-dfecdab7503b?auto=format&fit=crop&q=80&w=400",
-  },
-  {
-    id: 8,
-    title: "Captain Morgan Spiced",
-    category: "RUM",
-    price: 288000,
-
-    
-    badge: "Hemat 25%",
-    image:
-      "https://images.unsplash.com/photo-1608270586620-248524c67de9?auto=format&fit=crop&q=80&w=400",
-  },
-  {
-    id: 9,
-    title: "Bombay Sapphire Gin",
-    category: "GIN",
-    price: 385000,
-    badge: null,
-    image:
-      "https://images.unsplash.com/photo-1608270586620-248524c67de9?auto=format&fit=crop&q=80&w=400",
-  },
-  {
-    id: 10,
-    title: "Dom Pérignon 2013",
-    category: "CHAMPAGNE",
-    price: 4500000,
-    badge: null,
-    image:
-      "https://images.unsplash.com/photo-1510812431401-41d2bd2722f3?auto=format&fit=crop&q=80&w=400",
-  },
-  {
-    id: 11,
-    title: "Baileys Irish Cream",
-    category: "LIQUEUR",
-    price: 395000,
-    badge: null,
-    image:
-      "https://images.unsplash.com/photo-1527281400683-1aae777175f8?auto=format&fit=crop&q=80&w=400",
-  },
-  {
-    id: 12,
-    title: "Monkey Shoulder 700ml",
-    category: "WHISKY",
-    price: 685000,
-    badge: null,
-    image:
-      "https://images.unsplash.com/photo-1514362545857-3bc16c4c7d1b?auto=format&fit=crop&q=80&w=400",
-  },
-  {
-    id: 13,
-    title: "Chum Churum Soju",
-    category: "SOJU",
-    price: 45000,
-    badge: "Hemat 15%",
-    image:
-      "https://images.unsplash.com/photo-1569529465841-dfecdab7503b?auto=format&fit=crop&q=80&w=400",
-  },
-  {
-    id: 14,
-    title: "Absolut Vodka 750ml",
-    category: "VODKA",
-    price: 310000,
-    badge: null,
-    image:
-      "https://images.unsplash.com/photo-1569529465841-dfecdab7503b?auto=format&fit=crop&q=80&w=400",
-  },
-  {
-    id: 15,
-    title: "Tanqueray Gin 750ml",
-    category: "GIN",
-    price: 420000,
-    badge: "Hemat 20%",
-    image:
-      "https://images.unsplash.com/photo-1608270586620-248524c67de9?auto=format&fit=crop&q=80&w=400",
-  },
-  {
-    id: 16,
-    title: "Martell VSOP 700ml",
-    category: "COGNAC",
-    price: 1850000,
-    badge: null,
-    image:
-      "https://images.unsplash.com/photo-1510812431401-41d2bd2722f3?auto=format&fit=crop&q=80&w=400",
-  },
+const filterSections = ref([
+  { id: "kategori", name: "Kategori", open: true, options: [] },
+  { id: "brand", name: "Brand", open: true, options: [] },
+  { id: "ukuran", name: "Ukuran", open: true, options: [] },
+  { id: "harga", name: "Harga", open: true, options: [] },
 ]);
 
-// Pagination State
+// --- COMPUTED ACTIVE FILTERS ---
+const activeFiltersList = computed(() => {
+  const list = [];
+
+  // Checkbox Filters (Kategori, Brand, Ukuran)
+  filterSections.value.forEach((section) => {
+    if (section.options && section.options.length) {
+      section.options.forEach((opt) => {
+        if (opt.checked) {
+          list.push({
+            type: section.id,
+            sectionName: section.name,
+            id: opt.id,
+            label: opt.label,
+          });
+        }
+      });
+    }
+  });
+
+  // Range Harga
+  if (priceMin.value || priceMax.value) {
+    let priceLabel = "Harga: ";
+    if (priceMin.value && priceMax.value) {
+      priceLabel += `Rp ${Number(priceMin.value).toLocaleString("id-ID")} - Rp ${Number(priceMax.value).toLocaleString("id-ID")}`;
+    } else if (priceMin.value) {
+      priceLabel += `>= Rp ${Number(priceMin.value).toLocaleString("id-ID")}`;
+    } else if (priceMax.value) {
+      priceLabel += `<= Rp ${Number(priceMax.value).toLocaleString("id-ID")}`;
+    }
+
+    list.push({
+      type: "harga",
+      sectionName: "Harga",
+      id: "price_range",
+      label: priceLabel,
+    });
+  }
+
+  return list;
+});
+
+// --- STATE PRODUCTS & PAGINATION ---
+const products = ref([]);
+const isLoadingProducts = ref(false);
+const productError = ref(null);
+
 const currentPage = ref(1);
+const perPage = ref(15);
+const pagination = ref({
+  current_page: 1,
+  last_page: 1,
+  total: 0,
+  per_page: 15,
+});
+
+// --- LOADING & ERROR STATES SIDEBAR ---
+const isLoadingCategories = ref(false);
+const categoryError = ref(null);
+const isLoadingBrands = ref(false);
+const brandError = ref(null);
+const isLoadingAttributes = ref(false);
+const attributeError = ref(null);
+
+// --- FETCH PRODUCTS API ---
+const fetchProducts = async (page = 1) => {
+  isLoadingProducts.value = true;
+  productError.value = null;
+
+  try {
+    let sortDir = "desc";
+    if (sortBy.value === "Harga Terendah") sortDir = "asc";
+    if (sortBy.value === "Harga Tertinggi") sortDir = "desc";
+
+    const params = {
+      page: page,
+      per_page: perPage.value,
+      sort_direction: sortDir,
+    };
+
+    // Filter Kategori
+    const selectedCategories = filterSections.value
+      .find((s) => s.id === "kategori")
+      ?.options.filter((o) => o.checked)
+      .map((o) => o.id);
+    if (selectedCategories?.length)
+      params.categories = selectedCategories.join(",");
+
+    // Filter Brand
+    const selectedBrands = filterSections.value
+      .find((s) => s.id === "brand")
+      ?.options.filter((o) => o.checked)
+      .map((o) => o.id);
+    if (selectedBrands?.length) params.brands = selectedBrands.join(",");
+
+    // Filter Ukuran
+    const selectedSizes = filterSections.value
+      .find((s) => s.id === "ukuran")
+      ?.options.filter((o) => o.checked)
+      .map((o) => o.id);
+    if (selectedSizes?.length) params.attributes = selectedSizes.join(",");
+
+    // Range Harga
+    if (priceMin.value) params.min_price = priceMin.value;
+    if (priceMax.value) params.max_price = priceMax.value;
+
+    const response = await productService.getProducts(params);
+    const resData = response?.data?.data;
+
+    products.value = resData?.products || [];
+    if (resData?.pagination) {
+      pagination.value = resData.pagination;
+      currentPage.value = resData.pagination.current_page || page;
+    }
+  } catch (err) {
+    console.error("Gagal mengambil data produk:", err);
+    productError.value = "Gagal memuat produk.";
+  } finally {
+    isLoadingProducts.value = false;
+  }
+};
+
+// --- FETCH CATEGORIES ---
+const fetchCategoryTaxonomy = async () => {
+  isLoadingCategories.value = true;
+  categoryError.value = null;
+  try {
+    const response = await taxonomyService.getTaxoByType(2);
+    const rawCategories =
+      response?.data?.data?.taxo_lists || response?.data?.data || [];
+    const categorySection = filterSections.value.find(
+      (s) => s.id === "kategori",
+    );
+    if (categorySection) {
+      categorySection.options = (
+        Array.isArray(rawCategories) ? rawCategories : []
+      ).map((item) => ({
+        id: item.id,
+        label: item.taxonomy_name || item.name,
+        slug: item.taxonomy_slug || item.slug,
+        checked: false,
+      }));
+    }
+  } catch (err) {
+    categoryError.value = "Gagal memuat kategori.";
+  } finally {
+    isLoadingCategories.value = false;
+  }
+};
+
+// --- FETCH BRANDS ---
+const fetchBrands = async () => {
+  isLoadingBrands.value = true;
+  brandError.value = null;
+  try {
+    const response = await brandService.getActiveBrands();
+    const rawBrands =
+      response?.data?.data?.brands || response?.data?.data || [];
+    const brandSection = filterSections.value.find((s) => s.id === "brand");
+    if (brandSection) {
+      brandSection.options = (Array.isArray(rawBrands) ? rawBrands : []).map(
+        (item) => ({
+          id: item.id,
+          label: item.name,
+          slug: item.slug,
+          checked: false,
+        }),
+      );
+    }
+  } catch (err) {
+    brandError.value = "Gagal memuat brand.";
+  } finally {
+    isLoadingBrands.value = false;
+  }
+};
+
+// --- FETCH ATTRIBUTES ---
+const fetchAttributes = async () => {
+  isLoadingAttributes.value = true;
+  attributeError.value = null;
+  try {
+    const response = await attributeService.getActiveAttributes();
+    const rawAttributes =
+      response?.data?.data?.attributes || response?.data?.data || [];
+
+    // Cari atribut ukuran yang cocok
+    const sizeAttr = Array.isArray(rawAttributes)
+      ? rawAttributes.find(
+          (attr) =>
+            attr.slug === "ukuran-botol" ||
+            attr.name?.toLowerCase().includes("ukuran") ||
+            attr.slug?.includes("ukuran"),
+        )
+      : null;
+
+    const ukuranSection = filterSections.value.find((s) => s.id === "ukuran");
+    const values = sizeAttr?.attribute_values || sizeAttr?.values || [];
+
+    if (ukuranSection && values.length) {
+      ukuranSection.options = values.map((val) => ({
+        id: val.id,
+        label: val.value || val.name,
+        slug: val.slug,
+        checked: false,
+      }));
+    } else if (ukuranSection) {
+      ukuranSection.options = [];
+    }
+  } catch (err) {
+    console.error("Error attributes:", err);
+    attributeError.value = "Gagal memuat ukuran.";
+  } finally {
+    isLoadingAttributes.value = false;
+  }
+};
+
+onMounted(() => {
+  fetchCategoryTaxonomy();
+  fetchBrands();
+  fetchAttributes();
+  fetchProducts(1);
+});
+
+// Watcher Sort
+watch(sortBy, () => {
+  fetchProducts(1);
+});
+
+// Watcher Price Min & Max (Debounced)
+let priceTimeout = null;
+watch([priceMin, priceMax], () => {
+  clearTimeout(priceTimeout);
+  priceTimeout = setTimeout(() => {
+    fetchProducts(1);
+  }, 400);
+});
+
+// Watcher Checkbox Filter
+watch(
+  filterSections,
+  () => {
+    fetchProducts(1);
+  },
+  { deep: true },
+);
+
+const changePage = (page) => {
+  if (page >= 1 && page <= (pagination.value.last_page || 1)) {
+    fetchProducts(page);
+  }
+};
+
+// Hapus satu active filter
+const removeActiveFilter = (item) => {
+  if (item.type === "harga") {
+    priceMin.value = null;
+    priceMax.value = null;
+  } else {
+    const section = filterSections.value.find((s) => s.id === item.type);
+    if (section) {
+      const option = section.options.find((o) => o.id === item.id);
+      if (option) option.checked = false;
+    }
+  }
+};
+
+// Hapus Semua Filter
+const clearAllFilters = () => {
+  priceMin.value = null;
+  priceMax.value = null;
+  filterSections.value.forEach((section) => {
+    section.options?.forEach((opt) => {
+      opt.checked = false;
+    });
+  });
+};
 </script>
 
 <template>
@@ -217,14 +322,12 @@ const currentPage = ref(1);
           </button>
         </div>
 
-        <!-- ACCORDION SECTIONS -->
         <div class="space-y-3">
           <div
             v-for="section in filterSections"
             :key="section.id"
             class="border-b border-gray-50 pb-3 last:border-none last:pb-0"
           >
-            <!-- SECTION HEADER -->
             <button
               @click="section.open = !section.open"
               class="w-full flex items-center justify-between py-1 text-left"
@@ -248,34 +351,97 @@ const currentPage = ref(1);
               </svg>
             </button>
 
-            <!-- SECTION CONTENT (CHECKBOXES) -->
-            <div v-if="section.open" class="mt-2.5 space-y-2 pl-0.5">
-              <label
-                v-for="opt in section.options"
-                :key="opt.id"
-                class="flex items-center gap-2.5 cursor-pointer text-xs text-gray-600 hover:text-gray-900"
+            <div v-if="section.open" class="mt-2.5 pl-0.5">
+              <!-- HARGA INPUT -->
+              <div
+                v-if="section.id === 'harga'"
+                class="flex items-center gap-2"
               >
                 <input
-                  type="checkbox"
-                  v-model="opt.checked"
-                  class="w-3.5 h-3.5 rounded border-gray-300 text-[#E25C38] focus:ring-0 cursor-pointer"
+                  type="number"
+                  v-model="priceMin"
+                  placeholder="Min"
+                  class="w-1/2 px-3 py-1.5 border border-gray-200 rounded-lg text-xs focus:outline-none focus:border-[#E25C38]"
                 />
-                <span>{{ opt.label }}</span>
-              </label>
+                <input
+                  type="number"
+                  v-model="priceMax"
+                  placeholder="Max"
+                  class="w-1/2 px-3 py-1.5 border border-gray-200 rounded-lg text-xs focus:outline-none focus:border-[#E25C38]"
+                />
+              </div>
+
+              <!-- LOADERS -->
+              <div
+                v-else-if="section.id === 'kategori' && isLoadingCategories"
+                class="text-[11px] text-gray-400 py-1"
+              >
+                Memuat kategori...
+              </div>
+              <div
+                v-else-if="section.id === 'kategori' && categoryError"
+                class="text-[11px] text-red-500 py-1"
+              >
+                {{ categoryError }}
+              </div>
+
+              <div
+                v-else-if="section.id === 'brand' && isLoadingBrands"
+                class="text-[11px] text-gray-400 py-1"
+              >
+                Memuat brand...
+              </div>
+              <div
+                v-else-if="section.id === 'brand' && brandError"
+                class="text-[11px] text-red-500 py-1"
+              >
+                {{ brandError }}
+              </div>
+
+              <div
+                v-else-if="section.id === 'ukuran' && isLoadingAttributes"
+                class="text-[11px] text-gray-400 py-1"
+              >
+                Memuat ukuran...
+              </div>
+              <div
+                v-else-if="section.id === 'ukuran' && attributeError"
+                class="text-[11px] text-red-500 py-1"
+              >
+                {{ attributeError }}
+              </div>
+
+              <!-- CHECKBOX -->
+              <div v-else class="space-y-2 max-h-48 overflow-y-auto pr-1">
+                <label
+                  v-for="opt in section.options"
+                  :key="opt.id"
+                  class="flex items-center gap-2.5 cursor-pointer text-xs text-gray-600 hover:text-gray-900"
+                >
+                  <input
+                    type="checkbox"
+                    v-model="opt.checked"
+                    class="w-3.5 h-3.5 rounded border-gray-300 text-[#E25C38] focus:ring-0 cursor-pointer"
+                  />
+                  <span>{{ opt.label }}</span>
+                </label>
+              </div>
             </div>
           </div>
         </div>
       </aside>
 
-      <!-- ==================== MAIN PRODUCT LIST ==================== -->
       <main class="flex-1 w-full space-y-4">
-        <!-- HEADER TOP INFO & SORTING -->
+        <!-- TOP INFO & SORTING -->
         <div
-          class="flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+          class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-3.5 rounded-2xl shadow-sm border border-gray-100"
         >
           <p class="text-xs text-gray-500 font-medium">
-            Menampilkan <span class="font-bold text-gray-800">320</span> produk
-            untuk <span class="font-bold text-gray-800">"Minuman"</span>
+            Menampilkan
+            <span class="font-bold text-gray-800">{{
+              pagination.total || products.length
+            }}</span>
+            produk
           </p>
 
           <div class="flex items-center gap-2 shrink-0">
@@ -287,165 +453,104 @@ const currentPage = ref(1);
               <option value="Paling Sesuai">Paling Sesuai</option>
               <option value="Harga Terendah">Harga Terendah</option>
               <option value="Harga Tertinggi">Harga Tertinggi</option>
-              <option value="Terbaru">Terbaru</option>
             </select>
           </div>
         </div>
 
-        <!-- FILTER PILLS / CHIPS -->
+        <!-- ACTIVE FILTERS BADGES (NEW) -->
         <div
-          v-if="activeFilters.length"
-          class="flex flex-wrap items-center gap-2"
+          v-if="activeFiltersList.length"
+          class="flex flex-wrap items-center gap-2 bg-white p-3 rounded-2xl shadow-sm border border-gray-100"
         >
-          <div
-            v-for="(filter, idx) in activeFilters"
-            :key="filter.id"
-            class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full border border-[#E25C38]/30 bg-[#FFF8F6] text-[11px] font-bold text-[#E25C38]"
+          <span class="text-xs font-bold text-gray-400 mr-1"
+            >Filter Aktif:</span
           >
-            <span>{{ filter.label }}</span>
-            <button @click="removeFilter(idx)" class="hover:opacity-75">
+
+          <div
+            v-for="item in activeFiltersList"
+            :key="item.type + '-' + item.id"
+            class="inline-flex items-center gap-1.5 bg-orange-50 text-[#E25C38] border border-orange-200 px-2.5 py-1 rounded-lg text-xs font-semibold"
+          >
+            <span>{{ item.label }}</span>
+            <button
+              @click="removeActiveFilter(item)"
+              class="hover:text-red-600 font-bold ml-0.5 focus:outline-none"
+            >
               ✕
             </button>
           </div>
 
           <button
             @click="clearAllFilters"
-            class="w-6 h-6 rounded-full border border-gray-200 bg-white text-xs text-gray-400 flex items-center justify-center hover:bg-gray-50"
+            class="text-xs text-gray-500 hover:text-red-500 font-bold underline ml-auto"
           >
-            ✕
+            Hapus Semua
           </button>
         </div>
 
-        <!-- PRODUCT GRID (4 COLUMNS) -->
-        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-          <div
+        <!-- STATE LOADING / ERROR / EMPTY -->
+        <div
+          v-if="isLoadingProducts"
+          class="bg-white rounded-2xl p-12 text-center text-xs text-gray-400 shadow-sm"
+        >
+          Memuat produk...
+        </div>
+        <div
+          v-else-if="productError"
+          class="bg-white rounded-2xl p-12 text-center text-xs text-red-500 shadow-sm"
+        >
+          {{ productError }}
+        </div>
+        <div
+          v-else-if="!products.length"
+          class="bg-white rounded-2xl p-12 text-center text-xs text-gray-500 shadow-sm"
+        >
+          Tidak ada produk ditemukan.
+        </div>
+
+        <!-- PRODUCT GRID -->
+        <div
+          v-else
+          class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4"
+        >
+          <ProductCard
             v-for="product in products"
             :key="product.id"
-            class="bg-white rounded-2xl p-3 shadow-sm border border-gray-100 flex flex-col justify-between group hover:shadow-md transition-all duration-200"
-          >
-            <div>
-              <!-- IMAGE CONTAINER WITH BADGE -->
-              <div
-                class="relative w-full aspect-square bg-gray-50 rounded-xl overflow-hidden mb-3"
-              >
-                <img
-                  :src="product.image"
-                  :alt="product.title"
-                  class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                />
-
-                <!-- PROMO BADGE -->
-                <span
-                  v-if="product.badge"
-                  class="absolute top-2 left-2 bg-[#E25C38] text-white text-[9px] font-extrabold px-2 py-0.5 rounded-md"
-                >
-                  {{ product.badge }}
-                </span>
-              </div>
-
-              <!-- CATEGORY & TITLE -->
-              <span
-                class="text-[9px] font-bold tracking-wider text-gray-400 uppercase"
-              >
-                {{ product.category }}
-              </span>
-              <h3
-                class="text-xs font-bold text-gray-900 mt-0.5 line-clamp-1 group-hover:text-[#E25C38] transition-colors"
-              >
-                {{ product.title }}
-              </h3>
-
-              <!-- PRICE -->
-              <p class="text-xs font-extrabold text-[#E25C38] mt-1">
-                Rp {{ product.price.toLocaleString("id-ID") }}
-              </p>
-            </div>
-
-            <!-- ACTION BUTTONS (Preview & Add to Cart) -->
-            <div
-              class="flex items-center gap-1.5 pt-3 mt-2 border-t border-gray-50"
-            >
-              <router-link
-                :to="`/product/${product.id}`"
-                class="p-2 border border-gray-200 rounded-lg text-gray-500 hover:bg-gray-50 hover:text-black transition-colors"
-                title="Lihat Detail"
-              >
-                <svg
-                  class="w-3.5 h-3.5"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    stroke-width="2"
-                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-                  />
-                </svg>
-              </router-link>
-
-              <button
-                @click="$emit('add-to-cart', product)"
-                class="p-1.5 rounded-lg bg-[#1C1A17] text-white hover:bg-black transition-colors flex items-center justify-center"
-                title="Tambah ke Keranjang"
-              >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  class="h-4 w-4"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    stroke-width="2"
-                    d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"
-                  />
-                </svg>
-              </button>
-            </div>
-          </div>
+            :product="product"
+          />
         </div>
 
         <!-- PAGINATION -->
-        <div class="flex items-center justify-center gap-2 pt-6">
+        <div
+          v-if="pagination.last_page > 1"
+          class="flex items-center justify-center gap-2 pt-6"
+        >
           <button
-            @click="currentPage = 1"
+            @click="changePage(currentPage - 1)"
+            :disabled="currentPage === 1"
+            class="px-3 h-8 bg-white text-gray-600 disabled:opacity-40 hover:bg-gray-100 border border-gray-200 rounded-lg text-xs font-bold transition-all cursor-pointer"
+          >
+            ‹ Sebelumnya
+          </button>
+
+          <button
+            v-for="p in pagination.last_page"
+            :key="p"
+            @click="changePage(p)"
             :class="[
-              'w-8 h-8 rounded-lg text-xs font-bold transition-all',
-              currentPage === 1
+              'w-8 h-8 rounded-lg text-xs font-bold transition-all cursor-pointer',
+              currentPage === p
                 ? 'bg-black text-white'
                 : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-200',
             ]"
           >
-            1
+            {{ p }}
           </button>
+
           <button
-            @click="currentPage = 2"
-            :class="[
-              'w-8 h-8 rounded-lg text-xs font-bold transition-all',
-              currentPage === 2
-                ? 'bg-black text-white'
-                : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-200',
-            ]"
-          >
-            2
-          </button>
-          <button
-            @click="currentPage = 3"
-            :class="[
-              'w-8 h-8 rounded-lg text-xs font-bold transition-all',
-              currentPage === 3
-                ? 'bg-black text-white'
-                : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-200',
-            ]"
-          >
-            3
-          </button>
-          <button
-            class="px-3 h-8 bg-white text-gray-600 hover:bg-gray-100 border border-gray-200 rounded-lg text-xs font-bold transition-all"
+            @click="changePage(currentPage + 1)"
+            :disabled="currentPage === pagination.last_page"
+            class="px-3 h-8 bg-white text-gray-600 disabled:opacity-40 hover:bg-gray-100 border border-gray-200 rounded-lg text-xs font-bold transition-all cursor-pointer"
           >
             Berikutnya ›
           </button>

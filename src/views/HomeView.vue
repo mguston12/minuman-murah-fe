@@ -1,8 +1,9 @@
 <script setup>
-import { ref } from "vue";
+import { ref, onMounted } from "vue";
 import ProductCard from "../components/ProductCard.vue";
+import { productService } from "../services/apiServices";
 
-// --- Data Dummy ---
+// --- Data Dummy Kategori & Top Brands ---
 const categories = [
   {
     name: "Wine",
@@ -61,81 +62,60 @@ const topBrands = [
   },
 ];
 
-const popularProducts = ref([
-  {
-    id: 1,
-    category: "LIQUEUR",
-    name: "Jägermeister 700ml",
-    price: 365000,
-    image: "https://images.unsplash.com/photo-1551538827-9c037cb4f32a?w=300",
-  },
-  {
-    id: 2,
-    category: "WHISKY",
-    name: "Glenfiddich 12 Years",
-    price: 725000,
-    image: "https://images.unsplash.com/photo-1527281400683-1aae777175f8?w=300",
-  },
-  {
-    id: 3,
-    category: "COGNAC",
-    name: "Hennessy XO 700ml",
-    price: 3145000,
-    image: "https://images.unsplash.com/photo-1563227812-0ea4c22e6cc8?w=300",
-  },
-  {
-    id: 4,
-    category: "WINE",
-    name: "Casillero del Diablo",
-    price: 420000,
-    image: "https://images.unsplash.com/photo-1510812431401-41d2bd2722f3?w=300",
-  },
-  {
-    id: 5,
-    category: "TEQUILA",
-    name: "Patrón Silver 750ml",
-    price: 1250000,
-    image: "https://images.unsplash.com/photo-1514362545857-3bc16c4c7d1b?w=300",
-  },
-]);
+// --- STATE PRODUK API ---
+const popularProducts = ref([]);
+const cheapProducts = ref([]);
 
-const cheapProducts = ref([
-  {
-    id: 6,
-    category: "SOJU",
-    name: "Chum Churum Soju",
-    price: 45000,
-    image: "https://images.unsplash.com/photo-1510812431401-41d2bd2722f3?w=300",
-  },
-  {
-    id: 7,
-    category: "CHAMPAGNE",
-    name: "Moët Impérial 750ml",
-    price: 1150000,
-    image: "https://images.unsplash.com/photo-1594488669393-270ed116c21e?w=300",
-  },
-  {
-    id: 8,
-    category: "LIQUEUR",
-    name: "Baileys Irish Cream",
-    price: 395000,
-    image: "https://images.unsplash.com/photo-1551538827-9c037cb4f32a?w=300",
-  },
-  {
-    id: 9,
-    category: "WINE",
-    name: "Penfolds Koonunga Hill",
-    price: 480000,
-    image: "https://images.unsplash.com/photo-1510812431401-41d2bd2722f3?w=300",
-  },
-  {
-    id: 10,
-    category: "COGNAC",
-    name: "D'Ussé VSOP 750ml",
-    price: 1050000,
-    image: "https://images.unsplash.com/photo-1563227812-0ea4c22e6cc8?w=300",
-  },
-]);
+const isLoadingPopular = ref(false);
+const isLoadingCheap = ref(false);
+
+const popularError = ref(null);
+const cheapError = ref(null);
+
+// Fetch Produk Terlaris
+const fetchPopularProducts = async () => {
+  isLoadingPopular.value = true;
+  popularError.value = null;
+  try {
+    const response = await productService.getProducts({
+      page: 1,
+      per_page: 5,
+      sort_direction: "desc",
+    });
+    const resData = response?.data?.data;
+    popularProducts.value = resData?.products || [];
+  } catch (err) {
+    console.error("Gagal mengambil produk terlaris:", err);
+    popularError.value = "Gagal memuat produk terlaris.";
+  } finally {
+    isLoadingPopular.value = false;
+  }
+};
+
+// Fetch Harga Murah (Urutkan dari harga termurah)
+const fetchCheapProducts = async () => {
+  isLoadingCheap.value = true;
+  cheapError.value = null;
+  try {
+    const response = await productService.getProducts({
+      page: 1,
+      per_page: 5,
+      sort_direction: "asc",
+    });
+    const resData = response?.data?.data;
+    cheapProducts.value = resData?.products || [];
+  } catch (err) {
+    console.error("Gagal mengambil produk termurah:", err);
+    cheapError.value = "Gagal memuat produk murah.";
+  } finally {
+    isLoadingCheap.value = false;
+  }
+};
+
+onMounted(() => {
+  fetchPopularProducts();
+  fetchCheapProducts();
+});
 
 const handleAddToCart = (product) => {
   console.log("Add to cart:", product);
@@ -195,7 +175,6 @@ const handleQuickView = (product) => {
         </router-link>
       </div>
 
-      <!-- Grid dengan Card Putih (Rounded) -->
       <div class="grid grid-cols-4 sm:grid-cols-8 gap-3">
         <router-link
           v-for="item in categories"
@@ -203,7 +182,6 @@ const handleQuickView = (product) => {
           to="/products"
           class="bg-white rounded-2xl p-4 flex flex-col items-center justify-center gap-3 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all group"
         >
-          <!-- Gambar Lingkaran -->
           <div
             class="mt-2 w-12 h-12 sm:w-14 sm:h-14 rounded-full overflow-hidden flex-shrink-0"
           >
@@ -213,8 +191,6 @@ const handleQuickView = (product) => {
               class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
             />
           </div>
-
-          <!-- Nama Kategori -->
           <span
             class="text-[11px] font-medium text-gray-700 text-center line-clamp-1 group-hover:text-[#E25C38] transition-colors"
           >
@@ -261,8 +237,7 @@ const handleQuickView = (product) => {
           Diskon 25% untuk Pengguna Baru
         </h3>
         <p class="mt-2 text-xs md:text-sm text-gray-800">
-          Pakai kode
-          <span>MURAH25</span> saat checkout pertamamu.
+          Pakai kode <span>MURAH25</span> saat checkout pertamamu.
         </p>
       </div>
     </section>
@@ -279,7 +254,32 @@ const handleQuickView = (product) => {
         </router-link>
       </div>
 
-      <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
+      <!-- Loading State -->
+      <div
+        v-if="isLoadingPopular"
+        class="bg-white rounded-2xl p-8 text-center text-xs text-gray-400"
+      >
+        Memuat produk terlaris...
+      </div>
+
+      <!-- Error State -->
+      <div
+        v-else-if="popularError"
+        class="bg-white rounded-2xl p-8 text-center text-xs text-red-500"
+      >
+        {{ popularError }}
+      </div>
+
+      <!-- Empty State -->
+      <div
+        v-else-if="!popularProducts.length"
+        class="bg-white rounded-2xl p-8 text-center text-xs text-gray-500"
+      >
+        Belum ada produk terlaris.
+      </div>
+
+      <!-- Product Grid -->
+      <div v-else class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
         <ProductCard
           v-for="product in popularProducts"
           :key="product.id"
@@ -302,7 +302,32 @@ const handleQuickView = (product) => {
         </router-link>
       </div>
 
-      <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
+      <!-- Loading State -->
+      <div
+        v-if="isLoadingCheap"
+        class="bg-white rounded-2xl p-8 text-center text-xs text-gray-400"
+      >
+        Memuat produk harga murah...
+      </div>
+
+      <!-- Error State -->
+      <div
+        v-else-if="cheapError"
+        class="bg-white rounded-2xl p-8 text-center text-xs text-red-500"
+      >
+        {{ cheapError }}
+      </div>
+
+      <!-- Empty State -->
+      <div
+        v-else-if="!cheapProducts.length"
+        class="bg-white rounded-2xl p-8 text-center text-xs text-gray-500"
+      >
+        Belum ada produk murah.
+      </div>
+
+      <!-- Product Grid -->
+      <div v-else class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
         <ProductCard
           v-for="product in cheapProducts"
           :key="product.id"
