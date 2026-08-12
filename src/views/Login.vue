@@ -3,6 +3,7 @@ import { ref, computed, onMounted, onBeforeUnmount } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import axios from "axios";
 import { useAuth } from "../composables/useAuth";
+import { authService } from "../services/apiServices";
 
 const route = useRoute();
 const router = useRouter();
@@ -65,7 +66,7 @@ const handleLogin = async () => {
   successMessage.value = "";
 
   try {
-    const response = await axios.post("http://localhost:8000/api/auth/login", {
+    const response = await authService.login({
       email: formData.value.email,
       password: formData.value.password,
     });
