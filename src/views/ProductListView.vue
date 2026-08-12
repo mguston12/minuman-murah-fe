@@ -89,49 +89,79 @@ const fetchProducts = async (page = 1) => {
   productError.value = null;
 
   try {
+    // 1. Handling Sorting Parameters
+    let sortByParam = "created_at";
     let sortDir = "desc";
-    if (sortBy.value === "Harga Terendah") sortDir = "asc";
-    if (sortBy.value === "Harga Tertinggi") sortDir = "desc";
+
+    if (sortBy.value === "Harga Terendah") {
+      sortByParam = "price";
+      sortDir = "asc";
+    } else if (sortBy.value === "Harga Tertinggi") {
+      sortByParam = "price";
+      sortDir = "desc";
+    }
 
     const params = {
       page: page,
       per_page: perPage.value,
+      sort_by: sortByParam,
       sort_direction: sortDir,
     };
 
-    // Filter Kategori
     const selectedCategories = filterSections.value
       .find((s) => s.id === "kategori")
       ?.options.filter((o) => o.checked)
       .map((o) => o.id);
-    if (selectedCategories?.length)
-      params.categories = selectedCategories.join(",");
 
-    // Filter Brand
+    if (selectedCategories?.length) {
+      params.category_id = selectedCategories.join(",");
+      params.categories = selectedCategories.join(",");
+    }
+
+    // 3. Filter Brand
     const selectedBrands = filterSections.value
       .find((s) => s.id === "brand")
       ?.options.filter((o) => o.checked)
       .map((o) => o.id);
-    if (selectedBrands?.length) params.brands = selectedBrands.join(",");
 
-    // Filter Ukuran
+    if (selectedBrands?.length) {
+      params.brand_id = selectedBrands.join(",");
+      params.brands = selectedBrands.join(",");
+    }
+
+    // 4. Filter Ukuran (Attribute Value IDs)
     const selectedSizes = filterSections.value
       .find((s) => s.id === "ukuran")
       ?.options.filter((o) => o.checked)
       .map((o) => o.id);
-    if (selectedSizes?.length) params.attributes = selectedSizes.join(",");
 
-    // Range Harga
-    if (priceMin.value) params.min_price = priceMin.value;
-    if (priceMax.value) params.max_price = priceMax.value;
+    if (selectedSizes?.length) {
+      params.attribute_value_ids = selectedSizes.join(",");
+      params.attributes = selectedSizes.join(",");
+    }
+
+    // 5. Range Harga
+    if (priceMin.value !== null && priceMin.value !== "") {
+      params.min_price = priceMin.value;
+    }
+    if (priceMax.value !== null && priceMax.value !== "") {
+      params.max_price = priceMax.value;
+    }
 
     const response = await productService.getProducts(params);
-    const resData = response?.data?.data;
 
-    products.value = resData?.products || [];
-    if (resData?.pagination) {
-      pagination.value = resData.pagination;
-      currentPage.value = resData.pagination.current_page || page;
+    const resData = response?.data?.data || response?.data || response;
+
+    if (resData && Array.isArray(resData.products)) {
+      products.value = resData.products;
+      if (resData.pagination) {
+        pagination.value = resData.pagination;
+        currentPage.value = resData.pagination.current_page || page;
+      }
+    } else if (Array.isArray(resData)) {
+      products.value = resData;
+    } else {
+      products.value = [];
     }
   } catch (err) {
     console.error("Gagal mengambil data produk:", err);
