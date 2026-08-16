@@ -1,5 +1,5 @@
 <script setup>
-import logoMM from "../assets/logo-2.png";
+import logoMM from "../assets/logo-3.png";
 
 const currentYear = new Date().getFullYear();
 

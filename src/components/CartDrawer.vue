@@ -1,6 +1,8 @@
 <script setup>
+import { ref } from "vue";
 import { useCartStore } from "../stores/cart";
 import { useRouter } from "vue-router";
+import { useAuth } from "../composables/useAuth";
 
 defineProps({
   isOpen: {
@@ -12,15 +14,33 @@ defineProps({
 const emit = defineEmits(["close"]);
 const cartStore = useCartStore();
 const router = useRouter();
+const { isLoggedIn } = useAuth();
+
+// State untuk mengontrol pop-up modal peringatan login
+const showLoginModal = ref(false);
 
 const handleCheckout = () => {
-  emit("close"); 
+  // Pengecekan status login
+  if (!isLoggedIn.value) {
+    showLoginModal.value = true;
+    return;
+  }
+
+  // Jika sudah login, tutup drawer dan buka halaman checkout
+  emit("close");
   router.push("/checkout");
+};
+
+// Fungsi mengarahkan ke page login dengan menyimpan route redirect
+const goToLogin = () => {
+  showLoginModal.value = false;
+  emit("close");
+  router.push("/login?redirect=/checkout");
 };
 </script>
 
 <template>
-  <!-- OVERLAY / BACKDROP -->
+  <!-- OVERLAY / BACKDROP DRAWER -->
   <Transition name="fade">
     <div
       v-if="isOpen"
@@ -35,10 +55,13 @@ const handleCheckout = () => {
       v-if="isOpen"
       class="fixed inset-y-0 right-0 max-w-full flex pl-10 z-50 font-sans"
     >
-      <div class="w-screen max-w-md bg-white shadow-2xl flex flex-col justify-between">
-        
+      <div
+        class="w-screen max-w-md bg-white shadow-2xl flex flex-col justify-between"
+      >
         <!-- 1. DRAWER HEADER -->
-        <div class="p-4 sm:p-6 border-b border-gray-100 flex items-center justify-between">
+        <div
+          class="p-4 sm:p-6 border-b border-gray-100 flex items-center justify-between"
+        >
           <div class="flex items-center gap-2">
             <h2 class="text-base font-extrabold text-gray-900">
               Keranjang Belanja
@@ -51,13 +74,23 @@ const handleCheckout = () => {
             </span>
           </div>
 
-          <!-- Tombol Close (X) -->
           <button
             @click="$emit('close')"
             class="text-gray-400 hover:text-black p-1 rounded-lg hover:bg-gray-100 transition-colors"
           >
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              class="h-5 w-5"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M6 18L18 6M6 6l12 12"
+              />
             </svg>
           </button>
         </div>
@@ -70,14 +103,12 @@ const handleCheckout = () => {
               :key="item.id"
               class="flex gap-3 pt-3 first:pt-0"
             >
-              <!-- Gambar -->
               <img
                 :src="item.image"
                 :alt="item.title"
                 class="w-16 h-16 object-cover rounded-xl bg-gray-50 flex-shrink-0"
               />
 
-              <!-- Info -->
               <div class="flex-1 min-w-0">
                 <h3 class="text-xs font-bold text-gray-900 truncate">
                   {{ item.title }}
@@ -86,11 +117,14 @@ const handleCheckout = () => {
                   Rp {{ item.price ? item.price.toLocaleString("id-ID") : 0 }}
                 </p>
 
-                <!-- Qty Control -->
                 <div class="flex items-center gap-2 mt-2">
-                  <div class="flex items-center border border-gray-200 rounded-md bg-gray-50">
+                  <div
+                    class="flex items-center border border-gray-200 rounded-md bg-gray-50"
+                  >
                     <button
-                      @click="cartStore.updateQuantity(item.id, item.quantity - 1)"
+                      @click="
+                        cartStore.updateQuantity(item.id, item.quantity - 1)
+                      "
                       class="px-2 py-0.5 text-xs font-bold text-gray-600 hover:bg-gray-200"
                     >
                       -
@@ -99,7 +133,9 @@ const handleCheckout = () => {
                       {{ item.quantity }}
                     </span>
                     <button
-                      @click="cartStore.updateQuantity(item.id, item.quantity + 1)"
+                      @click="
+                        cartStore.updateQuantity(item.id, item.quantity + 1)
+                      "
                       class="px-2 py-0.5 text-xs font-bold text-gray-600 hover:bg-gray-200"
                     >
                       +
@@ -117,18 +153,37 @@ const handleCheckout = () => {
             </div>
           </div>
 
-          <!-- Empty State -->
-          <div v-else class="h-full flex flex-col items-center justify-center text-center py-12">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 text-gray-300 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+          <div
+            v-else
+            class="h-full flex flex-col items-center justify-center text-center py-12"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              class="h-12 w-12 text-gray-300 mb-3"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="1.5"
+                d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"
+              />
             </svg>
-            <p class="text-xs font-bold text-gray-700">Keranjang masih kosong</p>
-            <p class="text-[11px] text-gray-400 mt-0.5">Pilih produk favoritmu dulu yuk!</p>
+            <p class="text-xs font-bold text-gray-700">
+              Keranjang masih kosong
+            </p>
+            <p class="text-[11px] text-gray-400 mt-0.5">
+              Pilih produk favoritmu dulu yuk!
+            </p>
           </div>
         </div>
 
-        <!-- 3. DRAWER FOOTER (SUBTOTAL & BUTTON CHECKOUT) -->
-        <div class="p-4 sm:p-6 border-t border-gray-100 bg-gray-50/50 space-y-3">
+        <!-- 3. DRAWER FOOTER -->
+        <div
+          class="p-4 sm:p-6 border-t border-gray-100 bg-gray-50/50 space-y-3"
+        >
           <div class="flex justify-between items-center text-xs sm:text-sm">
             <span class="font-medium text-gray-500">Subtotal</span>
             <span class="font-extrabold text-[#E25C38] text-sm sm:text-base">
@@ -145,14 +200,66 @@ const handleCheckout = () => {
             <span>&rarr;</span>
           </button>
         </div>
+      </div>
+    </div>
+  </Transition>
 
+  <!-- POP-UP MODAL LOGIN REQUIREMENT -->
+  <Transition name="fade">
+    <div
+      v-if="showLoginModal"
+      class="fixed inset-0 bg-black/60 z-[60] flex items-center justify-center p-4 backdrop-blur-sm"
+    >
+      <div
+        class="bg-white rounded-2xl max-w-sm w-full p-6 text-center shadow-2xl border border-gray-100"
+      >
+        <!-- Icon Kunci/User -->
+        <div
+          class="w-12 h-12 bg-orange-100 text-[#E25C38] rounded-full flex items-center justify-center mx-auto mb-4"
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            class="h-6 w-6"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
+            />
+          </svg>
+        </div>
+
+        <h3 class="text-base font-bold text-gray-900 mb-1">Login Diperlukan</h3>
+        <p class="text-xs text-gray-500 mb-6">
+          Silakan masuk ke akun Anda terlebih dahulu untuk melanjutkan proses
+          transaksi checkout.
+        </p>
+
+        <!-- Tombol Aksi -->
+        <div class="flex flex-col gap-2">
+          <button
+            @click="goToLogin"
+            class="w-full bg-[#E25C38] hover:bg-[#c94d2c] text-white text-xs font-bold py-2.5 px-4 rounded-xl transition-colors"
+          >
+            Masuk Sekarang
+          </button>
+          <button
+            @click="showLoginModal = false"
+            class="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-semibold py-2.5 px-4 rounded-xl transition-colors"
+          >
+            Batal
+          </button>
+        </div>
       </div>
     </div>
   </Transition>
 </template>
 
 <style scoped>
-/* Animasi Fade Backdrop */
 .fade-enter-active,
 .fade-leave-active {
   transition: opacity 0.3s ease;
@@ -162,7 +269,6 @@ const handleCheckout = () => {
   opacity: 0;
 }
 
-/* Animasi Slide Drawer dari Kanan */
 .slide-enter-active,
 .slide-leave-active {
   transition: transform 0.3s ease-in-out;

@@ -2,6 +2,7 @@
 import { RouterView } from "vue-router";
 import Header from "./components/Header.vue";
 import Footer from "./components/Footer.vue";
+import FloatingWhatsapp from "./components/FloatingWhatsapp.vue";
 </script>
 
 <template>
@@ -13,5 +14,7 @@ import Footer from "./components/Footer.vue";
     <RouterView />
 
     <Footer />
+
+    <FloatingWhatsapp />
   </div>
 </template>

@@ -1,6 +1,6 @@
 <script setup>
 import { ref, onMounted } from "vue";
-import logoMM from "../assets/logo-2.png";
+import logoMM from "../assets/logo-3.png";
 import { useCartStore } from "../stores/cart";
 import { useAuth } from "../composables/useAuth";
 import CartDrawer from "./CartDrawer.vue";
@@ -42,7 +42,7 @@ const cartStore = useCartStore();
 
 <template>
   <header
-    class="w-full bg-white shadow-sm border-b border-gray-100 sticky top-0 z-40"
+    class="w-full bg-black shadow-md border-b border-zinc-800 sticky top-0 z-40"
   >
     <!-- 1. Top Announcement Bar -->
     <div
@@ -60,7 +60,7 @@ const cartStore = useCartStore();
           <img
             :src="logoMM"
             alt="Minuman Murah Logo"
-            class="h-10 md:h-12 w-auto object-contain"
+            class="h-10 md:h-12 w-auto object-contain brightness-110"
           />
         </router-link>
 
@@ -71,10 +71,10 @@ const cartStore = useCartStore();
               v-model="searchQuery"
               type="text"
               placeholder="Cari wine, whisky, bir, dan lainnya..."
-              class="w-full bg-gray-100/80 text-sm text-gray-800 rounded-full py-2 pl-4 pr-10 focus:outline-none focus:ring-2 focus:ring-[#E25C38]/50 focus:bg-white transition-all placeholder-gray-400"
+              class="w-full bg-zinc-900 border border-zinc-800 text-sm text-gray-100 rounded-full py-2 pl-4 pr-10 focus:outline-none focus:ring-2 focus:ring-[#E25C38] focus:bg-black transition-all placeholder-gray-500"
             />
             <button
-              class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+              class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white transition-colors"
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -101,7 +101,7 @@ const cartStore = useCartStore();
             <button
               @click="isProfileMenuOpen = !isProfileMenuOpen"
               type="button"
-              class="bg-[#1C1A17] hover:bg-black text-yellow-300 font-medium px-4 py-1.5 rounded-lg transition-colors flex items-center gap-1.5"
+              class="bg-zinc-900 border border-zinc-800 hover:bg-zinc-800 text-yellow-400 font-medium px-4 py-1.5 rounded-lg transition-colors flex items-center gap-1.5"
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -123,19 +123,19 @@ const cartStore = useCartStore();
             <!-- Dropdown Menu Logout / Akun -->
             <div
               v-if="isProfileMenuOpen"
-              class="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-100 py-1 z-50 text-gray-700"
+              class="absolute right-0 mt-2 w-48 bg-zinc-900 rounded-lg shadow-xl border border-zinc-800 py-1 z-50 text-gray-200"
             >
               <router-link
                 to="/account"
                 @click="isProfileMenuOpen = false"
-                class="block px-4 py-2 hover:bg-gray-50 text-xs font-medium"
+                class="block px-4 py-2 hover:bg-zinc-800 text-xs font-medium transition-colors"
               >
                 Akun Saya
               </router-link>
               <button
                 @click="handleLogout"
                 type="button"
-                class="w-full text-left px-4 py-2 hover:bg-red-50 text-red-600 text-xs font-medium border-t border-gray-100"
+                class="w-full text-left px-4 py-2 hover:bg-red-950/40 text-red-400 text-xs font-medium border-t border-zinc-800 transition-colors"
               >
                 Keluar (Logout)
               </button>
@@ -146,14 +146,14 @@ const cartStore = useCartStore();
           <template v-else>
             <router-link
               to="/login"
-              class="text-gray-700 hover:text-black font-medium px-2 py-1"
+              class="text-gray-300 hover:text-white font-medium px-2 py-1 transition-colors"
             >
               Masuk
             </router-link>
 
             <router-link
               to="/register"
-              class="bg-[#1C1A17] hover:bg-black text-yellow-300 font-medium px-4 py-1.5 rounded-lg transition-colors"
+              class="bg-[#E25C38] hover:bg-[#c84c2a] text-white font-medium px-4 py-1.5 rounded-lg transition-colors shadow-sm"
             >
               Daftar
             </router-link>
@@ -163,8 +163,9 @@ const cartStore = useCartStore();
           <button
             @click="isCartOpen = true"
             type="button"
-            class="flex items-center gap-1.5 border border-gray-200 rounded-lg px-3 py-1.5 hover:bg-gray-50 text-gray-700 font-medium ml-1 transition-colors relative"
+            class="flex items-center gap-1.5 border border-zinc-700 bg-zinc-900/80 rounded-lg px-3 py-1.5 hover:bg-zinc-800 text-gray-200 hover:text-white font-medium ml-1 transition-colors relative"
           >
+            <!-- SVG Icon Troli Belanja -->
             <svg
               xmlns="http://www.w3.org/2000/svg"
               class="h-4 w-4"
@@ -176,9 +177,10 @@ const cartStore = useCartStore();
                 stroke-linecap="round"
                 stroke-linejoin="round"
                 stroke-width="2"
-                d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"
+                d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"
               />
             </svg>
+
             <span class="hidden sm:inline">Keranjang</span>
 
             <span
@@ -193,7 +195,7 @@ const cartStore = useCartStore();
 
       <!-- 3. Navigation Categories -->
       <nav
-        class="flex items-center gap-6 py-2.5 overflow-x-auto border-t border-gray-100 text-xs font-semibold tracking-wider text-gray-600 no-scrollbar"
+        class="flex items-center gap-6 py-2.5 overflow-x-auto border-t border-zinc-800/80 text-m font-bold tracking-wider text-gray-300 no-scrollbar"
       >
         <a
           v-for="category in categories"
@@ -202,7 +204,7 @@ const cartStore = useCartStore();
           :class="[
             category.isHighlight
               ? 'text-[#E25C38] font-bold'
-              : 'hover:text-black',
+              : 'hover:text-yellow-400',
             'whitespace-nowrap transition-colors',
           ]"
         >
