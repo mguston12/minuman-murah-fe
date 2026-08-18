@@ -1,9 +1,12 @@
+import Cookies from "js-cookie";
+
 export const useAuthApi = () => {
   const baseURL =
     import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8000/api";
 
   const getHeaders = () => {
-    const token = localStorage.getItem("auth_token");
+    // Ambil token dari Cookie 'auth_token'
+    const token = Cookies.get("auth_token");
     return {
       "Content-Type": "application/json",
       Accept: "application/json",

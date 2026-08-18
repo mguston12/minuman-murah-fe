@@ -3,19 +3,42 @@ import { ref, onMounted, onUnmounted } from "vue";
 import ProductCard from "../components/ProductCard.vue";
 import { productService } from "../services/apiServices";
 
+// --- HELPER FUNCTIONS UNTUK COOKIES ---
+const getCookie = (name) => {
+  const nameEQ = name + "=";
+  const ca = document.cookie.split(";");
+  for (let i = 0; i < ca.length; i++) {
+    let c = ca[i];
+    while (c.charAt(0) === " ") c = c.substring(1, c.length);
+    if (c.indexOf(nameEQ) === 0) return c.substring(nameEQ.length, c.length);
+  }
+  return null;
+};
+
+const setCookie = (name, value, days = 30) => {
+  let expires = "";
+  if (days) {
+    const date = new Date();
+    date.setTime(date.getTime() + days * 24 * 60 * 60 * 1000);
+    expires = "; expires=" + date.toUTCString();
+  }
+  document.cookie = `${name}=${value || ""}${expires}; path=/; SameSite=Lax`;
+};
+
 // --- STATE MODAL VERIFIKASI 21+ ---
 const showAgeModal = ref(false);
 const isUnderAge = ref(false);
 
 const checkAgeVerification = () => {
-  const isVerified = localStorage.getItem("is_age_verified_21");
+  const isVerified = getCookie("is_age_verified_21");
   if (!isVerified) {
     showAgeModal.value = true;
   }
 };
 
 const handleConfirmAge = () => {
-  localStorage.setItem("is_age_verified_21", "true");
+  // Simpan cookie selama 30 hari
+  setCookie("is_age_verified_21", "true", 30);
   showAgeModal.value = false;
 };
 

@@ -1,40 +1,83 @@
 <script setup>
-import { ref, onMounted } from "vue";
+import { ref, onMounted, onUnmounted } from "vue";
+import { useRouter } from "vue-router";
+import Cookies from "js-cookie";
 import logoMM from "../assets/logo-3.png";
 import { useCartStore } from "../stores/cart";
 import { useAuth } from "../composables/useAuth";
 import CartDrawer from "./CartDrawer.vue";
 
+const router = useRouter();
 const searchQuery = ref("");
 const isCartOpen = ref(false);
 const isProfileMenuOpen = ref(false);
+const profileDropdownRef = ref(null);
 
 const { isLoggedIn, user, logout, setAuthData } = useAuth();
 
-onMounted(() => {
-  const currentToken = localStorage.getItem("auth_token");
-  const currentUser = localStorage.getItem("auth_user");
-  if (currentToken) {
-    setAuthData(currentToken, currentUser ? JSON.parse(currentUser) : null);
+const handleClickOutside = (event) => {
+  if (
+    profileDropdownRef.value &&
+    !profileDropdownRef.value.contains(event.target)
+  ) {
+    isProfileMenuOpen.value = false;
   }
+};
+
+onMounted(() => {
+  // Ambil token dan data user dari Cookie
+  const currentToken = Cookies.get("auth_token");
+  const currentUser = Cookies.get("auth_user");
+
+  if (currentToken) {
+    let parsedUser = null;
+    try {
+      parsedUser = currentUser ? JSON.parse(currentUser) : null;
+    } catch (e) {
+      parsedUser = null;
+    }
+    setAuthData(currentToken, parsedUser);
+  }
+
+  // Listener click outside
+  document.addEventListener("click", handleClickOutside);
+});
+
+onUnmounted(() => {
+  document.removeEventListener("click", handleClickOutside);
 });
 
 const handleLogout = () => {
   isProfileMenuOpen.value = false;
+
+  // Hapus cookie saat logout
+  Cookies.remove("auth_token");
+  Cookies.remove("auth_user");
+
   logout();
 
   window.location.href = "/";
 };
 
+// --- HANDLER SEARCH ---
+const handleSearch = () => {
+  if (searchQuery.value.trim()) {
+    router.push({
+      path: "/products",
+      query: { q: searchQuery.value.trim() },
+    });
+  }
+};
+
 const categories = [
-  { name: "Promo", href: "/products", isHighlight: true },
-  { name: "Wine", href: "/products" },
-  { name: "Whisky", href: "/products" },
-  { name: "Vodka", href: "/products" },
-  { name: "Gin", href: "/products" },
-  { name: "Rum", href: "/products" },
-  { name: "Cognac", href: "/products" },
-  { name: "Beer", href: "/products" },
+  { name: "Promo", href: "/products?promo=true", isHighlight: true },
+  { name: "Wine", href: "/products?category=wine" },
+  { name: "Whisky", href: "/products?category=whisky" },
+  { name: "Vodka", href: "/products?category=vodka" },
+  { name: "Gin", href: "/products?category=gin" },
+  { name: "Rum", href: "/products?category=rum" },
+  { name: "Cognac", href: "/products?category=cognac" },
+  { name: "Beer", href: "/products?category=beer" },
 ];
 
 const cartStore = useCartStore();
@@ -69,11 +112,14 @@ const cartStore = useCartStore();
           <div class="relative">
             <input
               v-model="searchQuery"
+              @keyup.enter="handleSearch"
               type="text"
               placeholder="Cari wine, whisky, bir, dan lainnya..."
               class="w-full bg-zinc-900 border border-zinc-800 text-sm text-gray-100 rounded-full py-2 pl-4 pr-10 focus:outline-none focus:ring-2 focus:ring-[#E25C38] focus:bg-black transition-all placeholder-gray-500"
             />
             <button
+              @click="handleSearch"
+              aria-label="Cari Produk"
               class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white transition-colors"
             >
               <svg
@@ -96,8 +142,8 @@ const cartStore = useCartStore();
 
         <!-- Auth & Cart Action -->
         <div class="flex items-center gap-2 md:gap-3 text-sm flex-shrink-0">
-          <!-- JIKA USER SUDAH LOGIN: Tampilkan Button Profil + Dropdown Menu -->
-          <div v-if="isLoggedIn" class="relative">
+          <!-- JIKA USER SUDAH LOGIN -->
+          <div v-if="isLoggedIn" ref="profileDropdownRef" class="relative">
             <button
               @click="isProfileMenuOpen = !isProfileMenuOpen"
               type="button"
@@ -117,7 +163,7 @@ const cartStore = useCartStore();
                   d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
                 />
               </svg>
-              <span>Profil</span>
+              <span>{{ user?.name || "Profil" }}</span>
             </button>
 
             <!-- Dropdown Menu Logout / Akun -->
@@ -142,7 +188,7 @@ const cartStore = useCartStore();
             </div>
           </div>
 
-          <!-- JIKA USER BELUM LOGIN: Tampilkan Button Masuk & Daftar -->
+          <!-- JIKA USER BELUM LOGIN -->
           <template v-else>
             <router-link
               to="/login"
@@ -165,7 +211,6 @@ const cartStore = useCartStore();
             type="button"
             class="flex items-center gap-1.5 border border-zinc-700 bg-zinc-900/80 rounded-lg px-3 py-1.5 hover:bg-zinc-800 text-gray-200 hover:text-white font-medium ml-1 transition-colors relative"
           >
-            <!-- SVG Icon Troli Belanja -->
             <svg
               xmlns="http://www.w3.org/2000/svg"
               class="h-4 w-4"
@@ -195,12 +240,12 @@ const cartStore = useCartStore();
 
       <!-- 3. Navigation Categories -->
       <nav
-        class="flex items-center gap-6 py-2.5 overflow-x-auto border-t border-zinc-800/80 text-m font-bold tracking-wider text-gray-300 no-scrollbar"
+        class="flex items-center gap-6 py-2.5 overflow-x-auto border-t border-zinc-800/80 text-sm font-bold tracking-wider text-gray-300 no-scrollbar"
       >
-        <a
+        <router-link
           v-for="category in categories"
           :key="category.name"
-          :href="category.href"
+          :to="category.href"
           :class="[
             category.isHighlight
               ? 'text-[#E25C38] font-bold'
@@ -209,11 +254,22 @@ const cartStore = useCartStore();
           ]"
         >
           {{ category.name }}
-        </a>
+        </router-link>
       </nav>
     </div>
   </header>
 
-  <!-- 4. Panggil Cart Drawer Component -->
+  <!-- 4. Cart Drawer Component -->
   <CartDrawer :is-open="isCartOpen" @close="isCartOpen = false" />
 </template>
+
+<style scoped>
+/* Utility CSS untuk menyembunyikan scrollbar di navigasi kategori */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+</style>

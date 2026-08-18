@@ -1,4 +1,5 @@
 import { createRouter, createWebHistory } from "vue-router";
+import Cookies from "js-cookie";
 
 const routes = [
   {
@@ -20,27 +21,32 @@ const routes = [
     path: "/checkout",
     name: "checkout",
     component: () => import("../views/CheckoutView.vue"),
+    meta: { requiresAuth: true }, // Butuh login
   },
   {
     path: "/account",
     name: "account",
     component: () => import("../views/UserAccountView.vue"),
+    meta: { requiresAuth: true }, // Butuh login
   },
   // --- AUTHENTICATION ROUTES ---
   {
     path: "/login",
     name: "login",
     component: () => import("../views/Login.vue"),
+    meta: { guestOnly: true }, // Hanya untuk pengguna yang belum login
   },
   {
     path: "/register",
     name: "register",
     component: () => import("../views/Register.vue"),
+    meta: { guestOnly: true },
   },
   {
     path: "/forgot-password",
     name: "forgot-password",
     component: () => import("../views/ForgotPassword.vue"),
+    meta: { guestOnly: true },
   },
   // --- INFORMATIONAL & BLOG ROUTES ---
   {
@@ -75,6 +81,19 @@ const router = createRouter({
   scrollBehavior() {
     return { top: 0 };
   },
+});
+
+// --- NAVIGATION GUARD ---
+router.beforeEach((to, from, next) => {
+  const token = Cookies.get("auth_token");
+
+  if (to.meta.requiresAuth && !token) {
+    next({ name: "login" });
+  } else if (to.meta.guestOnly && token) {
+    next({ name: "account" });
+  } else {
+    next();
+  }
 });
 
 export default router;

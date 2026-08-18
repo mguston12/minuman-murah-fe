@@ -1,7 +1,19 @@
 import { ref, computed } from "vue";
+import Cookies from "js-cookie";
 
-const token = ref(localStorage.getItem("auth_token") || null);
-const user = ref(JSON.parse(localStorage.getItem("auth_user") || "null"));
+// Helper fungsi untuk parsing JSON dengan aman
+const getInitialUser = () => {
+  const savedUser = Cookies.get("auth_user");
+  if (!savedUser) return null;
+  try {
+    return JSON.parse(savedUser);
+  } catch (e) {
+    return null;
+  }
+};
+
+const token = ref(Cookies.get("auth_token") || null);
+const user = ref(getInitialUser());
 
 export function useAuth() {
   const isLoggedIn = computed(() => !!token.value);
@@ -11,13 +23,21 @@ export function useAuth() {
     user.value = userData;
 
     if (newToken) {
-      localStorage.setItem("auth_token", newToken);
+      Cookies.set("auth_token", newToken, {
+        expires: 7,
+        secure: true,
+        sameSite: "Lax",
+      });
       if (userData) {
-        localStorage.setItem("auth_user", JSON.stringify(userData));
+        Cookies.set("auth_user", JSON.stringify(userData), {
+          expires: 7,
+          secure: true,
+          sameSite: "Lax",
+        });
       }
     } else {
-      localStorage.removeItem("auth_token");
-      localStorage.removeItem("auth_user");
+      Cookies.remove("auth_token");
+      Cookies.remove("auth_user");
     }
   };
 

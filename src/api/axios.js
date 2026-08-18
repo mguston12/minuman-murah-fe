@@ -1,4 +1,5 @@
 import axios from "axios";
+import Cookies from "js-cookie";
 
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8000/api",
@@ -10,7 +11,8 @@ const api = axios.create({
 
 api.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem("token");
+    // Ambil token dari Cookie 'auth_token'
+    const token = Cookies.get("auth_token");
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -23,7 +25,9 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response && error.response.status === 401) {
-      localStorage.removeItem("token");
+      // Hapus token dan data user dari Cookie jika unauthorized (401)
+      Cookies.remove("auth_token");
+      Cookies.remove("auth_user");
     }
     return Promise.reject(error);
   },

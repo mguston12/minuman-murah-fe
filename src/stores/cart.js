@@ -1,11 +1,26 @@
 import { ref, computed } from "vue";
 import { defineStore } from "pinia";
+import Cookies from "js-cookie";
+
+// Helper fungsi untuk membaca data cart dari Cookie
+const getInitialCart = () => {
+  const savedCart = Cookies.get("cart_items");
+  if (!savedCart) return [];
+  try {
+    return JSON.parse(savedCart);
+  } catch (e) {
+    return [];
+  }
+};
 
 export const useCartStore = defineStore("cart", () => {
-  const items = ref(JSON.parse(localStorage.getItem("cart_items") || "[]"));
+  const items = ref(getInitialCart());
 
-  const saveToLocalStorage = () => {
-    localStorage.setItem("cart_items", JSON.stringify(items.value));
+  const saveToCookies = () => {
+    Cookies.set("cart_items", JSON.stringify(items.value), {
+      expires: 7, // Bertahan selama 7 hari
+      sameSite: "Lax",
+    });
   };
 
   const addToCart = (product, quantity = 1) => {
@@ -26,19 +41,19 @@ export const useCartStore = defineStore("cart", () => {
       });
     }
 
-    saveToLocalStorage();
+    saveToCookies();
   };
 
   const removeFromCart = (productId) => {
     items.value = items.value.filter((item) => item.id !== productId);
-    saveToLocalStorage();
+    saveToCookies();
   };
 
   const updateQuantity = (productId, qty) => {
     const item = items.value.find((i) => i.id === productId);
     if (item) {
       item.quantity = Math.max(1, qty);
-      saveToLocalStorage();
+      saveToCookies();
     }
   };
 

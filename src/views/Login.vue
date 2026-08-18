@@ -2,6 +2,7 @@
 import { ref, computed, onMounted, onBeforeUnmount } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import axios from "axios";
+import Cookies from "js-cookie"; // 1. Import js-cookie
 import { useAuth } from "../composables/useAuth";
 import { authService } from "../services/apiServices";
 
@@ -45,7 +46,7 @@ onMounted(() => {
     }, 5000);
   }
 
-  const savedEmail = localStorage.getItem("remembered_email");
+  const savedEmail = Cookies.get("remembered_email");
   if (savedEmail) {
     formData.value.email = savedEmail;
     formData.value.rememberMe = true;
@@ -81,12 +82,28 @@ const handleLogin = async () => {
       response.data.auth_user || response.data.user || response.data.data?.user;
 
     if (token) {
+      // 2. Simpan token & user ke Cookie (Expired 7 hari atau disesuaikan)
+      Cookies.set("auth_token", token, {
+        expires: 7,
+        secure: true,
+        sameSite: "Lax",
+      });
+      if (user) {
+        Cookies.set("auth_user", JSON.stringify(user), {
+          expires: 7,
+          secure: true,
+          sameSite: "Lax",
+        });
+      }
+
+      // Update state global/composable kamu
       setAuthData(token, user);
 
+      // 3. Simpan email jika checkbox 'Ingat Saya' dicentang
       if (formData.value.rememberMe) {
-        localStorage.setItem("remembered_email", formData.value.email);
+        Cookies.set("remembered_email", formData.value.email, { expires: 30 });
       } else {
-        localStorage.removeItem("remembered_email");
+        Cookies.remove("remembered_email");
       }
 
       isLoading.value = false;
@@ -343,7 +360,7 @@ const handleLogin = async () => {
             to="/register"
             class="font-semibold text-[#E25C38] hover:underline ml-1"
           >
-            Daftar sekarang
+            Ddaftar sekarang
           </router-link>
         </div>
       </div>
