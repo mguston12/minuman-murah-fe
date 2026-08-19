@@ -7,7 +7,7 @@ import { useAuthApi } from "../composables/useAuthApi";
 const cartStore = useCartStore();
 const { getMe } = useAuthApi();
 
-const shippingFee = ref(55000); // Disesuaikan dengan default ongkir dari payload
+const shippingFee = ref(55000);
 const discount = ref(0);
 
 const subtotal = computed(() => cartStore.totalPrice);
@@ -18,8 +18,6 @@ const total = computed(() => {
 
 const userData = ref(null);
 const isLoadingUser = ref(false);
-const baseURL =
-  import.meta.env.VITE_API_BASE_URL || "http://localhost:8000/api";
 
 const fetchUserProfile = async () => {
   isLoadingUser.value = true;
@@ -45,25 +43,45 @@ const fetchUserProfile = async () => {
   }
 };
 
-// Ambil config Midtrans & Muat Script secara dinamis dari API Config Backend
-const loadMidtransSnap = async () => {
-  if (document.getElementById("midtrans-script")) return;
-
-  try {
-    const res = await fetch(
-      `https://api.minumanmurah.com/payment/midtrans/config`,
-    );
-    const config = await res.json();
+const loadMidtransSnapScript = (clientKey, isProduction = false) => {
+  return new Promise((resolve, reject) => {
+    if (document.getElementById("midtrans-script")) {
+      resolve();
+      return;
+    }
 
     const script = document.createElement("script");
-    const snapDomain = config.is_production
+    script.src = isProduction
       ? "https://app.midtrans.com/snap/snap.js"
       : "https://app.sandbox.midtrans.com/snap/snap.js";
-
-    script.src = snapDomain;
     script.id = "midtrans-script";
-    script.setAttribute("data-client-key", config.client_key);
+    script.setAttribute("data-client-key", clientKey);
+    script.onload = () => resolve();
+    script.onerror = () => reject(new Error("Gagal memuat Snap JS Midtrans"));
     document.head.appendChild(script);
+  });
+};
+
+const initPaymentGatewayConfig = async () => {
+  const token = Cookies.get("auth_token");
+  const baseURL =
+    import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8000/api";
+
+  try {
+    const response = await fetch(`${baseURL}/payment/midtrans/config`, {
+      method: "GET",
+      headers: {
+        Accept: "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    if (response.ok) {
+      const config = await response.json();
+      if (config.client_key) {
+        await loadMidtransSnapScript(config.client_key, config.is_production);
+      }
+    }
   } catch (err) {
     console.error("Gagal memuat konfigurasi Midtrans:", err);
   }
@@ -71,7 +89,7 @@ const loadMidtransSnap = async () => {
 
 onMounted(() => {
   fetchUserProfile();
-  loadMidtransSnap();
+  initPaymentGatewayConfig();
 });
 
 const selectedGateway = ref("midtrans");
@@ -95,20 +113,18 @@ const paymentGateways = [
 const addresses = ref([
   {
     id: 1,
-    label_place: "Rumah",
+    label: "Rumah",
     isPrimary: true,
-    first_name: "Michael",
-    last_name: "",
-    phone: "0812121212",
-    email: "mikegusto0@gmail.com",
-    address: "Jl. Nusa",
+    name: "Michael",
+    phone: "081808710868",
+    address: "Jl. Nusa Dua Raya G1 No. 15",
     city: "DEPOK",
     city_id: 199,
     district_id: 2166,
     sub_district_id: 25983,
     province: "JAWA BARAT",
     province_id: 5,
-    postal_code: "16512",
+    postalCode: "16512",
   },
 ]);
 
@@ -128,13 +144,12 @@ const isEditing = ref(false);
 
 const addressForm = ref({
   id: null,
-  label_place: "",
-  first_name: "",
-  last_name: "",
+  label: "",
+  name: "",
   phone: "",
   address: "",
   city: "",
-  postal_code: "",
+  postalCode: "",
 });
 
 const openSelectAddressModal = () => {
@@ -151,13 +166,12 @@ const openAddModal = () => {
   isEditing.value = false;
   addressForm.value = {
     id: null,
-    label_place: "Alamat Baru",
-    first_name: userData.value?.name || "",
-    last_name: "",
+    label: "Alamat Baru",
+    name: userData.value?.name || "",
     phone: userData.value?.phone || "",
     address: "",
     city: "",
-    postal_code: "",
+    postalCode: "",
   };
   showSelectModal.value = false;
   showFormModal.value = true;
@@ -209,50 +223,27 @@ const handleCheckout = async () => {
 
   isProcessingPayment.value = true;
   const token = Cookies.get("auth_token");
+  const baseURL =
+    import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8000/api";
 
-  // Format payload sesuai kebutuhan backend /api/checkout/create
-  const payload = {
+  const createOrderPayload = {
     data: {
       billing: {
         address: selectedAddress.value.address,
         city: selectedAddress.value.city,
         city_id: selectedAddress.value.city_id || 199,
         district_id: selectedAddress.value.district_id || 2166,
-        sub_district_id: selectedAddress.value.sub_district_id || 25983,
-        email:
-          userData.value?.email ||
-          selectedAddress.value.email ||
-          "mikegusto0@gmail.com",
-        first_name:
-          selectedAddress.value.first_name || userData.value?.name || "Michael",
-        last_name: selectedAddress.value.last_name || "",
-        label_place: selectedAddress.value.label_place || "Rumah",
+        email: userData.value?.email || "mikegusto0@gmail.com",
+        first_name: selectedAddress.value.name || userData.value?.name || "Michael",
+        label_place: selectedAddress.value.label || "Rumah",
+        last_name: "",
         note_address: "",
-        phone: selectedAddress.value.phone || "081808710868",
-        postal_code: selectedAddress.value.postal_code || "16512",
+        phone: selectedAddress.value.phone !== "-" ? selectedAddress.value.phone : "081808710868",
+        postal_code: selectedAddress.value.postalCode || "16512",
         province: selectedAddress.value.province || "JAWA BARAT",
         province_id: selectedAddress.value.province_id || 5,
         same_as_shipping: true,
-      },
-      shipping: {
-        address: selectedAddress.value.address,
-        city: selectedAddress.value.city,
-        city_id: selectedAddress.value.city_id || 199,
-        district_id: selectedAddress.value.district_id || 2166,
         sub_district_id: selectedAddress.value.sub_district_id || 25983,
-        email:
-          userData.value?.email ||
-          selectedAddress.value.email ||
-          "mikegusto0@gmail.com",
-        first_name:
-          selectedAddress.value.first_name || userData.value?.name || "Michael",
-        last_name: selectedAddress.value.last_name || "",
-        label_place: selectedAddress.value.label_place || "Rumah",
-        note_address: "",
-        phone: selectedAddress.value.phone || "081808710868",
-        postal_code: selectedAddress.value.postal_code || "16512",
-        province: selectedAddress.value.province || "JAWA BARAT",
-        province_id: selectedAddress.value.province_id || 5,
       },
       courier: {
         agent: "pos",
@@ -265,56 +256,77 @@ const handleCheckout = async () => {
       invoice_note: null,
       payment_method: selectedGateway.value,
       products: cartStore.items.map((item) => ({
-        variant_id: item.variant_id || item.variantId || item.id,
-        qty: item.quantity,
         is_protected: false,
         note: null,
+        qty: item.quantity,
+        variant_id: item.variant_id || item.variantId || item.id,
       })),
+      shipping: {
+        address: selectedAddress.value.address,
+        city: selectedAddress.value.city,
+        city_id: selectedAddress.value.city_id || 199,
+        district_id: selectedAddress.value.district_id || 2166,
+        email: userData.value?.email || "mikegusto0@gmail.com",
+        first_name: selectedAddress.value.name || userData.value?.name || "Michael",
+        label_place: selectedAddress.value.label || "Rumah",
+        last_name: "",
+        note_address: "",
+        phone: selectedAddress.value.phone !== "-" ? selectedAddress.value.phone : "081808710868",
+        postal_code: selectedAddress.value.postalCode || "16512",
+        province: selectedAddress.value.province || "JAWA BARAT",
+        province_id: selectedAddress.value.province_id || 5,
+        sub_district_id: selectedAddress.value.sub_district_id || 25983,
+      },
       use_points: false,
-      voucher_discount: 0,
+      voucher_discount: discount.value,
       voucher_id: null,
     },
   };
 
   try {
-    // Step 1: Buat Order di Backend
-    const checkoutRes = await fetch(`${baseURL}/checkout/create`, {
+    const createOrderResponse = await fetch(`${baseURL}/checkout/create`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         Accept: "application/json",
         Authorization: `Bearer ${token}`,
       },
-      body: JSON.stringify(payload),
+      body: JSON.stringify(createOrderPayload),
     });
 
-    const checkoutData = await checkoutRes.json();
+    const createOrderResult = await createOrderResponse.json();
 
-    if (!checkoutRes.ok || !checkoutData.success) {
-      throw new Error(
-        checkoutData.message || "Gagal membuat transaksi checkout.",
-      );
+    if (!createOrderResponse.ok || !createOrderResult.success) {
+      throw new Error(createOrderResult.message || "Gagal membuat order.");
     }
 
-    const orderId = checkoutData.data.order.id;
+    const orderId = createOrderResult.data?.order?.id;
 
-    // Step 2: Dapatkan Snap Token dari backend /api/payment/midtrans
+    if (!orderId) {
+      throw new Error("Order ID tidak ditemukan.");
+    }
+
+    const payResponse = await fetch(`${baseURL}/orders/${orderId}/pay/${selectedGateway.value}`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        payment_method: selectedGateway.value,
+      }),
+    });
+
+    const payResult = await payResponse.json();
+
+    if (!payResponse.ok) {
+      throw new Error(payResult.message || "Gagal memproses pembayaran.");
+    }
+
     if (selectedGateway.value === "midtrans") {
-      const paymentRes = await fetch(`${baseURL}/payment/midtrans`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Accept: "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ order_id: orderId }),
-      });
-
-      const paymentData = await paymentRes.json();
-      const snapToken = paymentData.snap_token;
-
-      if (window.snap && snapToken) {
-        window.snap.pay(snapToken, {
+      if (window.snap && payResult.snap_token) {
+        window.snap.pay(payResult.snap_token, {
           onSuccess: (result) => {
             alert("Pembayaran Berhasil!");
             cartStore.items = [];
@@ -334,13 +346,13 @@ const handleCheckout = async () => {
           },
         });
       } else {
-        alert("Gagal memuat token Midtrans Snap.");
+        alert("Gagal memuat Snap Token Midtrans.");
       }
     } else if (selectedGateway.value === "xendit") {
-      if (checkoutData.data.order.payment.invoice_url) {
-        window.location.href = checkoutData.data.order.payment.invoice_url;
+      if (payResult.invoice_url) {
+        window.location.href = payResult.invoice_url;
       } else {
-        alert("Gagal mendapatkan link pembayaran Xendit.");
+        alert("Gagal mendapatkan invoice URL Xendit.");
       }
     }
   } catch (err) {
