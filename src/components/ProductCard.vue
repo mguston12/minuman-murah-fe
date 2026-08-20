@@ -16,56 +16,58 @@ const handleAddToCart = () => {
   cartStore.addToCart(props.product);
 };
 </script>
-
 <template>
   <div
-    class="bg-white rounded-2xl border border-gray-100 overflow-hidden shadow-sm hover:shadow-md transition-all group flex flex-col justify-between p-3"
+    class="bg-white rounded-2xl border border-gray-100 overflow-hidden shadow-sm hover:shadow-md transition-all group flex flex-col justify-between p-1 h-full"
   >
-    <div>
-      <!-- Product Image -->
-      <div
-        class="relative aspect-square overflow-hidden bg-gray-50 rounded-xl mb-3"
-      >
-        <img
-          :src="
-            product.image ||
-            'https://images.unsplash.com/photo-1527281400683-1aae777175f8?auto=format&fit=crop&q=80&w=400'
-          "
-          :alt="product.name"
-          class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-        />
-        <span
-          v-if="product.is_freeshiping === 'ACTIVE'"
-          class="absolute top-2 left-2 bg-emerald-600 text-white text-[9px] font-extrabold px-2 py-0.5 rounded-md"
+    <div class="flex flex-col flex-1 justify-between">
+      <div>
+        <!-- Product Image -->
+        <div
+          class="relative aspect-square overflow-hidden bg-gray-50 rounded-xl mb-3"
         >
-          Bebas Ongkir
-        </span>
+          <img
+            :src="
+              product.image ||
+              'https://images.unsplash.com/photo-1527281400683-1aae777175f8?auto=format&fit=crop&q=80&w=400'
+            "
+            :alt="product.name"
+            class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+          />
+          <span
+            v-if="product.is_freeshiping === 'ACTIVE'"
+            class="absolute top-2 left-2 bg-emerald-600 text-white text-[9px] font-extrabold px-2 py-0.5 rounded-md"
+          >
+            Bebas Ongkir
+          </span>
+        </div>
+
+        <!-- Product Info -->
+        <div>
+          <span
+            class="text-[9px] font-bold uppercase tracking-wider text-gray-400 block mb-0.5"
+          >
+            {{
+              typeof product.category === "object"
+                ? product.category?.taxonomy_name
+                : product.category || "SPIRITS"
+            }}
+          </span>
+          <h3
+            class="text-xs font-bold text-gray-900 line-clamp-2 h-8 group-hover:text-[#E25C38] transition-colors leading-snug"
+          >
+            {{ product.name }}
+          </h3>
+        </div>
       </div>
 
-      <!-- Product Info -->
-      <div>
-        <span
-          class="text-[9px] font-bold uppercase tracking-wider text-gray-400 block mb-0.5"
-        >
-          {{
-            typeof product.category === "object"
-              ? product.category?.taxonomy_name
-              : product.category || "SPIRITS"
-          }}
-        </span>
-        <h3
-          class="text-xs font-bold text-gray-900 line-clamp-2 group-hover:text-[#E25C38] transition-colors"
-        >
-          {{ product.name }}
-        </h3>
-        <p class="text-xs font-extrabold text-[#E25C38] mt-1">
-          Rp {{ product.price ? product.price.toLocaleString("id-ID") : 0 }}
-        </p>
-      </div>
+      <p class="text-xs font-extrabold text-[#E25C38] mt-2">
+        Rp {{ product.price ? product.price.toLocaleString("id-ID") : 0 }}
+      </p>
     </div>
 
     <!-- Actions -->
-    <div class="flex items-center gap-1.5 pt-3 mt-2 border-t border-gray-50">
+    <div class="flex items-center gap-1.5 pt-1 border-t border-gray-50">
       <router-link
         :to="`/product/${product.slug || product.id}`"
         class="p-2 border border-gray-200 rounded-lg text-gray-500 hover:bg-gray-50 hover:text-black transition-colors"
