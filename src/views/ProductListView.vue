@@ -1,5 +1,6 @@
 <script setup>
 import { ref, computed, onMounted, watch } from "vue";
+import { useRoute } from "vue-router";
 import ProductCard from "../components/ProductCard.vue";
 import {
   taxonomyService,
@@ -7,6 +8,8 @@ import {
   attributeService,
   productService,
 } from "../services/apiServices";
+
+const route = useRoute();
 
 const priceMin = ref(null);
 const priceMax = ref(null);
@@ -19,11 +22,9 @@ const filterSections = ref([
   { id: "harga", name: "Harga", open: true, options: [] },
 ]);
 
-// --- COMPUTED ACTIVE FILTERS ---
 const activeFiltersList = computed(() => {
   const list = [];
 
-  // Checkbox Filters (Kategori, Brand, Ukuran)
   filterSections.value.forEach((section) => {
     if (section.options && section.options.length) {
       section.options.forEach((opt) => {
@@ -39,7 +40,6 @@ const activeFiltersList = computed(() => {
     }
   });
 
-  // Range Harga
   if (priceMin.value || priceMax.value) {
     let priceLabel = "Harga: ";
     if (priceMin.value && priceMax.value) {
@@ -61,21 +61,19 @@ const activeFiltersList = computed(() => {
   return list;
 });
 
-// --- STATE PRODUCTS & PAGINATION ---
 const products = ref([]);
 const isLoadingProducts = ref(false);
 const productError = ref(null);
 
 const currentPage = ref(1);
-const perPage = ref(15);
+const perPage = ref(12);
 const pagination = ref({
   current_page: 1,
   last_page: 1,
   total: 0,
-  per_page: 15,
+  per_page: 12,
 });
 
-// --- LOADING & ERROR STATES SIDEBAR ---
 const isLoadingCategories = ref(false);
 const categoryError = ref(null);
 const isLoadingBrands = ref(false);
@@ -83,13 +81,11 @@ const brandError = ref(null);
 const isLoadingAttributes = ref(false);
 const attributeError = ref(null);
 
-// --- FETCH PRODUCTS API ---
 const fetchProducts = async (page = 1) => {
   isLoadingProducts.value = true;
   productError.value = null;
 
   try {
-    // 1. Handling Sorting Parameters
     let sortByParam = "created_at";
     let sortDir = "desc";
 
@@ -114,22 +110,20 @@ const fetchProducts = async (page = 1) => {
       .map((o) => o.id);
 
     if (selectedCategories?.length) {
-      params.category_id = selectedCategories.join(",");
-      params.categories = selectedCategories.join(",");
+      params.category_ids = selectedCategories.join(",");
     }
 
-    // 3. Filter Brand
     const selectedBrands = filterSections.value
       .find((s) => s.id === "brand")
       ?.options.filter((o) => o.checked)
-      .map((o) => o.id);
+      .map((o) => o.slug);
 
     if (selectedBrands?.length) {
-      params.brand_id = selectedBrands.join(",");
-      params.brands = selectedBrands.join(",");
+      params.brand_slugs = selectedBrands.join(",");
+    } else {
+      params.brand_slugs = "";
     }
 
-    // 4. Filter Ukuran (Attribute Value IDs)
     const selectedSizes = filterSections.value
       .find((s) => s.id === "ukuran")
       ?.options.filter((o) => o.checked)
@@ -137,10 +131,8 @@ const fetchProducts = async (page = 1) => {
 
     if (selectedSizes?.length) {
       params.attribute_value_ids = selectedSizes.join(",");
-      params.attributes = selectedSizes.join(",");
     }
 
-    // 5. Range Harga
     if (priceMin.value !== null && priceMin.value !== "") {
       params.min_price = priceMin.value;
     }
@@ -149,7 +141,6 @@ const fetchProducts = async (page = 1) => {
     }
 
     const response = await productService.getProducts(params);
-
     const resData = response?.data?.data || response?.data || response;
 
     if (resData && Array.isArray(resData.products)) {
@@ -171,7 +162,36 @@ const fetchProducts = async (page = 1) => {
   }
 };
 
-// --- FETCH CATEGORIES ---
+const syncFiltersFromUrl = () => {
+  const urlCategoryIds = route.query.category_ids
+    ? route.query.category_ids
+        .toString()
+        .split(",")
+        .map((id) => Number(id.trim()))
+    : [];
+
+  const urlBrandSlugs = route.query.brand_slugs
+    ? route.query.brand_slugs
+        .toString()
+        .split(",")
+        .map((s) => s.trim())
+    : [];
+
+  const categorySection = filterSections.value.find((s) => s.id === "kategori");
+  if (categorySection && categorySection.options.length) {
+    categorySection.options.forEach((opt) => {
+      opt.checked = urlCategoryIds.includes(opt.id);
+    });
+  }
+
+  const brandSection = filterSections.value.find((s) => s.id === "brand");
+  if (brandSection && brandSection.options.length) {
+    brandSection.options.forEach((opt) => {
+      opt.checked = urlBrandSlugs.includes(opt.slug);
+    });
+  }
+};
+
 const fetchCategoryTaxonomy = async () => {
   isLoadingCategories.value = true;
   categoryError.value = null;
@@ -179,6 +199,7 @@ const fetchCategoryTaxonomy = async () => {
     const response = await taxonomyService.getTaxoByType(2);
     const rawCategories =
       response?.data?.data?.taxo_lists || response?.data?.data || [];
+
     const categorySection = filterSections.value.find(
       (s) => s.id === "kategori",
     );
@@ -199,7 +220,6 @@ const fetchCategoryTaxonomy = async () => {
   }
 };
 
-// --- FETCH BRANDS ---
 const fetchBrands = async () => {
   isLoadingBrands.value = true;
   brandError.value = null;
@@ -225,7 +245,6 @@ const fetchBrands = async () => {
   }
 };
 
-// --- FETCH ATTRIBUTES ---
 const fetchAttributes = async () => {
   isLoadingAttributes.value = true;
   attributeError.value = null;
@@ -234,7 +253,6 @@ const fetchAttributes = async () => {
     const rawAttributes =
       response?.data?.data?.attributes || response?.data?.data || [];
 
-    // Cari atribut ukuran yang cocok
     const sizeAttr = Array.isArray(rawAttributes)
       ? rawAttributes.find(
           (attr) =>
@@ -265,19 +283,30 @@ const fetchAttributes = async () => {
   }
 };
 
-onMounted(() => {
-  fetchCategoryTaxonomy();
-  fetchBrands();
-  fetchAttributes();
+onMounted(async () => {
+  await Promise.all([
+    fetchCategoryTaxonomy(),
+    fetchBrands(),
+    fetchAttributes(),
+  ]);
+
+  syncFiltersFromUrl();
+
   fetchProducts(1);
 });
 
-// Watcher Sort
+watch(
+  () => route.query,
+  () => {
+    syncFiltersFromUrl();
+    fetchProducts(1);
+  },
+);
+
 watch(sortBy, () => {
   fetchProducts(1);
 });
 
-// Watcher Price Min & Max (Debounced)
 let priceTimeout = null;
 watch([priceMin, priceMax], () => {
   clearTimeout(priceTimeout);
@@ -286,7 +315,6 @@ watch([priceMin, priceMax], () => {
   }, 400);
 });
 
-// Watcher Checkbox Filter
 watch(
   filterSections,
   () => {
@@ -301,7 +329,6 @@ const changePage = (page) => {
   }
 };
 
-// Hapus satu active filter
 const removeActiveFilter = (item) => {
   if (item.type === "harga") {
     priceMin.value = null;
@@ -315,7 +342,6 @@ const removeActiveFilter = (item) => {
   }
 };
 
-// Hapus Semua Filter
 const clearAllFilters = () => {
   priceMin.value = null;
   priceMax.value = null;

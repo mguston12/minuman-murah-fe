@@ -6,6 +6,7 @@ import logoMM from "../assets/logo-3.png";
 import { useCartStore } from "../stores/cart";
 import { useAuth } from "../composables/useAuth";
 import CartDrawer from "./CartDrawer.vue";
+import { taxonomyService } from "../services/apiServices"; 
 
 const router = useRouter();
 const searchQuery = ref("");
@@ -14,6 +15,29 @@ const isProfileMenuOpen = ref(false);
 const profileDropdownRef = ref(null);
 
 const { isLoggedIn, user, logout, setAuthData } = useAuth();
+
+const categories = ref([]); 
+
+const fetchCategories = async () => {
+  try {
+    const response = await taxonomyService.getTaxoByType(2);
+    const rawCategories =
+      response?.data?.data?.taxo_lists || response?.data?.data || [];
+
+    const dynamicCategories = rawCategories.map((item) => ({
+      name: item.taxonomy_name,
+      href: `/products?category_ids=${item.id}`,
+      isHighlight: false,
+    }));
+
+    categories.value = [
+      { name: "Promo", href: "/products?promo=true", isHighlight: true },
+      ...dynamicCategories,
+    ];
+  } catch (err) {
+    console.error("Gagal memuat kategori navigasi:", err);
+  }
+};
 
 const handleClickOutside = (event) => {
   if (
@@ -41,6 +65,9 @@ onMounted(() => {
 
   // Listener click outside
   document.addEventListener("click", handleClickOutside);
+
+  // 3. Panggil API Kategori saat mounted
+  fetchCategories();
 });
 
 onUnmounted(() => {
@@ -68,17 +95,6 @@ const handleSearch = () => {
     });
   }
 };
-
-const categories = [
-  { name: "Promo", href: "/products?promo=true", isHighlight: true },
-  { name: "Wine", href: "/products?category=wine" },
-  { name: "Whisky", href: "/products?category=whisky" },
-  { name: "Vodka", href: "/products?category=vodka" },
-  { name: "Gin", href: "/products?category=gin" },
-  { name: "Rum", href: "/products?category=rum" },
-  { name: "Cognac", href: "/products?category=cognac" },
-  { name: "Beer", href: "/products?category=beer" },
-];
 
 const cartStore = useCartStore();
 </script>
@@ -264,7 +280,6 @@ const cartStore = useCartStore();
 </template>
 
 <style scoped>
-/* Utility CSS untuk menyembunyikan scrollbar di navigasi kategori */
 .no-scrollbar::-webkit-scrollbar {
   display: none;
 }

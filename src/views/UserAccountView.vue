@@ -1,257 +1,19 @@
-<script setup>
-import { ref, onMounted } from "vue";
-import { useRouter } from "vue-router";
-import { useCartStore } from "../stores/cart";
-// import axios from "axios"; // Buka komentar jika menggunakan axios
-
-const router = useRouter();
-const cartStore = useCartStore();
-
-// --- STATE NAVIGASI TAB ---
-const activeTab = ref("profil"); // Options: 'profil', 'pesanan', 'alamat', 'wishlist'
-
-// --- STATE LOADING & ERROR ---
-const isLoading = ref(false);
-const isSaving = ref(false);
-
-// --- STATE USER PROFILE ---
-const profile = ref({
-  fullName: "",
-  email: "",
-  phone: "",
-  birthDate: "",
-  avatar: "",
-});
-
-// --- STATE ALAMAT & MODAL ---
-const addresses = ref([]);
-const isAddressModalOpen = ref(false);
-const isEditAddress = ref(false);
-const addressForm = ref({
-  id: null,
-  label: "",
-  recipient: "",
-  phone: "",
-  fullAddress: "",
-  isPrimary: false,
-});
-
-// --- STATE PESANAN SAYA ---
-const orders = ref([]);
-
-// --- STATE WISHLIST SAYA ---
-const wishlist = ref([]);
-
-// --- FETCH DATA ON MOUNTED ---
-onMounted(async () => {
-  await fetchUserData();
-});
-
-const fetchUserData = async () => {
-  isLoading.value = true;
-  try {
-    // Jalankan API call (Sesuaikan endpoint dengan backend Laravel Anda)
-    // const [resProfile, resAddresses, resOrders, resWishlist] = await Promise.all([
-    //   axios.get('/api/user/profile'),
-    //   axios.get('/api/user/addresses'),
-    //   axios.get('/api/user/orders'),
-    //   axios.get('/api/user/wishlist')
-    // ]);
-
-    // profile.value = resProfile.data;
-    // addresses.value = resAddresses.data;
-    // orders.value = resOrders.data;
-    // wishlist.value = resWishlist.data;
-
-    // Fallback Mocking untuk testing jika API belum dipasang
-    profile.value = {
-      fullName: "Budi Santoso",
-      email: "budi@email.com",
-      phone: "0812-3456-7890",
-      birthDate: "1995-08-12",
-      avatar:
-        "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=200",
-    };
-
-    addresses.value = [
-      {
-        id: 1,
-        label: "Rumah",
-        isPrimary: true,
-        recipient: "Budi Santoso",
-        phone: "0812-3456-7890",
-        fullAddress:
-          "Jl. Melati No. 12, Kebayoran Baru, Jakarta Selatan, DKI Jakarta 12150",
-      },
-      {
-        id: 2,
-        label: "Kantor",
-        isPrimary: false,
-        recipient: "Budi Santoso",
-        phone: "0812-3456-7890",
-        fullAddress:
-          "Jl. Sudirman Kav. 45, Setiabudi, Jakarta Selatan, DKI Jakarta 12930",
-      },
-    ];
-
-    orders.value = [
-      {
-        id: "INV/20260715/MP/0019283",
-        date: "15 Juli 2026",
-        status: "Selesai",
-        statusColor: "bg-green-100 text-green-700",
-        totalPrice: 1090000,
-        items: [
-          {
-            id: 1,
-            title: "Glenfiddich 12 Years 700ml",
-            category: "WHISKY",
-            quantity: 1,
-            price: 725000,
-            image:
-              "https://images.unsplash.com/photo-1514362545857-3bc16c4c7d1b?auto=format&fit=crop&q=80&w=200",
-          },
-          {
-            id: 2,
-            title: "Jägermeister 700ml",
-            category: "LIQUEUR",
-            quantity: 1,
-            price: 365000,
-            image:
-              "https://images.unsplash.com/photo-1527281400683-1aae777175f8?auto=format&fit=crop&q=80&w=200",
-          },
-        ],
-      },
-    ];
-
-    wishlist.value = [
-      {
-        id: 101,
-        title: "Hennessy XO 700ml",
-        category: "COGNAC",
-        price: 3145000,
-        badge: null,
-        image:
-          "https://images.unsplash.com/photo-1569529465841-dfecdab7503b?auto=format&fit=crop&q=80&w=400",
-      },
-      {
-        id: 102,
-        title: "Patrón Silver 750ml",
-        category: "TEQUILA",
-        price: 1250000,
-        badge: "Hemat 10%",
-        image:
-          "https://images.unsplash.com/photo-1514362545857-3bc16c4c7d1b?auto=format&fit=crop&q=80&w=400",
-      },
-    ];
-  } catch (error) {
-    console.error("Gagal mengambil data user:", error);
-  } finally {
-    isLoading.value = false;
-  }
-};
-
-// --- HANDLERS PROFIL ---
-const handleSaveProfile = async () => {
-  isSaving.value = true;
-  try {
-    // await axios.put('/api/user/profile', profile.value);
-    alert("Profil berhasil diperbarui!");
-  } catch (error) {
-    alert("Gagal memperbarui profil.");
-  } finally {
-    isSaving.value = false;
-  }
-};
-
-// --- HANDLERS ALAMAT ---
-const openAddAddressModal = () => {
-  isEditAddress.value = false;
-  addressForm.value = {
-    id: null,
-    label: "",
-    recipient: profile.value.fullName,
-    phone: profile.value.phone,
-    fullAddress: "",
-    isPrimary: false,
-  };
-  isAddressModalOpen.value = true;
-};
-
-const openEditAddressModal = (addr) => {
-  isEditAddress.value = true;
-  addressForm.value = { ...addr };
-  isAddressModalOpen.value = true;
-};
-
-const handleSaveAddress = async () => {
-  try {
-    if (isEditAddress.value) {
-      // await axios.put(`/api/user/addresses/${addressForm.value.id}`, addressForm.value);
-      const index = addresses.value.findIndex(
-        (a) => a.id === addressForm.value.id,
-      );
-      if (index !== -1) addresses.value[index] = { ...addressForm.value };
-    } else {
-      // const res = await axios.post('/api/user/addresses', addressForm.value);
-      addresses.value.push({ ...addressForm.value, id: Date.now() });
-    }
-    isAddressModalOpen.value = false;
-  } catch (error) {
-    alert("Gagal menyimpan alamat.");
-  }
-};
-
-const handleDeleteAddress = async (id) => {
-  if (confirm("Apakah Anda yakin ingin menghapus alamat ini?")) {
-    try {
-      // await axios.delete(`/api/user/addresses/${id}`);
-      addresses.value = addresses.value.filter((a) => a.id !== id);
-    } catch (error) {
-      alert("Gagal menghapus alamat.");
-    }
-  }
-};
-
-// --- HANDLERS PESANAN ---
-const handleReorder = (orderItems) => {
-  orderItems.forEach((item) => {
-    cartStore.addToCart(item);
-  });
-  alert("Semua produk dari pesanan ini telah ditambahkan ke keranjang!");
-};
-
-// --- HANDLERS WISHLIST ---
-const handleAddToCart = (item) => {
-  cartStore.addToCart(item);
-  alert(`${item.title} berhasil ditambahkan ke keranjang!`);
-};
-
-const handleRemoveWishlist = async (id) => {
-  try {
-    // await axios.delete(`/api/user/wishlist/${id}`);
-    wishlist.value = wishlist.value.filter((item) => item.id !== id);
-  } catch (error) {
-    alert("Gagal menghapus wishlist.");
-  }
-};
-
-// --- LOGOUT HANDLER ---
-const handleLogout = () => {
-  if (confirm("Apakah Anda yakin ingin keluar?")) {
-    localStorage.removeItem("token");
-    // authStore.logout();
-    alert("Berhasil keluar.");
-    router.push("/login");
-  }
-};
-</script>
-
 <template>
   <div
     class="min-h-screen bg-[#FAF6F0] py-8 px-4 sm:px-6 lg:px-8 font-sans text-gray-900"
   >
-    <div class="max-w-6xl mx-auto flex flex-col md:flex-row gap-6 items-start">
+    <!-- LOADING STATE CONTAINER -->
+    <div v-if="isLoading" class="max-w-6xl mx-auto py-20 text-center">
+      <p class="text-sm font-bold text-gray-500 animate-pulse">
+        Memuat data pengguna...
+      </p>
+    </div>
+
+    <!-- MAIN CONTENT CONTAINER -->
+    <div
+      v-else
+      class="max-w-6xl mx-auto flex flex-col md:flex-row gap-6 items-start"
+    >
       <!-- ==================== SIDEBAR USER ACCOUNT ==================== -->
       <aside
         class="w-full md:w-64 bg-white rounded-2xl p-5 shadow-sm border border-gray-100 shrink-0"
@@ -365,9 +127,9 @@ const handleLogout = () => {
           <form @submit.prevent="handleSaveProfile" class="space-y-4">
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label class="block text-[11px] font-bold text-gray-400 mb-1"
-                  >Nama Lengkap</label
-                >
+                <label class="block text-[11px] font-bold text-gray-400 mb-1">
+                  Nama Lengkap
+                </label>
                 <input
                   type="text"
                   v-model="profile.fullName"
@@ -377,9 +139,9 @@ const handleLogout = () => {
               </div>
 
               <div>
-                <label class="block text-[11px] font-bold text-gray-400 mb-1"
-                  >Email</label
-                >
+                <label class="block text-[11px] font-bold text-gray-400 mb-1">
+                  Email
+                </label>
                 <input
                   type="email"
                   v-model="profile.email"
@@ -389,9 +151,9 @@ const handleLogout = () => {
               </div>
 
               <div>
-                <label class="block text-[11px] font-bold text-gray-400 mb-1"
-                  >No. Handphone</label
-                >
+                <label class="block text-[11px] font-bold text-gray-400 mb-1">
+                  No. Handphone
+                </label>
                 <input
                   type="text"
                   v-model="profile.phone"
@@ -400,9 +162,9 @@ const handleLogout = () => {
               </div>
 
               <div>
-                <label class="block text-[11px] font-bold text-gray-400 mb-1"
-                  >Tanggal Lahir</label
-                >
+                <label class="block text-[11px] font-bold text-gray-400 mb-1">
+                  Tanggal Lahir
+                </label>
                 <input
                   type="date"
                   v-model="profile.birthDate"
@@ -425,107 +187,131 @@ const handleLogout = () => {
 
         <!-- TAB 2: PESANAN SAYA -->
         <div v-if="activeTab === 'pesanan'" class="space-y-4">
-          <div
-            v-for="order in orders"
-            :key="order.id"
-            class="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 flex flex-col justify-between"
-          >
-            <div class="flex items-center justify-between">
-              <h3 class="text-xs font-extrabold text-gray-900">
-                Pesanan {{ order.id }}
-              </h3>
-              <span
-                :class="[
-                  'text-[10px] font-bold px-2.5 py-0.5 rounded-full',
-                  order.statusColor || 'bg-gray-100 text-gray-700',
-                ]"
-              >
-                {{ order.status }}
-              </span>
-            </div>
-
-            <p class="text-[11px] text-gray-400 font-medium mt-1">
-              Dipesan {{ order.date }}
-            </p>
-
-            <div class="mt-3 space-y-3">
-              <div
-                v-for="item in order.items"
-                :key="item.id"
-                class="flex items-center gap-3"
-              >
-                <img
-                  :src="item.image"
-                  :alt="item.title"
-                  class="w-10 h-10 object-cover rounded-lg border border-gray-100 shrink-0"
-                />
-                <span class="text-xs font-bold text-gray-800">
-                  {{ item.title }} (x{{ item.quantity }})
+          <template v-if="orders.length > 0">
+            <div
+              v-for="order in orders"
+              :key="order.id"
+              class="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 flex flex-col justify-between"
+            >
+              <div class="flex items-center justify-between">
+                <h3 class="text-xs font-extrabold text-gray-900">
+                  Pesanan {{ order.id }}
+                </h3>
+                <span
+                  :class="[
+                    'text-[10px] font-bold px-2.5 py-0.5 rounded-full',
+                    order.statusColor || 'bg-gray-100 text-gray-700',
+                  ]"
+                >
+                  {{ order.status }}
                 </span>
               </div>
-            </div>
 
-            <div
-              class="pt-4 mt-4 border-t border-gray-100 flex items-center justify-between"
-            >
-              <p class="text-xs text-gray-900">
-                <span class="font-bold"
-                  >Total: Rp
-                  {{ order.totalPrice.toLocaleString("id-ID") }}</span
-                >
+              <p class="text-[11px] text-gray-400 font-medium mt-1">
+                Dipesan {{ order.date }}
               </p>
 
-              <button
-                @click="handleReorder(order.items)"
-                class="px-5 py-2 bg-[#14120E] hover:bg-black text-[#D4B26F] text-xs font-bold rounded-xl shadow-sm transition-colors"
+              <div class="mt-3 space-y-3">
+                <div
+                  v-for="item in order.items"
+                  :key="item.id"
+                  class="flex items-center gap-3"
+                >
+                  <img
+                    :src="item.image"
+                    :alt="item.title"
+                    class="w-10 h-10 object-cover rounded-lg border border-gray-100 shrink-0"
+                  />
+                  <span class="text-xs font-bold text-gray-800">
+                    {{ item.title }} (x{{ item.quantity }})
+                  </span>
+                </div>
+              </div>
+
+              <div
+                class="pt-4 mt-4 border-t border-gray-100 flex items-center justify-between"
               >
-                Beli Lagi
-              </button>
+                <p class="text-xs text-gray-900">
+                  <span class="font-bold">
+                    Total: Rp {{ order.totalPrice.toLocaleString("id-ID") }}
+                  </span>
+                </p>
+
+                <button
+                  @click="handleReorder(order.items)"
+                  class="px-5 py-2 bg-[#14120E] hover:bg-black text-[#D4B26F] text-xs font-bold rounded-xl shadow-sm transition-colors"
+                >
+                  Beli Lagi
+                </button>
+              </div>
             </div>
+          </template>
+
+          <div
+            v-else
+            class="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 text-center py-12"
+          >
+            <p class="text-xs text-gray-500 font-medium">
+              Belum ada riwayat pesanan.
+            </p>
           </div>
         </div>
 
         <!-- TAB 3: ALAMAT SAYA -->
         <div v-if="activeTab === 'alamat'" class="space-y-4">
+          <template v-if="addresses.length > 0">
+            <div
+              v-for="addr in addresses"
+              :key="addr.id"
+              class="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 space-y-2"
+            >
+              <div class="flex items-center gap-2">
+                <span class="text-xs font-bold text-gray-900">
+                  {{ addr.label_place || "Alamat" }}
+                </span>
+                <span
+                  v-if="addr.is_primary"
+                  class="bg-[#FFF1EB] text-[#E25C38] text-[10px] font-bold px-2 py-0.5 rounded"
+                >
+                  Utama
+                </span>
+              </div>
+
+              <p class="text-xs text-gray-700 font-medium">
+                <span class="font-bold"
+                  >{{ addr.first_name }} {{ addr.last_name }}</span
+                >
+                &middot;
+                {{ addr.phone }}
+              </p>
+              <p class="text-xs text-gray-500 leading-relaxed">
+                {{ addr.fullAddress }}
+              </p>
+
+              <div class="flex items-center gap-3 pt-2">
+                <button
+                  @click="openEditAddressModal(addr)"
+                  class="text-xs font-bold text-[#E25C38] hover:underline"
+                >
+                  Ubah
+                </button>
+                <button
+                  @click="handleDeleteAddress(addr.id)"
+                  class="text-xs font-bold text-red-500 hover:underline"
+                >
+                  Hapus
+                </button>
+              </div>
+            </div>
+          </template>
+
           <div
-            v-for="addr in addresses"
-            :key="addr.id"
-            class="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 space-y-2"
+            v-else
+            class="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 text-center py-12"
           >
-            <div class="flex items-center gap-2">
-              <span class="text-xs font-bold text-gray-900">{{
-                addr.label
-              }}</span>
-              <span
-                v-if="addr.isPrimary"
-                class="bg-[#FFF1EB] text-[#E25C38] text-[10px] font-bold px-2 py-0.5 rounded"
-              >
-                Utama
-              </span>
-            </div>
-
-            <p class="text-xs text-gray-700 font-medium">
-              <span class="font-bold">{{ addr.recipient }}</span> &middot;
-              {{ addr.phone }}
+            <p class="text-xs text-gray-500 font-medium">
+              Belum ada alamat tersimpan.
             </p>
-            <p class="text-xs text-gray-500 leading-relaxed">
-              {{ addr.fullAddress }}
-            </p>
-
-            <div class="flex items-center gap-3 pt-2">
-              <button
-                @click="openEditAddressModal(addr)"
-                class="text-xs font-bold text-[#E25C38] hover:underline"
-              >
-                Ubah
-              </button>
-              <button
-                @click="handleDeleteAddress(addr.id)"
-                class="text-xs font-bold text-red-500 hover:underline"
-              >
-                Hapus
-              </button>
-            </div>
           </div>
         </div>
 
@@ -640,82 +426,134 @@ const handleLogout = () => {
       v-if="isAddressModalOpen"
       class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
     >
-      <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl space-y-4">
+      <div
+        class="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl space-y-4 max-h-[90vh] overflow-y-auto"
+      >
         <h3 class="text-sm font-bold text-gray-900">
           {{ isEditAddress ? "Ubah Alamat" : "Tambah Alamat Baru" }}
         </h3>
 
         <form @submit.prevent="handleSaveAddress" class="space-y-3">
           <div>
-            <label class="block text-[11px] font-bold text-gray-400 mb-1"
-              >Label Alamat (misal: Rumah, Kantor)</label
-            >
+            <label class="block text-[11px] font-bold text-gray-400 mb-1">
+              Label Alamat (misal: Rumah, Kantor)
+            </label>
             <input
               type="text"
-              v-model="addressForm.label"
+              v-model="addressForm.label_place"
               required
-              class="w-full bg-[#F4F4F4] text-xs font-medium rounded-xl px-4 py-2.5 focus:outline-none"
+              class="w-full bg-[#F4F4F4] text-xs font-medium rounded-xl px-4 py-2.5 focus:outline-none focus:ring-1 focus:ring-gray-300"
             />
           </div>
 
-          <div>
-            <label class="block text-[11px] font-bold text-gray-400 mb-1"
-              >Nama Penerima</label
-            >
-            <input
-              type="text"
-              v-model="addressForm.recipient"
-              required
-              class="w-full bg-[#F4F4F4] text-xs font-medium rounded-xl px-4 py-2.5 focus:outline-none"
-            />
+          <div class="grid grid-cols-2 gap-2">
+            <div>
+              <label class="block text-[11px] font-bold text-gray-400 mb-1">
+                Nama Depan
+              </label>
+              <input
+                type="text"
+                v-model="addressForm.first_name"
+                required
+                class="w-full bg-[#F4F4F4] text-xs font-medium rounded-xl px-4 py-2.5 focus:outline-none focus:ring-1 focus:ring-gray-300"
+              />
+            </div>
+            <div>
+              <label class="block text-[11px] font-bold text-gray-400 mb-1">
+                Nama Belakang
+              </label>
+              <input
+                type="text"
+                v-model="addressForm.last_name"
+                class="w-full bg-[#F4F4F4] text-xs font-medium rounded-xl px-4 py-2.5 focus:outline-none focus:ring-1 focus:ring-gray-300"
+              />
+            </div>
           </div>
 
           <div>
-            <label class="block text-[11px] font-bold text-gray-400 mb-1"
-              >No. Handphone</label
-            >
+            <label class="block text-[11px] font-bold text-gray-400 mb-1">
+              No. Handphone
+            </label>
             <input
               type="text"
               v-model="addressForm.phone"
               required
-              class="w-full bg-[#F4F4F4] text-xs font-medium rounded-xl px-4 py-2.5 focus:outline-none"
+              class="w-full bg-[#F4F4F4] text-xs font-medium rounded-xl px-4 py-2.5 focus:outline-none focus:ring-1 focus:ring-gray-300"
             />
           </div>
 
           <div>
-            <label class="block text-[11px] font-bold text-gray-400 mb-1"
-              >Alamat Lengkap</label
-            >
+            <label class="block text-[11px] font-bold text-gray-400 mb-1">
+              Alamat Lengkap (Jalan, No. Rumah)
+            </label>
             <textarea
-              v-model="addressForm.fullAddress"
-              rows="3"
+              v-model="addressForm.address"
+              rows="2"
               required
-              class="w-full bg-[#F4F4F4] text-xs font-medium rounded-xl px-4 py-2.5 focus:outline-none"
+              class="w-full bg-[#F4F4F4] text-xs font-medium rounded-xl px-4 py-2.5 focus:outline-none focus:ring-1 focus:ring-gray-300"
             ></textarea>
+          </div>
+
+          <div class="grid grid-cols-2 gap-2">
+            <div>
+              <label class="block text-[11px] font-bold text-gray-400 mb-1"
+                >Kota</label
+              >
+              <input
+                type="text"
+                v-model="addressForm.city"
+                required
+                class="w-full bg-[#F4F4F4] text-xs font-medium rounded-xl px-4 py-2.5 focus:outline-none focus:ring-1 focus:ring-gray-300"
+              />
+            </div>
+            <div>
+              <label class="block text-[11px] font-bold text-gray-400 mb-1"
+                >Provinsi</label
+              >
+              <input
+                type="text"
+                v-model="addressForm.province"
+                required
+                class="w-full bg-[#F4F4F4] text-xs font-medium rounded-xl px-4 py-2.5 focus:outline-none focus:ring-1 focus:ring-gray-300"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label class="block text-[11px] font-bold text-gray-400 mb-1"
+              >Kode Pos</label
+            >
+            <input
+              type="text"
+              v-model="addressForm.postal_code"
+              required
+              class="w-full bg-[#F4F4F4] text-xs font-medium rounded-xl px-4 py-2.5 focus:outline-none focus:ring-1 focus:ring-gray-300"
+            />
           </div>
 
           <div class="flex items-center gap-2 pt-1">
             <input
               type="checkbox"
-              id="isPrimary"
-              v-model="addressForm.isPrimary"
+              id="is_primary"
+              v-model="addressForm.is_primary"
+              class="rounded text-[#E25C38] focus:ring-[#E25C38]"
             />
-            <label for="isPrimary" class="text-xs text-gray-600 font-medium"
-              >Jadikan Alamat Utama</label
-            >
+            <label for="is_primary" class="text-xs text-gray-600 font-medium">
+              Jadikan Alamat Utama
+            </label>
           </div>
 
           <div class="flex justify-end gap-2 pt-3">
             <button
               type="button"
               @click="isAddressModalOpen = false"
-              class="px-4 py-2 rounded-xl text-xs font-bold text-gray-500 hover:bg-gray-100"
+              class="px-4 py-2 rounded-xl text-xs font-bold text-gray-500 hover:bg-gray-100 transition-colors"
             >
               Batal
             </button>
             <button
               type="submit"
-              class="px-5 py-2 bg-[#14120E] text-[#D4B26F] text-xs font-bold rounded-xl hover:bg-black"
+              class="px-5 py-2 bg-[#14120E] text-[#D4B26F] text-xs font-bold rounded-xl hover:bg-black transition-colors"
             >
               Simpan
             </button>
@@ -725,3 +563,271 @@ const handleLogout = () => {
     </div>
   </div>
 </template>
+
+<script setup>
+import { ref, reactive, onMounted } from "vue";
+import { useRouter } from "vue-router";
+import {
+  authService,
+  addressService,
+  orderService,
+  wishlistService,
+} from "../services/apiServices";
+
+const router = useRouter();
+
+// State UI
+const activeTab = ref("profil");
+const isLoading = ref(true);
+const isSaving = ref(false);
+
+// State Profil
+const profile = reactive({
+  fullName: "",
+  email: "",
+  phone: "",
+  birthDate: "",
+  avatar: "",
+});
+
+const orders = ref([]);
+const wishlist = ref([]);
+const addresses = ref([]);
+
+// State Modal Alamat
+const isAddressModalOpen = ref(false);
+const isEditAddress = ref(false);
+const editingAddressId = ref(null);
+
+const addressForm = reactive({
+  label_place: "",
+  first_name: "",
+  last_name: "",
+  phone: "",
+  address: "",
+  city: "",
+  province: "",
+  postal_code: "",
+  is_primary: false,
+});
+
+// Fetch Data User saat pertama di-load
+const fetchUserData = async () => {
+  isLoading.value = true;
+
+  // 1. Fetch Profile User
+  try {
+    const resProfile = await authService.getMe();
+    const user = resProfile.data?.data?.user || resProfile.data?.user || {};
+
+    profile.fullName = user.name
+      ? `${user.name} ${user.last_name || ""}`.trim()
+      : "";
+    profile.email = user.email || "";
+    profile.phone = user.phone || "";
+    profile.birthDate = user.dob || "";
+    profile.avatar = user.avatar || "";
+  } catch (error) {
+    console.error("Gagal mengambil data profil:", error);
+    if (error.response?.status === 401) {
+      router.push("/login");
+      return;
+    }
+  }
+
+  // 2. Fetch Shipping Addresses
+  try {
+    const resAddresses = await addressService.getAddresses();
+    const rawAddresses = resAddresses.data?.data || [];
+    addresses.value = rawAddresses.map((addr) => ({
+      ...addr,
+      fullAddress: [
+        addr.address,
+        addr.city_label || addr.city,
+        addr.province_label || addr.province,
+        addr.postal_code,
+      ]
+        .filter(Boolean)
+        .join(", "),
+    }));
+  } catch (error) {
+    console.error("Gagal mengambil data alamat:", error);
+  }
+
+  // 3. Fetch Orders
+  try {
+    const resOrders = await orderService.getOrders();
+    const rawOrders =
+      resOrders.data?.data?.orders || resOrders.data?.data || [];
+    orders.value = rawOrders.map((order) => ({
+      id: order.order_number || `#${order.id}`,
+      status: order.status,
+      statusColor: getOrderStatusColor(order.status),
+      date: order.created_at
+        ? new Date(order.created_at).toLocaleDateString("id-ID", {
+            day: "numeric",
+            month: "short",
+            year: "numeric",
+          })
+        : "",
+      totalPrice: order.total_amount || order.grand_total || 0,
+      items: (order.order_items || order.items || []).map((item) => ({
+        id: item.id,
+        title: item.product_name || item.title,
+        quantity: item.qty || item.quantity,
+        image: item.product_image || item.image,
+      })),
+    }));
+  } catch (error) {
+    console.error("Gagal mengambil data pesanan:", error);
+  }
+
+  // 4. Fetch Wishlist (Disertai penanganan error agar tidak menghambat tab lain)
+  try {
+    const resWishlist = await wishlistService.getWishlist();
+    const rawWishlist = resWishlist.data?.data || [];
+    wishlist.value = rawWishlist.map((item) => ({
+      id: item.id || item.product_id,
+      title: item.name || item.title,
+      category: item.category?.name || item.category || "PRODUK",
+      price: item.price || 0,
+      image: item.image || item.cover_url,
+      badge: item.badge || null,
+    }));
+  } catch (error) {
+    console.warn("Wishlist endpoint error atau belum tersedia:", error);
+    wishlist.value = [];
+  } finally {
+    isLoading.value = false;
+  }
+};
+
+onMounted(() => {
+  fetchUserData();
+});
+
+// Helper Status Color
+const getOrderStatusColor = (status) => {
+  switch (status) {
+    case "PAID":
+    case "COMPLETED":
+      return "bg-green-100 text-green-800";
+    case "PACKING":
+    case "SHIPPED":
+      return "bg-blue-100 text-blue-800";
+    case "PENDING":
+      return "bg-yellow-100 text-yellow-800";
+    case "CANCELLED":
+    case "FAILED":
+      return "bg-red-100 text-red-800";
+    default:
+      return "bg-gray-100 text-gray-800";
+  }
+};
+
+// Actions & Handlers
+const handleSaveProfile = async () => {
+  isSaving.value = true;
+  try {
+    // Jalankan service update profile Anda di sini
+    alert("Profil berhasil diperbarui!");
+  } catch (error) {
+    console.error("Gagal menyimpan profil:", error);
+  } finally {
+    isSaving.value = false;
+  }
+};
+
+const openAddAddressModal = () => {
+  isEditAddress.value = false;
+  editingAddressId.value = null;
+  Object.assign(addressForm, {
+    label_place: "",
+    first_name: "",
+    last_name: "",
+    phone: "",
+    address: "",
+    city: "",
+    province: "",
+    postal_code: "",
+    is_primary: false,
+  });
+  isAddressModalOpen.value = true;
+};
+
+const openEditAddressModal = (addr) => {
+  isEditAddress.value = true;
+  editingAddressId.value = addr.id;
+  Object.assign(addressForm, {
+    label_place: addr.label_place || "",
+    first_name: addr.first_name || "",
+    last_name: addr.last_name || "",
+    phone: addr.phone || "",
+    address: addr.address || "",
+    city: addr.city || "",
+    province: addr.province || "",
+    postal_code: addr.postal_code || "",
+    is_primary: Boolean(addr.is_primary),
+  });
+  isAddressModalOpen.value = true;
+};
+
+const handleSaveAddress = async () => {
+  try {
+    const payload = {
+      label_place: addressForm.label_place,
+      first_name: addressForm.first_name,
+      last_name: addressForm.last_name || "",
+      phone: addressForm.phone,
+      address: addressForm.address,
+      city: addressForm.city,
+      province: addressForm.province,
+      postal_code: addressForm.postal_code,
+      is_primary: addressForm.is_primary ? 1 : 0,
+    };
+
+    if (isEditAddress.value) {
+      await addressService.updateAddress(editingAddressId.value, payload);
+    } else {
+      await addressService.createAddress(payload);
+    }
+
+    isAddressModalOpen.value = false;
+    await fetchUserData();
+  } catch (error) {
+    console.error("Gagal menyimpan alamat:", error.response?.data || error);
+    alert(error.response?.data?.message || "Gagal menyimpan alamat");
+  }
+};
+
+const handleDeleteAddress = async (id) => {
+  if (!confirm("Apakah Anda yakin ingin menghapus alamat ini?")) return;
+  try {
+    await addressService.deleteAddress(id);
+    await fetchUserData();
+  } catch (error) {
+    console.error("Gagal menghapus alamat:", error);
+  }
+};
+
+const handleRemoveWishlist = async (id) => {
+  try {
+    await wishlistService.removeFromWishlist(id);
+    wishlist.value = wishlist.value.filter((item) => item.id !== id);
+  } catch (error) {
+    console.error("Gagal menghapus dari wishlist:", error);
+  }
+};
+
+const handleLogout = async () => {
+  try {
+    await authService.logout();
+  } catch (error) {
+    console.error("Logout error:", error);
+  } finally {
+    router.push("/login");
+  }
+};
+</script>
+
+<style scoped></style>

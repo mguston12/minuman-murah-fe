@@ -19,22 +19,20 @@ const total = computed(() => {
 const userData = ref(null);
 const isLoadingUser = ref(false);
 
+const addresses = ref([]);
+const isLoadingAddresses = ref(false);
+const activeAddressId = ref(null);
+const tempSelectedAddressId = ref(null);
+
+const baseURL =
+  import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8000/api";
+
 const fetchUserProfile = async () => {
   isLoadingUser.value = true;
   try {
     const { data, error } = await getMe();
-
     if (!error && data) {
       userData.value = data.user || data;
-
-      if (addresses.value.length > 0 && userData.value) {
-        addresses.value[0].name =
-          userData.value.name ||
-          userData.value.username ||
-          addresses.value[0].name;
-        addresses.value[0].phone =
-          userData.value.phone || addresses.value[0].phone;
-      }
     }
   } catch (err) {
     console.error("Gagal mengambil data user:", err);
@@ -42,6 +40,49 @@ const fetchUserProfile = async () => {
     isLoadingUser.value = false;
   }
 };
+
+const fetchAddresses = async () => {
+  isLoadingAddresses.value = true;
+  const token = Cookies.get("auth_token");
+
+  try {
+    const response = await fetch(`${baseURL}/shipping-addresses`, {
+      method: "GET",
+      headers: {
+        Accept: "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    const result = await response.json();
+
+    if (response.ok && (result.success || result.data)) {
+      const list = Array.isArray(result.data)
+        ? result.data
+        : result.data?.data || [];
+      addresses.value = list;
+
+      if (list.length > 0) {
+        const primary = list.find((a) => a.is_primary || a.isPrimary);
+        const defaultId = primary ? primary.id : list[0].id;
+        activeAddressId.value = defaultId;
+        tempSelectedAddressId.value = defaultId;
+      }
+    }
+  } catch (err) {
+    console.error("Gagal mengambil daftar alamat:", err);
+  } finally {
+    isLoadingAddresses.value = false;
+  }
+};
+
+const selectedAddress = computed(() => {
+  return (
+    addresses.value.find((a) => a.id === activeAddressId.value) ||
+    addresses.value[0] ||
+    null
+  );
+});
 
 const loadMidtransSnapScript = (clientKey, isProduction = false) => {
   return new Promise((resolve, reject) => {
@@ -64,8 +105,6 @@ const loadMidtransSnapScript = (clientKey, isProduction = false) => {
 
 const initPaymentGatewayConfig = async () => {
   const token = Cookies.get("auth_token");
-  const baseURL =
-    import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8000/api";
 
   try {
     const response = await fetch(`${baseURL}/payment/midtrans/config`, {
@@ -89,6 +128,7 @@ const initPaymentGatewayConfig = async () => {
 
 onMounted(() => {
   fetchUserProfile();
+  fetchAddresses();
   initPaymentGatewayConfig();
 });
 
@@ -110,46 +150,25 @@ const paymentGateways = [
   },
 ];
 
-const addresses = ref([
-  {
-    id: 1,
-    label: "Rumah",
-    isPrimary: true,
-    name: "Michael",
-    phone: "0812121212",
-    address: "Jl. Melati 123 No.7 ",
-    city: "Jakarta",
-    city_id: 199,
-    district_id: 2166,
-    sub_district_id: 25983,
-    province: "Jakarta BARAT",
-    province_id: 5,
-    postalCode: "11111",
-  },
-]);
-
-const activeAddressId = ref(1);
-const tempSelectedAddressId = ref(1);
-
-const selectedAddress = computed(() => {
-  return (
-    addresses.value.find((a) => a.id === activeAddressId.value) ||
-    addresses.value[0]
-  );
-});
-
 const showSelectModal = ref(false);
 const showFormModal = ref(false);
 const isEditing = ref(false);
+const isSavingAddress = ref(false);
 
 const addressForm = ref({
   id: null,
-  label: "",
-  name: "",
+  label_place: "Rumah",
+  first_name: "",
+  last_name: "",
   phone: "",
   address: "",
+  province: "",
+  province_id: 5,
   city: "",
-  postalCode: "",
+  city_id: 199,
+  district_id: 2166,
+  sub_district_id: 25983,
+  postal_code: "",
 });
 
 const openSelectAddressModal = () => {
@@ -166,12 +185,18 @@ const openAddModal = () => {
   isEditing.value = false;
   addressForm.value = {
     id: null,
-    label: "Alamat Baru",
-    name: userData.value?.name || "",
+    label_place: "Rumah",
+    first_name: userData.value?.name || userData.value?.username || "",
+    last_name: "",
     phone: userData.value?.phone || "",
     address: "",
-    city: "",
-    postalCode: "",
+    province: "JAWA BARAT",
+    province_id: 5,
+    city: "Depok",
+    city_id: 199,
+    district_id: 2166,
+    sub_district_id: 25983,
+    postal_code: "",
   };
   showSelectModal.value = false;
   showFormModal.value = true;
@@ -179,71 +204,125 @@ const openAddModal = () => {
 
 const openEditModal = (addr) => {
   isEditing.value = true;
-  addressForm.value = { ...addr };
+  addressForm.value = {
+    id: addr.id,
+    label_place: addr.label_place || addr.label || "Rumah",
+    first_name: addr.first_name || addr.name || "",
+    last_name: addr.last_name || "",
+    phone: addr.phone || "",
+    address: addr.address || "",
+    province: addr.province || "JAWA BARAT",
+    province_id: addr.province_id || 5,
+    city: addr.city || "",
+    city_id: addr.city_id || 199,
+    district_id: addr.district_id || 2166,
+    sub_district_id: addr.sub_district_id || 25983,
+    postal_code: addr.postal_code || addr.postalCode || "",
+  };
   showSelectModal.value = false;
   showFormModal.value = true;
 };
 
-const saveAddress = () => {
-  if (isEditing.value) {
-    const idx = addresses.value.findIndex((a) => a.id === addressForm.value.id);
-    if (idx !== -1) {
-      addresses.value[idx] = { ...addressForm.value };
+const saveAddress = async () => {
+  isSavingAddress.value = true;
+  const token = Cookies.get("auth_token");
+  const endpoint = isEditing.value
+    ? `${baseURL}/shipping-address/${addressForm.value.id}`
+    : `${baseURL}/shipping-address`;
+  const method = isEditing.value ? "PUT" : "POST";
+
+  try {
+    const response = await fetch(endpoint, {
+      method: method,
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(addressForm.value),
+    });
+
+    const result = await response.json();
+
+    if (!response.ok) {
+      throw new Error(result.message || "Gagal menyimpan alamat.");
     }
-  } else {
-    const newId = Date.now();
-    const newAddress = {
-      ...addressForm.value,
-      id: newId,
-      isPrimary: addresses.value.length === 0,
-    };
-    addresses.value.push(newAddress);
-    tempSelectedAddressId.value = newId;
+
+    await fetchAddresses();
+    if (result.data?.id) {
+      activeAddressId.value = result.data.id;
+    }
+
+    showFormModal.value = false;
+    showSelectModal.value = true;
+  } catch (err) {
+    alert(err.message || "Terjadi kesalahan saat menyimpan alamat.");
+  } finally {
+    isSavingAddress.value = false;
   }
-  showFormModal.value = false;
-  showSelectModal.value = true;
 };
 
-const deleteAddress = (id) => {
+const deleteAddress = async (id) => {
   if (addresses.value.length <= 1) {
     alert("Minimal harus ada 1 alamat pengiriman.");
     return;
   }
-  addresses.value = addresses.value.filter((a) => a.id !== id);
-  if (tempSelectedAddressId.value === id) {
-    tempSelectedAddressId.value = addresses.value[0].id;
-  }
-  if (activeAddressId.value === id) {
-    activeAddressId.value = addresses.value[0].id;
+
+  if (!confirm("Apakah Anda yakin ingin menghapus alamat ini?")) return;
+
+  const token = Cookies.get("auth_token");
+
+  try {
+    const response = await fetch(`${baseURL}/shipping-address/${id}`, {
+      method: "DELETE",
+      headers: {
+        Accept: "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    if (response.ok) {
+      await fetchAddresses();
+    } else {
+      const result = await response.json();
+      alert(result.message || "Gagal menghapus alamat.");
+    }
+  } catch (err) {
+    console.error("Gagal menghapus alamat:", err);
   }
 };
 
 const handleCheckout = async () => {
   if (cartStore.items.length === 0) return;
+  if (!selectedAddress.value) {
+    alert("Silakan tambahkan atau pilih alamat pengiriman terlebih dahulu.");
+    return;
+  }
 
   isProcessingPayment.value = true;
   const token = Cookies.get("auth_token");
-  const baseURL =
-    import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8000/api";
+
+  const addr = selectedAddress.value;
 
   const createOrderPayload = {
     data: {
       billing: {
-        address: selectedAddress.value.address,
-        city: selectedAddress.value.city,
-        city_id: selectedAddress.value.city_id || 199,
-        district_id: selectedAddress.value.district_id || 2166,
+        address: addr.address,
+        city: addr.city,
+        city_id: addr.city_id || 199,
+        district_id: addr.district_id || 2166,
         email: userData.value?.email || "mikegusto0@gmail.com",
-        first_name: selectedAddress.value.name || userData.value?.name || "Michael",
-        label_place: selectedAddress.value.label || "Rumah",
-        last_name: "",
-        note_address: "",
-        phone: selectedAddress.value.phone !== "-" ? selectedAddress.value.phone : "081808710868",
-        postal_code: selectedAddress.value.postalCode || "16512",
-        province: selectedAddress.value.province || "JAWA BARAT",
-        province_id: selectedAddress.value.province_id || 5,
+        first_name:
+          addr.first_name || addr.name || userData.value?.name || "Michael",
+        label_place: addr.label_place || addr.label || "Rumah",
+        last_name: addr.last_name || "",
+        note_address: addr.note_address || "",
+        phone: addr.phone || userData.value?.phone || "081808710868",
+        postal_code: addr.postal_code || addr.postalCode || "16512",
+        province: addr.province || "JAWA BARAT",
+        province_id: addr.province_id || 5,
         same_as_shipping: true,
-        sub_district_id: selectedAddress.value.sub_district_id || 25983,
+        sub_district_id: addr.sub_district_id || 25983,
       },
       courier: {
         agent: "pos",
@@ -262,20 +341,21 @@ const handleCheckout = async () => {
         variant_id: item.variant_id || item.variantId || item.id,
       })),
       shipping: {
-        address: selectedAddress.value.address,
-        city: selectedAddress.value.city,
-        city_id: selectedAddress.value.city_id || 199,
-        district_id: selectedAddress.value.district_id || 2166,
+        address: addr.address,
+        city: addr.city,
+        city_id: addr.city_id || 199,
+        district_id: addr.district_id || 2166,
         email: userData.value?.email || "mikegusto0@gmail.com",
-        first_name: selectedAddress.value.name || userData.value?.name || "Michael",
-        label_place: selectedAddress.value.label || "Rumah",
-        last_name: "",
-        note_address: "",
-        phone: selectedAddress.value.phone !== "-" ? selectedAddress.value.phone : "081808710868",
-        postal_code: selectedAddress.value.postalCode || "16512",
-        province: selectedAddress.value.province || "JAWA BARAT",
-        province_id: selectedAddress.value.province_id || 5,
-        sub_district_id: selectedAddress.value.sub_district_id || 25983,
+        first_name:
+          addr.first_name || addr.name || userData.value?.name || "Michael",
+        label_place: addr.label_place || addr.label || "Rumah",
+        last_name: addr.last_name || "",
+        note_address: addr.note_address || "",
+        phone: addr.phone || userData.value?.phone || "081808710868",
+        postal_code: addr.postal_code || addr.postalCode || "16512",
+        province: addr.province || "JAWA BARAT",
+        province_id: addr.province_id || 5,
+        sub_district_id: addr.sub_district_id || 25983,
       },
       use_points: false,
       voucher_discount: discount.value,
@@ -306,17 +386,20 @@ const handleCheckout = async () => {
       throw new Error("Order ID tidak ditemukan.");
     }
 
-    const payResponse = await fetch(`${baseURL}/orders/${orderId}/pay/${selectedGateway.value}`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Accept: "application/json",
-        Authorization: `Bearer ${token}`,
+    const payResponse = await fetch(
+      `${baseURL}/orders/${orderId}/pay/${selectedGateway.value}`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          payment_method: selectedGateway.value,
+        }),
       },
-      body: JSON.stringify({
-        payment_method: selectedGateway.value,
-      }),
-    });
+    );
 
     const payResult = await payResponse.json();
 
@@ -440,10 +523,10 @@ const handleCheckout = async () => {
             </div>
 
             <div
-              v-if="isLoadingUser"
+              v-if="isLoadingAddresses || isLoadingUser"
               class="text-xs text-gray-400 animate-pulse"
             >
-              Memuat data pengguna...
+              Memuat data alamat pengiriman...
             </div>
 
             <div
@@ -451,14 +534,26 @@ const handleCheckout = async () => {
               class="text-xs text-gray-600 space-y-1"
             >
               <p class="font-bold text-gray-800">
-                {{ selectedAddress.name }}
+                {{ selectedAddress.first_name || selectedAddress.name }}
                 <span class="font-normal text-gray-400"
                   >· {{ selectedAddress.phone }}</span
                 >
               </p>
               <p class="text-gray-500 leading-relaxed">
-                {{ selectedAddress.address }}
+                {{ selectedAddress.address }}, {{ selectedAddress.city }},
+                {{ selectedAddress.province }}
+                {{ selectedAddress.postal_code || selectedAddress.postalCode }}
               </p>
+            </div>
+
+            <div v-else class="text-xs text-gray-400 space-y-2 py-2">
+              <p>Belum ada alamat pengiriman yang tersimpan.</p>
+              <button
+                @click="openAddModal"
+                class="text-xs font-bold text-[#E25C38] hover:underline cursor-pointer"
+              >
+                + Tambah Alamat
+              </button>
             </div>
           </div>
 
@@ -539,7 +634,11 @@ const handleCheckout = async () => {
 
             <button
               @click="handleCheckout"
-              :disabled="cartStore.items.length === 0 || isProcessingPayment"
+              :disabled="
+                cartStore.items.length === 0 ||
+                isProcessingPayment ||
+                !selectedAddress
+              "
               class="w-full py-3 bg-[#14120E] hover:bg-black disabled:bg-gray-200 disabled:text-gray-400 text-[#D4B26F] font-bold text-xs rounded-xl transition-all shadow-sm cursor-pointer disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
               <span v-if="isProcessingPayment" class="animate-spin text-sm"
@@ -560,6 +659,7 @@ const handleCheckout = async () => {
       </div>
     </div>
 
+    <!-- Modal Pilih Alamat -->
     <div
       v-if="showSelectModal"
       class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs"
@@ -596,8 +696,10 @@ const handleCheckout = async () => {
                 ></div>
               </div>
               <span class="text-xs font-bold text-gray-900">
-                {{ addr.label }}
-                <span v-if="addr.isPrimary" class="text-gray-400 font-normal"
+                {{ addr.label_place || addr.label || "Alamat" }}
+                <span
+                  v-if="addr.is_primary || addr.isPrimary"
+                  class="text-gray-400 font-normal"
                   >· Utama</span
                 >
               </span>
@@ -605,9 +707,11 @@ const handleCheckout = async () => {
 
             <div class="pl-5 text-xs text-gray-500 space-y-1">
               <p class="font-semibold text-gray-800">
-                {{ addr.name }} · {{ addr.phone }}
+                {{ addr.first_name || addr.name }} · {{ addr.phone }}
               </p>
-              <p class="text-[11px] leading-relaxed">{{ addr.address }}</p>
+              <p class="text-[11px] leading-relaxed">
+                {{ addr.address }}, {{ addr.city }}
+              </p>
 
               <div class="flex gap-3 pt-1">
                 <button
@@ -644,6 +748,7 @@ const handleCheckout = async () => {
       </div>
     </div>
 
+    <!-- Modal Form Tambah / Ubah Alamat -->
     <div
       v-if="showFormModal"
       class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs"
@@ -656,13 +761,26 @@ const handleCheckout = async () => {
         <form @submit.prevent="saveAddress" class="space-y-3 text-xs">
           <div>
             <label class="block text-gray-500 font-medium mb-1"
+              >Label Alamat</label
+            >
+            <input
+              v-model="addressForm.label_place"
+              type="text"
+              required
+              placeholder="Rumah / Kantor / Apartemen"
+              class="w-full px-3 py-2.5 rounded-xl bg-gray-50 border border-gray-200 focus:outline-none focus:border-[#E25C38]"
+            />
+          </div>
+
+          <div>
+            <label class="block text-gray-500 font-medium mb-1"
               >Nama Penerima</label
             >
             <input
-              v-model="addressForm.name"
+              v-model="addressForm.first_name"
               type="text"
               required
-              placeholder="Budi Santoso"
+              placeholder="Nama Lengkap / Depan"
               class="w-full px-3 py-2.5 rounded-xl bg-gray-50 border border-gray-200 focus:outline-none focus:border-[#E25C38]"
             />
           </div>
@@ -675,7 +793,7 @@ const handleCheckout = async () => {
               v-model="addressForm.phone"
               type="text"
               required
-              placeholder="0812-3456-7890"
+              placeholder="08123456789"
               class="w-full px-3 py-2.5 rounded-xl bg-gray-50 border border-gray-200 focus:outline-none focus:border-[#E25C38]"
             />
           </div>
@@ -688,7 +806,7 @@ const handleCheckout = async () => {
               v-model="addressForm.address"
               rows="3"
               required
-              placeholder="Jl. Melati No. 12, RT 04 / RW 06, Kebayoran Baru"
+              placeholder="Jl. Melati No. 12, RT 04 / RW 06"
               class="w-full px-3 py-2.5 rounded-xl bg-gray-50 border border-gray-200 focus:outline-none focus:border-[#E25C38] resize-none"
             ></textarea>
           </div>
@@ -702,7 +820,7 @@ const handleCheckout = async () => {
                 v-model="addressForm.city"
                 type="text"
                 required
-                placeholder="Jakarta Selatan"
+                placeholder="Kota Jakarta Barat"
                 class="w-full px-3 py-2.5 rounded-xl bg-gray-50 border border-gray-200 focus:outline-none focus:border-[#E25C38]"
               />
             </div>
@@ -711,10 +829,10 @@ const handleCheckout = async () => {
                 >Kode Pos</label
               >
               <input
-                v-model="addressForm.postalCode"
+                v-model="addressForm.postal_code"
                 type="text"
                 required
-                placeholder="12150"
+                placeholder="11111"
                 class="w-full px-3 py-2.5 rounded-xl bg-gray-50 border border-gray-200 focus:outline-none focus:border-[#E25C38]"
               />
             </div>
@@ -733,9 +851,10 @@ const handleCheckout = async () => {
             </button>
             <button
               type="submit"
-              class="flex-1 py-2.5 bg-[#14120E] hover:bg-black text-[#D4B26F] font-bold rounded-xl transition-colors cursor-pointer"
+              :disabled="isSavingAddress"
+              class="flex-1 py-2.5 bg-[#14120E] hover:bg-black text-[#D4B26F] font-bold rounded-xl transition-colors cursor-pointer disabled:bg-gray-400"
             >
-              Simpan Alamat
+              {{ isSavingAddress ? "Menyimpan..." : "Simpan Alamat" }}
             </button>
           </div>
         </form>
