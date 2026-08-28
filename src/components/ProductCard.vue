@@ -28,18 +28,18 @@ const handleAddToCart = () => {
         >
           <img
             :src="
-              product.image ||
+              product.featured_image ||
               'https://images.unsplash.com/photo-1527281400683-1aae777175f8?auto=format&fit=crop&q=80&w=400'
             "
             :alt="product.name"
             class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
           />
-          <span
+          <!-- <span
             v-if="product.is_freeshiping === 'ACTIVE'"
             class="absolute top-2 left-2 bg-emerald-600 text-white text-[9px] font-extrabold px-2 py-0.5 rounded-md"
           >
             Bebas Ongkir
-          </span>
+          </span> -->
         </div>
 
         <!-- Product Info -->
