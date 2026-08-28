@@ -28,7 +28,7 @@ const handleAddToCart = () => {
         >
           <img
             :src="
-              product.featured_image ||
+              product.featured_image.path ||
               'https://images.unsplash.com/photo-1527281400683-1aae777175f8?auto=format&fit=crop&q=80&w=400'
             "
             :alt="product.name"
