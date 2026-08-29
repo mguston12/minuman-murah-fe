@@ -2,7 +2,7 @@
 import { ref, computed, onMounted, onBeforeUnmount } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import axios from "axios";
-import Cookies from "js-cookie"; // 1. Import js-cookie
+import Cookies from "js-cookie";
 import { useAuth } from "../composables/useAuth";
 import { authService } from "../services/apiServices";
 
@@ -40,7 +40,7 @@ onMounted(() => {
 
   if (route.query.registered === "true") {
     successMessage.value =
-      "Pendaftaran berhasil! Silakan login dengan akun Anda.";
+      "Pendaftaran berhasil! Silakan periksa email Anda untuk verifikasi sebelum login.";
     setTimeout(() => {
       if (isMounted) successMessage.value = "";
     }, 5000);
@@ -81,8 +81,17 @@ const handleLogin = async () => {
     const user =
       response.data.auth_user || response.data.user || response.data.data?.user;
 
+    // --- VALIDASI EMAIL VERIFICATION ---
+    // Cek jika objek user ada dan email_verified_at bernilai null/falsy
+    if (user && !user.email_verified_at) {
+      error.value =
+        "Email Anda belum diverifikasi. Silakan periksa kotak masuk email Anda terlebih dahulu.";
+      isLoading.value = false;
+      return;
+    }
+
     if (token) {
-      // 2. Simpan token & user ke Cookie (Expired 7 hari atau disesuaikan)
+      // Simpan token & user ke Cookie (Expired 7 hari)
       Cookies.set("auth_token", token, {
         expires: 7,
         secure: true,
@@ -96,10 +105,10 @@ const handleLogin = async () => {
         });
       }
 
-      // Update state global/composable kamu
+      // Update state global
       setAuthData(token, user);
 
-      // 3. Simpan email jika checkbox 'Ingat Saya' dicentang
+      // Simpan email jika 'Ingat Saya' dicentang
       if (formData.value.rememberMe) {
         Cookies.set("remembered_email", formData.value.email, { expires: 30 });
       } else {
@@ -116,6 +125,7 @@ const handleLogin = async () => {
     }
   } catch (err) {
     if (isMounted) {
+      // Tangkap juga jika backend mengembalikan error status 403 / message khusus verifikasi
       error.value =
         err.response?.data?.message ||
         err?.message ||
@@ -360,7 +370,7 @@ const handleLogin = async () => {
             to="/register"
             class="font-semibold text-[#E25C38] hover:underline ml-1"
           >
-            Ddaftar sekarang
+            Daftar sekarang
           </router-link>
         </div>
       </div>
