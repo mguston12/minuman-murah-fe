@@ -35,7 +35,7 @@ export const useCartStore = defineStore("cart", () => {
         id: product.id,
         title: product.title || product.name,
         price: product.price,
-        image: product.featured_image?.path || product.image,
+        image: product.featured_image.path || product.image,
         category: product.category || "",
         quantity: quantity,
       });
