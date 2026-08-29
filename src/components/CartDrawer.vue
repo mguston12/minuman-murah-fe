@@ -104,8 +104,12 @@ const goToLogin = () => {
               class="flex gap-3 pt-3 first:pt-0"
             >
               <img
-                :src="item.featured_image.path"
-                :alt="item.title"
+                :src="
+                  item.featured_image?.path ||
+                  item.image ||
+                  'https://images.unsplash.com/photo-1527281400683-1aae777175f8?auto=format&fit=crop&q=80&w=400'
+                "
+                :alt="item.name || item.title"
                 class="w-16 h-16 object-cover rounded-xl bg-gray-50 flex-shrink-0"
               />
 
