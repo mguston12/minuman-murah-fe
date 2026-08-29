@@ -15,10 +15,22 @@ const cartStore = useCartStore();
 const handleAddToCart = () => {
   cartStore.addToCart(props.product);
 };
+
+// Helper function untuk format rupiah
+const formatRupiah = (number) => {
+  if (!number) return "Rp 0";
+  return new Intl.NumberFormat("id-ID", {
+    style: "currency",
+    currency: "IDR",
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(number);
+};
 </script>
+
 <template>
   <div
-    class="bg-white rounded-2xl border border-gray-100 overflow-hidden shadow-sm hover:shadow-md transition-all group flex flex-col justify-between p-1 h-full"
+    class="bg-white rounded-2xl border border-gray-100 overflow-hidden shadow-sm hover:shadow-md transition-all group flex flex-col justify-between p-2 h-full"
   >
     <div class="flex flex-col flex-1 justify-between">
       <div>
@@ -28,24 +40,19 @@ const handleAddToCart = () => {
         >
           <img
             :src="
-              product.featured_image.path ||
+              product.featured_image?.path ||
               'https://images.unsplash.com/photo-1527281400683-1aae777175f8?auto=format&fit=crop&q=80&w=400'
             "
             :alt="product.name"
             class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
           />
-          <!-- <span
-            v-if="product.is_freeshiping === 'ACTIVE'"
-            class="absolute top-2 left-2 bg-emerald-600 text-white text-[9px] font-extrabold px-2 py-0.5 rounded-md"
-          >
-            Bebas Ongkir
-          </span> -->
         </div>
 
         <!-- Product Info -->
         <div>
+          <!-- Category -->
           <span
-            class="text-[9px] font-bold uppercase tracking-wider text-gray-400 block mb-0.5"
+            class="text-xs font-bold uppercase tracking-wider text-gray-400 block mb-1"
           >
             {{
               typeof product.category === "object"
@@ -53,28 +60,29 @@ const handleAddToCart = () => {
                 : product.category || "SPIRITS"
             }}
           </span>
+          <!-- Title -->
           <h3
-            class="text-xs font-bold text-gray-900 line-clamp-2 h-8 group-hover:text-[#E25C38] transition-colors leading-snug"
+            class="text-sm sm:text-base font text-gray-900 line-clamp-2 min-h-[2.5rem] group-hover:text-[#E25C38] transition-colors leading-snug"
           >
             {{ product.name }}
           </h3>
         </div>
       </div>
 
-      <p class="text-xs font-extrabold text-[#E25C38] mt-2">
-        Rp {{ product.price ? product.price.toLocaleString("id-ID") : 0 }}
+      <p class="text-base sm:text-lg font-extrabold text-[#E25C38] mt-3 mb-1">
+        {{ formatRupiah(product.price) }}
       </p>
     </div>
 
     <!-- Actions -->
-    <div class="flex items-center gap-1.5 pt-1 border-t border-gray-50">
+    <div class="flex items-center gap-2 pt-2 border-t border-gray-50">
       <router-link
         :to="`/product/${product.slug || product.id}`"
-        class="p-2 border border-gray-200 rounded-lg text-gray-500 hover:bg-gray-50 hover:text-black transition-colors"
+        class="p-2.5 border border-gray-200 rounded-lg text-gray-500 hover:bg-gray-50 hover:text-black transition-colors"
         title="Lihat Detail"
       >
         <svg
-          class="w-3.5 h-3.5"
+          class="w-4 h-4"
           fill="none"
           viewBox="0 0 24 24"
           stroke="currentColor"
@@ -90,7 +98,7 @@ const handleAddToCart = () => {
 
       <button
         @click="handleAddToCart"
-        class="p-1.5 rounded-lg bg-[#1C1A17] text-white hover:bg-black transition-colors flex items-center justify-center flex-1"
+        class="p-2.5 rounded-lg bg-[#1C1A17] text-white hover:bg-black transition-colors flex items-center justify-center flex-1 gap-2 text-xs font-semibold"
         title="Tambah ke Keranjang"
       >
         <svg

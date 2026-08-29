@@ -457,7 +457,7 @@ const handleQuickView = (product) => {
       <!-- 2. Kategori Pilihan Slide Carousel -->
       <section class="space-y-4">
         <div class="flex items-center justify-between">
-          <h2 class="text-base font-bold text-gray-900">Kategori Pilihan</h2>
+          <h2 class="text-xl sm:text-2xl font-bold text-gray-900">Kategori Pilihan</h2>
           <div class="flex items-center gap-3">
             <router-link
               to="/products"
@@ -516,7 +516,7 @@ const handleQuickView = (product) => {
       <!-- 3. Top Brands Slide Carousel -->
       <section class="space-y-4">
         <div class="flex items-center justify-between">
-          <h2 class="text-base font-bold text-gray-900">Top Brands</h2>
+          <h2 class="text-xl sm:text-2xl font-bold text-gray-900">Top Brands</h2>
           <div class="flex items-center gap-3">
             <router-link
               to="/products"
@@ -631,7 +631,7 @@ const handleQuickView = (product) => {
       <!-- 5. Produk Terlaris Slide Carousel -->
       <section class="space-y-4">
         <div class="flex items-center justify-between">
-          <h2 class="text-base font-bold text-gray-900">Produk Terlaris</h2>
+          <h2 class="text-xl sm:text-2xl font-bold text-gray-900">Produk Terlaris</h2>
           <div class="flex items-center gap-3">
             <router-link
               to="/products"
@@ -705,7 +705,7 @@ const handleQuickView = (product) => {
       <!-- 6. Harga Murah Slide Carousel -->
       <section class="space-y-4">
         <div class="flex items-center justify-between">
-          <h2 class="text-base font-bold text-gray-900">Harga Murah</h2>
+          <h2 class="text-xl sm:text-2xl font-bold text-gray-900">Harga Murah</h2>
           <div class="flex items-center gap-3">
             <router-link
               to="/products"
