@@ -104,7 +104,7 @@ const goToLogin = () => {
               class="flex gap-3 pt-3 first:pt-0"
             >
               <img
-                :src="item.image"
+                :src="item.featured_image.path"
                 :alt="item.title"
                 class="w-16 h-16 object-cover rounded-xl bg-gray-50 flex-shrink-0"
               />
