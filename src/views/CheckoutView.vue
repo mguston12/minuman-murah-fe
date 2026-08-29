@@ -142,12 +142,6 @@ const paymentGateways = [
     description:
       "Pop-up pembayaran instan (GoPay, ShopeePay, VA, Kartu Kredit)",
   },
-  {
-    id: "xendit",
-    name: "Xendit Gateway",
-    description:
-      "Redirect ke invoice resmi Xendit (E-Wallet, QRIS, Virtual Account)",
-  },
 ];
 
 const showSelectModal = ref(false);
