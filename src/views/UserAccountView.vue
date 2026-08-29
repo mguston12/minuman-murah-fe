@@ -675,7 +675,7 @@ const fetchUserData = async () => {
         id: item.id,
         title: item.product_name || item.title,
         quantity: item.qty || item.quantity,
-        image: item.product_image || item.image,
+        image: item.featured_image.path || item.image,
       })),
     }));
   } catch (error) {
