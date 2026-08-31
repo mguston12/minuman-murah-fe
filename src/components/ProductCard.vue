@@ -46,6 +46,37 @@ const formatRupiah = (number) => {
             :alt="product.name"
             class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
           />
+
+          <!-- Container Badge / Flag -->
+          <div class="absolute top-2 left-2 flex flex-col gap-1 items-start">
+            <!-- Badge Low Stock (< 3) -->
+            <span
+              v-if="product.total_stock > 0 && product.total_stock <= 3"
+              class="bg-amber-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-md shadow-sm uppercase tracking-wider"
+            >
+              Low Stock
+            </span>
+
+            <!-- Badge Out of Stock (0) -->
+            <span
+              v-else-if="product.total_stock <= 0"
+              class="bg-gray-800 text-white text-[10px] font-bold px-2 py-0.5 rounded-md shadow-sm uppercase tracking-wider"
+            >
+              Out of Stock
+            </span>
+
+            <!-- Badge Diskon -->
+            <span
+              v-if="product.discount_percent || product.base_discount_percent"
+              class="bg-red-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-md shadow-sm"
+            >
+              -{{
+                Math.round(
+                  product.discount_percent || product.base_discount_percent,
+                )
+              }}%
+            </span>
+          </div>
         </div>
 
         <!-- Product Info -->
@@ -57,7 +88,9 @@ const formatRupiah = (number) => {
             {{
               typeof product.category === "object"
                 ? product.category?.taxonomy_name
-                : product.category || "SPIRITS"
+                : product.categories && product.categories.length > 0
+                  ? product.categories[0].category_name
+                  : product.category || "SPIRITS"
             }}
           </span>
           <!-- Title -->
@@ -69,9 +102,26 @@ const formatRupiah = (number) => {
         </div>
       </div>
 
-      <p class="text-base sm:text-lg font-extrabold text-[#E25C38] mt-3 mb-1">
-        {{ formatRupiah(product.price) }}
-      </p>
+      <!-- Price Section -->
+      <div class="mt-3 mb-1">
+        <!-- Harga Coret (Strike Price) -->
+        <span
+          v-if="
+            product.base_strike_price &&
+            Number(product.base_strike_price) > Number(product.price)
+          "
+          class="text-xs sm:text-sm text-gray-400 line-through block leading-tight"
+        >
+          {{ formatRupiah(product.base_strike_price) }}
+        </span>
+
+        <!-- Harga Final (Discount Price) -->
+        <p
+          class="text-base sm:text-lg font-extrabold text-[#E25C38] leading-tight"
+        >
+          {{ formatRupiah(product.price) }}
+        </p>
+      </div>
     </div>
 
     <!-- Actions -->
@@ -98,7 +148,8 @@ const formatRupiah = (number) => {
 
       <button
         @click="handleAddToCart"
-        class="p-2.5 rounded-lg bg-[#1C1A17] text-white hover:bg-black transition-colors flex items-center justify-center flex-1 gap-2 text-xs font-semibold"
+        :disabled="product.total_stock <= 0"
+        class="p-2.5 rounded-lg bg-[#1C1A17] text-white hover:bg-black disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors flex items-center justify-center flex-1 gap-2 text-xs font-semibold"
         title="Tambah ke Keranjang"
       >
         <svg

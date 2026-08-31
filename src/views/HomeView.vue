@@ -57,26 +57,26 @@ const heroSlides = [
     bgClass: "bg-[#FAF3E0]",
     image: "https://images.unsplash.com/photo-1514362545857-3bc16c4c7d1b?w=800",
   },
-  {
-    id: 2,
-    title: "Koleksi Wine Premium Impor",
-    description:
-      "Nikmati kelezatan wine terbaik dari kebun anggur ternama dunia dengan penawaran spesial.",
-    buttonText: "Lihat Koleksi Wine",
-    buttonLink: "/products?category=wine",
-    bgClass: "bg-[#F3E8EE]",
-    image: "https://images.unsplash.com/photo-1510812431401-41d2bd2722f3?w=800",
-  },
-  {
-    id: 3,
-    title: "Pesta Lebih Meriah Bersama Whisky Pilihan",
-    description:
-      "Dapatkan promo cashback hingga 100rb untuk setiap pembelian produk sprit pilihan.",
-    buttonText: "Jelajahi Sekarang",
-    buttonLink: "/products?category=whisky",
-    bgClass: "bg-[#EFECE6]",
-    image: "https://images.unsplash.com/photo-1527281400683-1aae777175f8?w=800",
-  },
+  // {
+  //   id: 2,
+  //   title: "Koleksi Wine Premium Impor",
+  //   description:
+  //     "Nikmati kelezatan wine terbaik dari kebun anggur ternama dunia dengan penawaran spesial.",
+  //   buttonText: "Lihat Koleksi Wine",
+  //   buttonLink: "/products?category=wine",
+  //   bgClass: "bg-[#F3E8EE]",
+  //   image: "https://images.unsplash.com/photo-1510812431401-41d2bd2722f3?w=800",
+  // },
+  // {
+  //   id: 3,
+  //   title: "Pesta Lebih Meriah Bersama Whisky Pilihan",
+  //   description:
+  //     "Dapatkan promo cashback hingga 100rb untuk setiap pembelian produk sprit pilihan.",
+  //   buttonText: "Jelajahi Sekarang",
+  //   buttonLink: "/products?category=whisky",
+  //   bgClass: "bg-[#EFECE6]",
+  //   image: "https://images.unsplash.com/photo-1527281400683-1aae777175f8?w=800",
+  // },
 ];
 
 const currentHeroIndex = ref(0);
@@ -113,20 +113,20 @@ const promoSlides = [
     bgClass: "bg-[#D4AF37]",
     textColor: "text-black",
   },
-  {
-    id: 2,
-    title: "Free Ongkir Seluruh Indonesia",
-    subtitle: "Tanpa minimum transaksi khusus pembelian hari ini!",
-    bgClass: "bg-[#E25C38]",
-    textColor: "text-white",
-  },
-  {
-    id: 3,
-    title: "Cashback Hingga 50% Weekend Special",
-    subtitle: "Gunakan voucher WEEKENDPARTY setiap hari Sabtu & Minggu.",
-    bgClass: "bg-[#1C1A17]",
-    textColor: "text-yellow-300",
-  },
+  // {
+  //   id: 2,
+  //   title: "Free Ongkir Seluruh Indonesia",
+  //   subtitle: "Tanpa minimum transaksi khusus pembelian hari ini!",
+  //   bgClass: "bg-[#E25C38]",
+  //   textColor: "text-white",
+  // },
+  // {
+  //   id: 3,
+  //   title: "Cashback Hingga 50% Weekend Special",
+  //   subtitle: "Gunakan voucher WEEKENDPARTY setiap hari Sabtu & Minggu.",
+  //   bgClass: "bg-[#1C1A17]",
+  //   textColor: "text-yellow-300",
+  // },
 ];
 
 const currentPromoIndex = ref(0);
@@ -162,7 +162,7 @@ const categories = [
   },
   {
     name: "Champagne",
-    image: "https://images.unsplash.com/photo-1594488669393-270ed116c21e?w=300",
+    image: "https://images.unsplash.com/photo-1513558161293-cdaf765ed2fd?w=300",
   },
   {
     name: "Whisky",
@@ -300,19 +300,25 @@ const handleQuickView = (product) => {
 <template>
   <div>
     <!-- POP-UP VERIFIKASI USIA 21+ -->
-    <div v-if="showAgeModal"
-      class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md px-4">
+    <div
+      v-if="showAgeModal"
+      class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md px-4"
+    >
       <div
-        class="bg-white rounded-3xl max-w-md w-full p-6 sm:p-8 text-center shadow-2xl space-y-6 relative overflow-hidden">
+        class="bg-white rounded-3xl max-w-md w-full p-6 sm:p-8 text-center shadow-2xl space-y-6 relative overflow-hidden"
+      >
         <!-- Badge Icon 21+ -->
         <div
-          class="mx-auto w-16 h-16 rounded-full bg-[#E25C38]/10 text-[#E25C38] flex items-center justify-center text-2xl font-black border-2 border-[#E25C38]">
+          class="mx-auto w-16 h-16 rounded-full bg-[#E25C38]/10 text-[#E25C38] flex items-center justify-center text-2xl font-black border-2 border-[#E25C38]"
+        >
           21+
         </div>
 
         <template v-if="!isUnderAge">
           <div class="space-y-2">
-            <h3 class="text-xl sm:text-2xl font-extrabold text-gray-900 leading-snug">
+            <h3
+              class="text-xl sm:text-2xl font-extrabold text-gray-900 leading-snug"
+            >
               Konfirmasi Usia Pengunjung
             </h3>
             <p class="text-xs sm:text-sm text-gray-600 leading-relaxed">
@@ -322,12 +328,16 @@ const handleQuickView = (product) => {
           </div>
 
           <div class="space-y-3 pt-2">
-            <button @click="handleConfirmAge"
-              class="w-full bg-[#1C1A17] hover:bg-black text-yellow-300 font-bold py-3 px-6 rounded-xl text-sm transition-all duration-200 shadow-md active:scale-[0.98]">
+            <button
+              @click="handleConfirmAge"
+              class="w-full bg-[#1C1A17] hover:bg-black text-yellow-300 font-bold py-3 px-6 rounded-xl text-sm transition-all duration-200 shadow-md active:scale-[0.98]"
+            >
               Saya Berusia 21+ (Masuk)
             </button>
-            <button @click="handleRejectAge"
-              class="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold py-3 px-6 rounded-xl text-sm transition-all duration-200">
+            <button
+              @click="handleRejectAge"
+              class="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold py-3 px-6 rounded-xl text-sm transition-all duration-200"
+            >
               Belum 21 Tahun
             </button>
           </div>
@@ -342,7 +352,10 @@ const handleQuickView = (product) => {
               dengan peraturan hukum yang berlaku.
             </p>
           </div>
-          <button @click="isUnderAge = false" class="text-xs text-gray-400 hover:text-gray-600 underline pt-2">
+          <button
+            @click="isUnderAge = false"
+            class="text-xs text-gray-400 hover:text-gray-600 underline pt-2"
+          >
             Kembali ke pilihan
           </button>
         </template>
@@ -350,92 +363,150 @@ const handleQuickView = (product) => {
     </div>
 
     <!-- MAIN CONTENT WEBSITE -->
-    <main class="bg-[#FBF7F1] max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-10">
+    <main
+      class="bg-[#FBF7F1] max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-10"
+    >
       <!-- 1. Hero Section Slide Carousel -->
-      <section class="relative rounded-2xl overflow-hidden shadow-sm group w-full" @mouseenter="stopHeroAutoSlide"
-        @mouseleave="startHeroAutoSlide">
-        <div class="flex w-full transition-transform duration-500 ease-in-out"
-          :style="{ transform: `translateX(-${currentHeroIndex * 100}%)` }">
-          <div v-for="slide in heroSlides" :key="slide.id" class="w-full flex-shrink-0">
-            <div :class="[
-              slide.bgClass,
-              'w-full p-6 md:p-10 flex flex-col md:flex-row items-center justify-between gap-6 min-h-[320px]',
-            ]">
+      <section
+        class="relative rounded-2xl overflow-hidden shadow-sm group w-full"
+        @mouseenter="stopHeroAutoSlide"
+        @mouseleave="startHeroAutoSlide"
+      >
+        <div
+          class="flex w-full transition-transform duration-500 ease-in-out"
+          :style="{ transform: `translateX(-${currentHeroIndex * 100}%)` }"
+        >
+          <div
+            v-for="slide in heroSlides"
+            :key="slide.id"
+            class="w-full flex-shrink-0"
+          >
+            <div
+              :class="[
+                slide.bgClass,
+                'w-full p-6 md:p-10 flex flex-col md:flex-row items-center justify-between gap-6 min-h-[320px]',
+              ]"
+            >
               <div class="max-w-md space-y-4 text-center md:text-left">
-                <h1 class="text-3xl md:text-4xl font-extrabold text-gray-900 leading-tight">
+                <h1
+                  class="text-3xl md:text-4xl font-extrabold text-gray-900 leading-tight"
+                >
                   {{ slide.title }}
                 </h1>
                 <p class="text-xs md:text-sm text-gray-600 leading-relaxed">
                   {{ slide.description }}
                 </p>
-                <router-link :to="slide.buttonLink"
-                  class="bg-[#1C1A17] hover:bg-black text-yellow-300 px-6 py-2.5 rounded-lg text-xs font-semibold transition-colors inline-block">
+                <router-link
+                  :to="slide.buttonLink"
+                  class="bg-[#1C1A17] hover:bg-black text-yellow-300 px-6 py-2.5 rounded-lg text-xs font-semibold transition-colors inline-block"
+                >
                   {{ slide.buttonText }}
                 </router-link>
               </div>
 
-              <div class="w-full md:w-1/2 aspect-video rounded-xl overflow-hidden shadow-sm">
-                <img :src="slide.image" :alt="slide.title" class="w-full h-full object-cover" />
+              <div
+                class="w-full md:w-1/2 aspect-video rounded-xl overflow-hidden shadow-sm"
+              >
+                <img
+                  :src="slide.image"
+                  :alt="slide.title"
+                  class="w-full h-full object-cover"
+                />
               </div>
             </div>
           </div>
         </div>
 
         <!-- Tombol Navigasi Prev/Next Hero -->
-        <button @click="prevHeroSlide" aria-label="Previous Slide"
-          class="absolute left-3 top-1/2 -translate-y-1/2 bg-white/80 hover:bg-white text-gray-800 p-2 rounded-full shadow-md opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-10">
+        <button
+          @click="prevHeroSlide"
+          aria-label="Previous Slide"
+          class="absolute left-3 top-1/2 -translate-y-1/2 bg-white/80 hover:bg-white text-gray-800 p-2 rounded-full shadow-md opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-10"
+        >
           &#10094;
         </button>
-        <button @click="nextHeroSlide" aria-label="Next Slide"
-          class="absolute right-3 top-1/2 -translate-y-1/2 bg-white/80 hover:bg-white text-gray-800 p-2 rounded-full shadow-md opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-10">
+        <button
+          @click="nextHeroSlide"
+          aria-label="Next Slide"
+          class="absolute right-3 top-1/2 -translate-y-1/2 bg-white/80 hover:bg-white text-gray-800 p-2 rounded-full shadow-md opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-10"
+        >
           &#10095;
         </button>
 
         <!-- Indikator Dots Hero -->
-        <div class="absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center space-x-2 z-10">
-          <button v-for="(slide, index) in heroSlides" :key="slide.id" @click="goToHeroSlide(index)"
-            :aria-label="`Go to slide ${index + 1}`" :class="[
+        <div
+          class="absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center space-x-2 z-10"
+        >
+          <button
+            v-for="(slide, index) in heroSlides"
+            :key="slide.id"
+            @click="goToHeroSlide(index)"
+            :aria-label="`Go to slide ${index + 1}`"
+            :class="[
               'w-2.5 h-2.5 rounded-full transition-all duration-300',
               currentHeroIndex === index
                 ? 'bg-[#1C1A17] w-6'
                 : 'bg-gray-400/60 hover:bg-gray-600',
-            ]"></button>
+            ]"
+          ></button>
         </div>
       </section>
 
       <!-- 2. Kategori Pilihan Slide Carousel -->
       <section class="space-y-4">
         <div class="flex items-center justify-between">
-          <h2 class="text-xl sm:text-2xl font-bold text-gray-900">Kategori Pilihan</h2>
+          <h2 class="text-xl sm:text-2xl font-bold text-gray-900">
+            Kategori Pilihan
+          </h2>
           <div class="flex items-center gap-3">
-            <router-link to="/products"
-              class="text-xs font-semibold text-[#E25C38] hover:underline flex items-center gap-1">
+            <router-link
+              to="/products"
+              class="text-xs font-semibold text-[#E25C38] hover:underline flex items-center gap-1"
+            >
               Lihat semua &rarr;
             </router-link>
 
             <div class="hidden sm:flex items-center">
-              <button @click="scrollContainer(categoryContainer, 'prev')" aria-label="Scroll left"
-                class="w-7 h-7 rounded-full bg-white border border-gray-200 flex items-center justify-center text-gray-700 hover:bg-gray-100 shadow-sm transition-colors">
+              <button
+                @click="scrollContainer(categoryContainer, 'prev')"
+                aria-label="Scroll left"
+                class="w-7 h-7 rounded-full bg-white border border-gray-200 flex items-center justify-center text-gray-700 hover:bg-gray-100 shadow-sm transition-colors"
+              >
                 &#10094;
               </button>
-              <button @click="scrollContainer(categoryContainer, 'next')" aria-label="Scroll right"
-                class="w-7 h-7 rounded-full bg-white border border-gray-200 flex items-center justify-center text-gray-700 hover:bg-gray-100 shadow-sm transition-colors">
+              <button
+                @click="scrollContainer(categoryContainer, 'next')"
+                aria-label="Scroll right"
+                class="w-7 h-7 rounded-full bg-white border border-gray-200 flex items-center justify-center text-gray-700 hover:bg-gray-100 shadow-sm transition-colors"
+              >
                 &#10095;
               </button>
             </div>
           </div>
         </div>
 
-        <div ref="categoryContainer"
-          class="flex gap-1 sm:gap-6 overflow-x-auto scrollbar-none scroll-smooth pb-2 -mx-1 px-1">
-          <router-link v-for="item in categories" :key="item.name" to="/products"
-            class="w-[calc(50%-8px)] sm:w-[calc(33.333%-11px)] md:w-[calc(20%-13px)] flex-shrink-0 bg-white rounded-2xl p-4 sm:p-5 flex flex-col items-center justify-center gap-3 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all group border border-gray-100/80">
-            <div class="w-16 h-16 sm:w-20 sm:h-20 rounded-full overflow-hidden flex-shrink-0 bg-gray-50">
-              <img :src="item.image" :alt="item.name"
-                class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300" />
+        <div
+          ref="categoryContainer"
+          class="flex gap-1 sm:gap-6 overflow-x-auto scrollbar-none scroll-smooth pb-2 -mx-1 px-1"
+        >
+          <router-link
+            v-for="item in categories"
+            :key="item.name"
+            to="/products"
+            class="w-[calc(50%-8px)] sm:w-[calc(33.333%-11px)] md:w-[calc(20%-13px)] flex-shrink-0 bg-white rounded-2xl p-4 sm:p-5 flex flex-col items-center justify-center gap-3 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all group border border-gray-100/80"
+          >
+            <div
+              class="w-16 h-16 sm:w-20 sm:h-20 rounded-full overflow-hidden flex-shrink-0 bg-gray-50"
+            >
+              <img
+                :src="item.image"
+                :alt="item.name"
+                class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
+              />
             </div>
             <span
-              class="text-xs sm:text-sm font-semibold text-gray-800 text-center line-clamp-1 group-hover:text-[#E25C38] transition-colors">
+              class="text-xs sm:text-sm font-semibold text-gray-800 text-center line-clamp-1 group-hover:text-[#E25C38] transition-colors"
+            >
               {{ item.name }}
             </span>
           </router-link>
@@ -445,45 +516,74 @@ const handleQuickView = (product) => {
       <!-- 3. Top Brands Slide Carousel -->
       <section class="space-y-4">
         <div class="flex items-center justify-between">
-          <h2 class="text-xl sm:text-2xl font-bold text-gray-900">Top Brands</h2>
+          <h2 class="text-xl sm:text-2xl font-bold text-gray-900">
+            Top Brands
+          </h2>
           <div class="flex items-center gap-3">
-            <router-link to="/products"
-              class="text-xs font-semibold text-[#E25C38] hover:underline flex items-center gap-1">
+            <router-link
+              to="/products"
+              class="text-xs font-semibold text-[#E25C38] hover:underline flex items-center gap-1"
+            >
               Lihat semua &rarr;
             </router-link>
 
             <div class="hidden sm:flex items-center gap-1">
-              <button @click="scrollContainer(brandsContainer, 'prev')" aria-label="Scroll left"
-                class="w-7 h-7 rounded-full bg-white border border-gray-200 flex items-center justify-center text-gray-700 hover:bg-gray-100 shadow-sm transition-colors">
+              <button
+                @click="scrollContainer(brandsContainer, 'prev')"
+                aria-label="Scroll left"
+                class="w-7 h-7 rounded-full bg-white border border-gray-200 flex items-center justify-center text-gray-700 hover:bg-gray-100 shadow-sm transition-colors"
+              >
                 &#10094;
               </button>
-              <button @click="scrollContainer(brandsContainer, 'next')" aria-label="Scroll right"
-                class="w-7 h-7 rounded-full bg-white border border-gray-200 flex items-center justify-center text-gray-700 hover:bg-gray-100 shadow-sm transition-colors">
+              <button
+                @click="scrollContainer(brandsContainer, 'next')"
+                aria-label="Scroll right"
+                class="w-7 h-7 rounded-full bg-white border border-gray-200 flex items-center justify-center text-gray-700 hover:bg-gray-100 shadow-sm transition-colors"
+              >
                 &#10095;
               </button>
             </div>
           </div>
         </div>
 
-        <div ref="brandsContainer" class="flex gap-4 overflow-x-auto scrollbar-none scroll-smooth pb-2 -mx-1 px-1">
-          <router-link v-for="brand in topBrands" :key="brand.name" to="/products"
-            class="w-[calc(50%-8px)] sm:w-[calc(33.333%-11px)] md:w-[calc(20%-13px)] flex-shrink-0 aspect-[4/3] rounded-xl overflow-hidden border border-gray-100 group shadow-sm hover:shadow-md transition-all">
-            <img :src="brand.logo" :alt="brand.name"
-              class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+        <div
+          ref="brandsContainer"
+          class="flex gap-4 overflow-x-auto scrollbar-none scroll-smooth pb-2 -mx-1 px-1"
+        >
+          <router-link
+            v-for="brand in topBrands"
+            :key="brand.name"
+            to="/products"
+            class="w-[calc(50%-8px)] sm:w-[calc(33.333%-11px)] md:w-[calc(20%-13px)] flex-shrink-0 aspect-[4/3] rounded-xl overflow-hidden border border-gray-100 group shadow-sm hover:shadow-md transition-all"
+          >
+            <img
+              :src="brand.logo"
+              :alt="brand.name"
+              class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+            />
           </router-link>
         </div>
       </section>
 
       <!-- 4. Promo Banner Voucher Slide Carousel -->
-      <section class="relative rounded-xl overflow-hidden shadow-sm group" @mouseenter="stopPromoAutoSlide"
-        @mouseleave="startPromoAutoSlide">
-        <div class="flex transition-transform duration-500 ease-in-out"
-          :style="{ transform: `translateX(-${currentPromoIndex * 100}%)` }">
-          <div v-for="promo in promoSlides" :key="promo.id" :class="[
-            promo.bgClass,
-            promo.textColor,
-            'min-w-full p-6 text-center space-y-1 flex-shrink-0',
-          ]">
+      <section
+        class="relative rounded-xl overflow-hidden shadow-sm group"
+        @mouseenter="stopPromoAutoSlide"
+        @mouseleave="startPromoAutoSlide"
+      >
+        <div
+          class="flex transition-transform duration-500 ease-in-out"
+          :style="{ transform: `translateX(-${currentPromoIndex * 100}%)` }"
+        >
+          <div
+            v-for="promo in promoSlides"
+            :key="promo.id"
+            :class="[
+              promo.bgClass,
+              promo.textColor,
+              'min-w-full p-6 text-center space-y-1 flex-shrink-0',
+            ]"
+          >
             <div class="my-3">
               <h3 class="text-lg md:text-xl font-extrabold tracking-wide">
                 {{ promo.title }}
@@ -496,67 +596,112 @@ const handleQuickView = (product) => {
         </div>
 
         <!-- Tombol Navigasi Prev/Next Promo -->
-        <button @click="prevPromoSlide" aria-label="Previous Promo"
-          class="absolute left-3 top-1/2 -translate-y-1/2 bg-black/30 hover:bg-black/50 text-white p-1.5 rounded-full shadow opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-10">
+        <button
+          @click="prevPromoSlide"
+          aria-label="Previous Promo"
+          class="absolute left-3 top-1/2 -translate-y-1/2 bg-black/30 hover:bg-black/50 text-white p-1.5 rounded-full shadow opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-10"
+        >
           &#10094;
         </button>
-        <button @click="nextPromoSlide" aria-label="Next Promo"
-          class="absolute right-3 top-1/2 -translate-y-1/2 bg-black/30 hover:bg-black/50 text-white p-1.5 rounded-full shadow opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-10">
+        <button
+          @click="nextPromoSlide"
+          aria-label="Next Promo"
+          class="absolute right-3 top-1/2 -translate-y-1/2 bg-black/30 hover:bg-black/50 text-white p-1.5 rounded-full shadow opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-10"
+        >
           &#10095;
         </button>
 
         <!-- Indikator Dots Promo -->
-        <div class="absolute bottom-2 left-1/2 -translate-x-1/2 flex items-center space-x-1.5 z-10">
-          <button v-for="(promo, index) in promoSlides" :key="promo.id" @click="goToPromoSlide(index)"
-            :aria-label="`Go to promo ${index + 1}`" :class="[
+        <div
+          class="absolute bottom-2 left-1/2 -translate-x-1/2 flex items-center space-x-1.5 z-10"
+        >
+          <button
+            v-for="(promo, index) in promoSlides"
+            :key="promo.id"
+            @click="goToPromoSlide(index)"
+            :aria-label="`Go to promo ${index + 1}`"
+            :class="[
               'w-2 h-2 rounded-full transition-all duration-300',
               currentPromoIndex === index
                 ? 'bg-white w-5'
                 : 'bg-white/50 hover:bg-white/80',
-            ]"></button>
+            ]"
+          ></button>
         </div>
       </section>
 
       <!-- 5. Produk Terlaris Slide Carousel -->
       <section class="space-y-4">
         <div class="flex items-center justify-between">
-          <h2 class="text-xl sm:text-2xl font-bold text-gray-900">Produk Terlaris</h2>
+          <h2 class="text-xl sm:text-2xl font-bold text-gray-900">
+            Produk Terlaris
+          </h2>
           <div class="flex items-center gap-3">
-            <router-link to="/products"
-              class="text-xs font-semibold text-[#E25C38] hover:underline flex items-center gap-1">
+            <router-link
+              to="/products"
+              class="text-xs font-semibold text-[#E25C38] hover:underline flex items-center gap-1"
+            >
               Lihat semua &rarr;
             </router-link>
 
-            <div v-if="popularProducts.length" class="hidden sm:flex items-center gap-1">
-              <button @click="scrollContainer(popularContainer, 'prev')" aria-label="Scroll left"
-                class="w-7 h-7 rounded-full bg-white border border-gray-200 flex items-center justify-center text-gray-700 hover:bg-gray-100 shadow-sm transition-colors">
+            <div
+              v-if="popularProducts.length"
+              class="hidden sm:flex items-center gap-1"
+            >
+              <button
+                @click="scrollContainer(popularContainer, 'prev')"
+                aria-label="Scroll left"
+                class="w-7 h-7 rounded-full bg-white border border-gray-200 flex items-center justify-center text-gray-700 hover:bg-gray-100 shadow-sm transition-colors"
+              >
                 &#10094;
               </button>
-              <button @click="scrollContainer(popularContainer, 'next')" aria-label="Scroll right"
-                class="w-7 h-7 rounded-full bg-white border border-gray-200 flex items-center justify-center text-gray-700 hover:bg-gray-100 shadow-sm transition-colors">
+              <button
+                @click="scrollContainer(popularContainer, 'next')"
+                aria-label="Scroll right"
+                class="w-7 h-7 rounded-full bg-white border border-gray-200 flex items-center justify-center text-gray-700 hover:bg-gray-100 shadow-sm transition-colors"
+              >
                 &#10095;
               </button>
             </div>
           </div>
         </div>
 
-        <div v-if="isLoadingPopular" class="bg-white rounded-2xl p-8 text-center text-xs text-gray-400">
+        <div
+          v-if="isLoadingPopular"
+          class="bg-white rounded-2xl p-8 text-center text-xs text-gray-400"
+        >
           Memuat produk terlaris...
         </div>
 
-        <div v-else-if="popularError" class="bg-white rounded-2xl p-8 text-center text-xs text-red-500">
+        <div
+          v-else-if="popularError"
+          class="bg-white rounded-2xl p-8 text-center text-xs text-red-500"
+        >
           {{ popularError }}
         </div>
 
-        <div v-else-if="!popularProducts.length" class="bg-white rounded-2xl p-8 text-center text-xs text-gray-500">
+        <div
+          v-else-if="!popularProducts.length"
+          class="bg-white rounded-2xl p-8 text-center text-xs text-gray-500"
+        >
           Belum ada produk terlaris.
         </div>
 
-        <div v-else ref="popularContainer"
-          class="flex gap-4 overflow-x-auto scrollbar-none scroll-smooth pb-2 -mx-1 px-1">
-          <div v-for="product in popularProducts" :key="product.id"
-            class="w-[calc(50%-8px)] sm:w-[calc(33.333%-11px)] md:w-[calc(20%-13px)] flex-shrink-0">
-            <ProductCard :product="product" @add-to-cart="handleAddToCart" @quick-view="handleQuickView" />
+        <div
+          v-else
+          ref="popularContainer"
+          class="flex gap-4 overflow-x-auto scrollbar-none scroll-smooth pb-2 -mx-1 px-1"
+        >
+          <div
+            v-for="product in popularProducts"
+            :key="product.id"
+            class="w-[calc(50%-8px)] sm:w-[calc(33.333%-11px)] md:w-[calc(20%-13px)] flex-shrink-0"
+          >
+            <ProductCard
+              :product="product"
+              @add-to-cart="handleAddToCart"
+              @quick-view="handleQuickView"
+            />
           </div>
         </div>
       </section>
@@ -564,43 +709,75 @@ const handleQuickView = (product) => {
       <!-- 6. Harga Murah Slide Carousel -->
       <section class="space-y-4">
         <div class="flex items-center justify-between">
-          <h2 class="text-xl sm:text-2xl font-bold text-gray-900">Harga Murah</h2>
+          <h2 class="text-xl sm:text-2xl font-bold text-gray-900">
+            Harga Murah
+          </h2>
           <div class="flex items-center gap-3">
-            <router-link to="/products"
-              class="text-xs font-semibold text-[#E25C38] hover:underline flex items-center gap-1">
+            <router-link
+              to="/products"
+              class="text-xs font-semibold text-[#E25C38] hover:underline flex items-center gap-1"
+            >
               Lihat semua &rarr;
             </router-link>
 
-            <div v-if="cheapProducts.length" class="hidden sm:flex items-center gap-1">
-              <button @click="scrollContainer(cheapContainer, 'prev')" aria-label="Scroll left"
-                class="w-7 h-7 rounded-full bg-white border border-gray-200 flex items-center justify-center text-gray-700 hover:bg-gray-100 shadow-sm transition-colors">
+            <div
+              v-if="cheapProducts.length"
+              class="hidden sm:flex items-center gap-1"
+            >
+              <button
+                @click="scrollContainer(cheapContainer, 'prev')"
+                aria-label="Scroll left"
+                class="w-7 h-7 rounded-full bg-white border border-gray-200 flex items-center justify-center text-gray-700 hover:bg-gray-100 shadow-sm transition-colors"
+              >
                 &#10094;
               </button>
-              <button @click="scrollContainer(cheapContainer, 'next')" aria-label="Scroll right"
-                class="w-7 h-7 rounded-full bg-white border border-gray-200 flex items-center justify-center text-gray-700 hover:bg-gray-100 shadow-sm transition-colors">
+              <button
+                @click="scrollContainer(cheapContainer, 'next')"
+                aria-label="Scroll right"
+                class="w-7 h-7 rounded-full bg-white border border-gray-200 flex items-center justify-center text-gray-700 hover:bg-gray-100 shadow-sm transition-colors"
+              >
                 &#10095;
               </button>
             </div>
           </div>
         </div>
 
-        <div v-if="isLoadingCheap" class="bg-white rounded-2xl p-8 text-center text-xs text-gray-400">
+        <div
+          v-if="isLoadingCheap"
+          class="bg-white rounded-2xl p-8 text-center text-xs text-gray-400"
+        >
           Memuat produk harga murah...
         </div>
 
-        <div v-else-if="cheapError" class="bg-white rounded-2xl p-8 text-center text-xs text-red-500">
+        <div
+          v-else-if="cheapError"
+          class="bg-white rounded-2xl p-8 text-center text-xs text-red-500"
+        >
           {{ cheapError }}
         </div>
 
-        <div v-else-if="!cheapProducts.length" class="bg-white rounded-2xl p-8 text-center text-xs text-gray-500">
+        <div
+          v-else-if="!cheapProducts.length"
+          class="bg-white rounded-2xl p-8 text-center text-xs text-gray-500"
+        >
           Belum ada produk murah.
         </div>
 
-        <div v-else ref="cheapContainer"
-          class="flex gap-4 overflow-x-auto scrollbar-none scroll-smooth pb-2 -mx-1 px-1">
-          <div v-for="product in cheapProducts" :key="product.id"
-            class="w-[calc(50%-8px)] sm:w-[calc(33.333%-11px)] md:w-[calc(20%-13px)] flex-shrink-0">
-            <ProductCard :product="product" @add-to-cart="handleAddToCart" @quick-view="handleQuickView" />
+        <div
+          v-else
+          ref="cheapContainer"
+          class="flex gap-4 overflow-x-auto scrollbar-none scroll-smooth pb-2 -mx-1 px-1"
+        >
+          <div
+            v-for="product in cheapProducts"
+            :key="product.id"
+            class="w-[calc(50%-8px)] sm:w-[calc(33.333%-11px)] md:w-[calc(20%-13px)] flex-shrink-0"
+          >
+            <ProductCard
+              :product="product"
+              @add-to-cart="handleAddToCart"
+              @quick-view="handleQuickView"
+            />
           </div>
         </div>
       </section>

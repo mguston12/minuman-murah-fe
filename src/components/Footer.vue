@@ -1,7 +1,15 @@
 <script setup>
+import { ref, onMounted } from "vue";
 import logoMM from "../assets/logo-3.png";
+import { publicConfigService } from "../services/apiServices";
 
 const currentYear = new Date().getFullYear();
+
+const socialLinks = ref({
+  instagram: "#",
+  tiktok: "#",
+  facebook: "#",
+});
 
 const footerNav = {
   bantuan: [
@@ -11,6 +19,41 @@ const footerNav = {
     { name: "Hubungi Kami", href: "/about-us" },
   ],
 };
+
+const fetchSocialConfigs = async () => {
+  try {
+    const [igRes, ttRes, fbRes] = await Promise.allSettled([
+      publicConfigService.getConfigByKey("social_instagram"),
+      publicConfigService.getConfigByKey("social_tiktok"),
+      publicConfigService.getConfigByKey("social_facebook"),
+    ]);
+
+    if (igRes.status === "fulfilled") {
+      socialLinks.value.instagram =
+        igRes.value?.data?.data?.casted_value ||
+        igRes.value?.data?.data?.value ||
+        "#";
+    }
+    if (ttRes.status === "fulfilled") {
+      socialLinks.value.tiktok =
+        ttRes.value?.data?.data?.casted_value ||
+        ttRes.value?.data?.data?.value ||
+        "#";
+    }
+    if (fbRes.status === "fulfilled") {
+      socialLinks.value.facebook =
+        fbRes.value?.data?.data?.casted_value ||
+        fbRes.value?.data?.data?.value ||
+        "#";
+    }
+  } catch (error) {
+    console.error("Gagal mengambil konfigurasi media sosial:", error);
+  }
+};
+
+onMounted(() => {
+  fetchSocialConfigs();
+});
 </script>
 
 <template>
@@ -18,9 +61,8 @@ const footerNav = {
     class="w-full bg-black pt-12 pb-6 border-t border-gray-800 text-gray-300"
   >
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-      <!-- Ubah ke 4 kolom pada breakpoint md/lg -->
       <div class="grid grid-cols-1 md:grid-cols-4 gap-8 pb-10">
-        <!-- Kolom 1: Branding (Lebih lebar & berjarak ke kolom berikutnya) -->
+        <!-- Kolom 1: Branding -->
         <div class="md:col-span-2 space-y-3 md:pr-12">
           <a href="#" class="inline-flex items-center gap-3 group">
             <img
@@ -46,22 +88,23 @@ const footerNav = {
           <h4 class="font-bold text-white text-xs mb-3.5">Bantuan</h4>
           <ul class="space-y-2 text-xs text-gray-400">
             <li v-for="item in footerNav.bantuan" :key="item.name">
-              <a :href="item.href" class="hover:text-white transition-colors">{{
-                item.name
-              }}</a>
+              <a :href="item.href" class="hover:text-white transition-colors">
+                {{ item.name }}
+              </a>
             </li>
           </ul>
         </div>
 
         <!-- Kolom 3: Socials & Store Hours -->
         <div class="md:col-span-1 space-y-5">
-          <!-- OUR SOCIALS -->
           <div>
             <h4 class="font-bold text-white text-xs mb-3">OUR SOCIALS</h4>
             <div class="flex items-center gap-3.5 text-white">
               <!-- Instagram -->
               <a
-                href="#"
+                :href="socialLinks.instagram"
+                target="_blank"
+                rel="noopener noreferrer"
                 class="hover:text-[#D4AF37] transition-colors"
                 title="Instagram"
               >
@@ -71,21 +114,27 @@ const footerNav = {
                   />
                 </svg>
               </a>
-              <!-- YouTube -->
+
+              <!-- TikTok -->
               <a
-                href="#"
+                :href="socialLinks.tiktok"
+                target="_blank"
+                rel="noopener noreferrer"
                 class="hover:text-[#D4AF37] transition-colors"
-                title="YouTube"
+                title="TikTok"
               >
                 <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
                   <path
-                    d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"
+                    d="M12.525 0h3.08c.12 1.424.73 2.747 1.722 3.693.978.932 2.278 1.464 3.673 1.493V8.3c-1.89-.009-3.64-.633-5.06-1.714v7.711c0 4.19-3.41 7.589-7.616 7.589-4.205 0-7.615-3.399-7.615-7.589 0-4.19 3.41-7.589 7.615-7.589 1.05 0 2.05.21 2.96.592V10.8c-.85-.45-1.83-.7-2.96-.7-2.61 0-4.73 2.11-4.73 4.7 0 2.59 2.12 4.7 4.73 4.7 2.61 0 4.73-2.11 4.73-4.7V0z"
                   />
                 </svg>
               </a>
+
               <!-- Facebook -->
               <a
-                href="#"
+                :href="socialLinks.facebook"
+                target="_blank"
+                rel="noopener noreferrer"
                 class="hover:text-[#D4AF37] transition-colors"
                 title="Facebook"
               >

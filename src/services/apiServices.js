@@ -83,5 +83,12 @@ export const voucherService = {
 // Public Config API
 export const publicConfigService = {
   getPublicConfigs: () => api.get("/public-configs"),
+  getConfigByKey: (key) => api.get(`/public-configs/${key}`),
   getProtection: () => api.get("/public-configs/product_protection"),
+};
+
+export const bannerService = {
+  getMainBanners() {
+    return api.get("/public/main-banners");
+  },
 };
