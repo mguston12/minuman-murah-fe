@@ -70,6 +70,11 @@ const routes = [
     component: () => import("../views/AboutView.vue"),
   },
   {
+    path: "/verify-email",
+    name: "verify-email",
+    component: () => import("../views/VerifyemailView.vue"),
+  },
+  {
     path: "/:pathMatch(.*)*",
     redirect: "/",
   },

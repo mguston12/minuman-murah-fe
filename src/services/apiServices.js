@@ -6,6 +6,7 @@ export const authService = {
   register: (data) => api.post("/auth/register", data),
   getMe: () => api.get("/auth/me"),
   logout: () => api.post("/auth/logout"),
+  verifyEmail: (data) => api.post('/api/verify-email', data),
 };
 
 // Blog API
@@ -21,6 +22,7 @@ export const productService = {
   getProductBySlug(slug) {
     return api.get(`/products/${slug}`);
   },
+  getBrands: () => api.get("/brands/all"),
 };
 
 // Taxonomy / Category API
