@@ -56,7 +56,7 @@
 <script setup>
 import { ref, onMounted } from 'vue';
 import { useRoute } from 'vue-router';
-import { authService } from '../services/apiServices';F
+import { authService } from '../services/apiServices';
 
 const route = useRoute();
 
