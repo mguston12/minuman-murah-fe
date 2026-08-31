@@ -36,7 +36,7 @@ export const attributeService = {
   getActiveAttributes: () => api.get("/attributes/active"),
 };
 
-// Add: Address API
+// Address API
 export const addressService = {
   getAddresses: () => api.get("/shipping-addresses"),
   createAddress: (data) => api.post("/shipping-addresses", data),
@@ -44,16 +44,41 @@ export const addressService = {
   deleteAddress: (id) => api.delete(`/shipping-addresses/${id}`),
 };
 
-// Add: Order API
+// Shipping / Region API
+export const shippingService = {
+  getProvinces: () => api.get("/shipping/provinces"),
+  getCities: (provinceId) =>
+    api.get("/shipping/cities", { params: { province_id: provinceId } }),
+  getDistricts: (cityId) =>
+    api.get("/shipping/districts", { params: { city_id: cityId } }),
+  getSubDistricts: (districtId) =>
+    api.get("/shipping/sub-districts", { params: { district_id: districtId } }),
+
+  getShippingCost: (payload) => api.post("/shipping/cost", payload),
+};
+
+// Order API
 export const orderService = {
   getOrders: (params) => api.get("/orders", { params }),
   getOrderById: (id) => api.get(`/orders/${id}`),
 };
 
-// Add: Wishlist API
+// Wishlist API
 export const wishlistService = {
   getWishlist: () => api.get("/user/wishlist"),
   addToWishlist: (productId) =>
     api.post("/user/wishlist", { product_id: productId }),
   removeFromWishlist: (id) => api.delete(`/user/wishlist/${id}`),
+};
+
+// Voucher API
+export const voucherService = {
+  getVouchers: () => api.get("/vouchers"),
+  checkVoucher: (code) => api.post("/vouchers/check", { code }),
+};
+
+// Public Config API
+export const publicConfigService = {
+  getPublicConfigs: () => api.get("/public-configs"),
+  getProtection: () => api.get("/public-configs/product_protection"),
 };

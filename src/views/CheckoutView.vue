@@ -1,21 +1,20 @@
 <script setup>
-import { ref, computed, onMounted } from "vue";
-import Cookies from "js-cookie";
+import { ref, reactive, computed, onMounted, watch } from "vue";
+import { useRouter } from "vue-router";
 import { useCartStore } from "../stores/cart";
-import { useAuthApi } from "../composables/useAuthApi";
+import {
+  authService,
+  addressService,
+  shippingService,
+  orderService,
+  voucherService,
+  publicConfigService,
+} from "../services/apiServices";
 
+const router = useRouter();
 const cartStore = useCartStore();
-const { getMe } = useAuthApi();
 
-const shippingFee = ref(55000);
-const discount = ref(0);
-
-const subtotal = computed(() => cartStore.totalPrice);
-const total = computed(() => {
-  if (cartStore.items.length === 0) return 0;
-  return Math.max(0, subtotal.value + shippingFee.value - discount.value);
-});
-
+// --- STATE USER & ADDRESS ---
 const userData = ref(null);
 const isLoadingUser = ref(false);
 
@@ -23,58 +22,75 @@ const addresses = ref([]);
 const isLoadingAddresses = ref(false);
 const activeAddressId = ref(null);
 const tempSelectedAddressId = ref(null);
+const showSelectModal = ref(false);
 
-const baseURL =
-  import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8000/api";
+// --- STATE MODAL TAMBAH ALAMAT ---
+const showAddModal = ref(false);
+const isSavingAddress = ref(false);
+const labelOptions = ["Rumah", "Kantor", "Apartement", "Kost"];
 
-const fetchUserProfile = async () => {
-  isLoadingUser.value = true;
-  try {
-    const { data, error } = await getMe();
-    if (!error && data) {
-      userData.value = data.user || data;
-    }
-  } catch (err) {
-    console.error("Gagal mengambil data user:", err);
-  } finally {
-    isLoadingUser.value = false;
-  }
-};
+// Options Wilayah
+const provinces = ref([]);
+const cities = ref([]);
+const districts = ref([]);
+const subDistricts = ref([]);
 
-const fetchAddresses = async () => {
-  isLoadingAddresses.value = true;
-  const token = Cookies.get("auth_token");
+const selectedProvinceId = ref(null);
+const selectedCityId = ref(null);
+const selectedDistrictId = ref(null);
+const selectedSubDistrictId = ref(null);
 
-  try {
-    const response = await fetch(`${baseURL}/shipping-addresses`, {
-      method: "GET",
-      headers: {
-        Accept: "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-    });
+const isLoadingCities = ref(false);
+const isLoadingDistricts = ref(false);
+const isLoadingSubDistricts = ref(false);
 
-    const result = await response.json();
+const addressForm = reactive({
+  label_place: "Rumah",
+  first_name: "",
+  last_name: null,
+  phone: "",
+  email: null,
+  address: "",
+  note_address: null,
+  postal_code: "",
+  is_primary: false,
 
-    if (response.ok && (result.success || result.data)) {
-      const list = Array.isArray(result.data)
-        ? result.data
-        : result.data?.data || [];
-      addresses.value = list;
+  province: "",
+  province_id: null,
+  province_label: "",
+  city: "",
+  city_id: null,
+  city_label: "",
+  district_id: null,
+  district_label: "",
+  sub_district_id: null,
+  sub_district_label: "",
+});
 
-      if (list.length > 0) {
-        const primary = list.find((a) => a.is_primary || a.isPrimary);
-        const defaultId = primary ? primary.id : list[0].id;
-        activeAddressId.value = defaultId;
-        tempSelectedAddressId.value = defaultId;
-      }
-    }
-  } catch (err) {
-    console.error("Gagal mengambil daftar alamat:", err);
-  } finally {
-    isLoadingAddresses.value = false;
-  }
-};
+// --- STATE ONGKIR & KURIR ---
+const shippingFee = ref(0);
+const selectedCourier = ref(null);
+const courierOptions = ref([]);
+const isLoadingOngkir = ref(false);
+
+// --- STATE PRODUCT PROTECTION ---
+const isProtectionEnabled = ref(false);
+const protectionConfig = ref({
+  fee: 0,
+  description: "Melindungi barang dari kerusakan & kehilangan.",
+});
+
+// --- STATE VOUCHER ---
+const applicableVouchers = ref([]);
+const selectedVoucher = ref(null);
+const isLoadingVouchers = ref(false);
+const showVoucherModal = ref(false);
+
+// --- STATE PAYMENT ---
+const isProcessingPayment = ref(false);
+
+// --- COMPUTED PROPERTIES ---
+const subtotal = computed(() => cartStore.totalPrice);
 
 const selectedAddress = computed(() => {
   return (
@@ -84,218 +100,340 @@ const selectedAddress = computed(() => {
   );
 });
 
-const loadMidtransSnapScript = (clientKey, isProduction = false) => {
-  return new Promise((resolve, reject) => {
-    if (document.getElementById("midtrans-script")) {
-      resolve();
-      return;
-    }
+const discount = computed(() => {
+  if (!selectedVoucher.value) return 0;
+  const v = selectedVoucher.value;
+  if (v.discount_type === "percentage" || v.type === "percentage") {
+    const calc = (subtotal.value * (v.discount_amount || v.value)) / 100;
+    return v.max_discount ? Math.min(calc, v.max_discount) : calc;
+  }
+  return v.discount_amount || v.value || 0;
+});
 
-    const script = document.createElement("script");
-    script.src = isProduction
-      ? "https://app.midtrans.com/snap/snap.js"
-      : "https://app.sandbox.midtrans.com/snap/snap.js";
-    script.id = "midtrans-script";
-    script.setAttribute("data-client-key", clientKey);
-    script.onload = () => resolve();
-    script.onerror = () => reject(new Error("Gagal memuat Snap JS Midtrans"));
-    document.head.appendChild(script);
-  });
-};
+const protectionFee = computed(() => {
+  return isProtectionEnabled.value ? (protectionConfig.value.fee * subtotal.value) / 100 : 0;
+});
 
-const initPaymentGatewayConfig = async () => {
-  const token = Cookies.get("auth_token");
+const total = computed(() => {
+  if (cartStore.items.length === 0) return 0;
+  return Math.max(
+    0,
+    subtotal.value + shippingFee.value + protectionFee.value - discount.value
+  );
+});
 
+// --- API FETCHERS WILAYAH VIA SERVICE ---
+const fetchProvinces = async () => {
   try {
-    const response = await fetch(`${baseURL}/payment/midtrans/config`, {
-      method: "GET",
-      headers: {
-        Accept: "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-    });
-
-    if (response.ok) {
-      const config = await response.json();
-      if (config.client_key) {
-        await loadMidtransSnapScript(config.client_key, config.is_production);
-      }
-    }
+    const res = await shippingService.getProvinces();
+    provinces.value = res.data?.data || res.data || [];
   } catch (err) {
-    console.error("Gagal memuat konfigurasi Midtrans:", err);
+    console.error("Gagal mengambil provinsi:", err);
   }
 };
 
-onMounted(() => {
-  fetchUserProfile();
-  fetchAddresses();
-  initPaymentGatewayConfig();
-});
+const onProvinceChange = async () => {
+  selectedCityId.value = null;
+  selectedDistrictId.value = null;
+  selectedSubDistrictId.value = null;
+  cities.value = [];
+  districts.value = [];
+  subDistricts.value = [];
 
-const selectedGateway = ref("midtrans");
-const isProcessingPayment = ref(false);
+  const prov = provinces.value.find((item) => item.id === selectedProvinceId.value);
+  if (prov) {
+    addressForm.province_id = prov.id;
+    addressForm.province = prov.name;
+    addressForm.province_label = prov.name;
+  }
 
-const paymentGateways = [
-  {
-    id: "midtrans",
-    name: "Midtrans",
-    description:
-      "Pop-up pembayaran instan (GoPay, ShopeePay, VA, Kartu Kredit)",
-  },
-];
+  if (!selectedProvinceId.value) return;
+  isLoadingCities.value = true;
+  try {
+    const res = await shippingService.getCities(selectedProvinceId.value);
+    cities.value = res.data?.data || res.data || [];
+  } catch (err) {
+    console.error("Gagal mengambil kota:", err);
+  } finally {
+    isLoadingCities.value = false;
+  }
+};
 
-const showSelectModal = ref(false);
-const showFormModal = ref(false);
-const isEditing = ref(false);
-const isSavingAddress = ref(false);
+const onCityChange = async () => {
+  selectedDistrictId.value = null;
+  selectedSubDistrictId.value = null;
+  districts.value = [];
+  subDistricts.value = [];
 
-const addressForm = ref({
-  id: null,
-  label_place: "Rumah",
-  first_name: "",
-  last_name: "",
-  phone: "",
-  address: "",
-  province: "",
-  province_id: 5,
-  city: "",
-  city_id: 199,
-  district_id: 2166,
-  sub_district_id: 25983,
-  postal_code: "",
-});
+  const c = cities.value.find((item) => item.id === selectedCityId.value);
+  if (c) {
+    addressForm.city_id = c.id;
+    addressForm.city = c.name;
+    addressForm.city_label = c.name;
+  }
+
+  if (!selectedCityId.value) return;
+  isLoadingDistricts.value = true;
+  try {
+    const res = await shippingService.getDistricts(selectedCityId.value);
+    districts.value = res.data?.data || res.data || [];
+  } catch (err) {
+    console.error("Gagal mengambil kecamatan:", err);
+  } finally {
+    isLoadingDistricts.value = false;
+  }
+};
+
+const onDistrictChange = async () => {
+  selectedSubDistrictId.value = null;
+  subDistricts.value = [];
+
+  const d = districts.value.find((item) => item.id === selectedDistrictId.value);
+  if (d) {
+    addressForm.district_id = d.id;
+    addressForm.district_label = d.name;
+  }
+
+  if (!selectedDistrictId.value) return;
+  isLoadingSubDistricts.value = true;
+  try {
+    const res = await shippingService.getSubDistricts(selectedDistrictId.value);
+    subDistricts.value = res.data?.data || res.data || [];
+  } catch (err) {
+    console.error("Gagal mengambil kelurahan:", err);
+  } finally {
+    isLoadingSubDistricts.value = false;
+  }
+};
+
+const onSubDistrictChange = () => {
+  const sub = subDistricts.value.find((item) => item.id === selectedSubDistrictId.value);
+  if (sub) {
+    addressForm.sub_district_id = sub.id;
+    addressForm.sub_district_label = sub.name;
+  }
+};
+
+// --- API FETCHERS (USER & ADDRESS) ---
+const fetchUserProfile = async () => {
+  isLoadingUser.value = true;
+  try {
+    const res = await authService.getMe();
+    userData.value = res.data?.data?.user || res.data?.user || null;
+  } catch (err) {
+    console.error("Gagal mengambil profil user:", err);
+  } finally {
+    isLoadingUser.value = false;
+  }
+};
+
+const fetchAddresses = async () => {
+  isLoadingAddresses.value = true;
+  try {
+    const res = await addressService.getAddresses();
+    const list = res.data?.data || [];
+    addresses.value = list;
+
+    if (list.length > 0) {
+      const primary = list.find((a) => a.is_primary);
+      const defaultId = primary ? primary.id : list[0].id;
+      activeAddressId.value = defaultId;
+      tempSelectedAddressId.value = defaultId;
+    }
+  } catch (err) {
+    console.error("Gagal mengambil daftar alamat:", err);
+  } finally {
+    isLoadingAddresses.value = false;
+  }
+};
+
+const openAddModal = async () => {
+  Object.assign(addressForm, {
+    label_place: "Rumah",
+    first_name: "",
+    last_name: null,
+    phone: "",
+    email: null,
+    address: "",
+    note_address: null,
+    postal_code: "",
+    is_primary: false,
+    province: "",
+    province_id: null,
+    province_label: "",
+    city: "",
+    city_id: null,
+    city_label: "",
+    district_id: null,
+    district_label: "",
+    sub_district_id: null,
+    sub_district_label: "",
+  });
+
+  selectedProvinceId.value = null;
+  selectedCityId.value = null;
+  selectedDistrictId.value = null;
+  selectedSubDistrictId.value = null;
+
+  showAddModal.value = true;
+  await fetchProvinces();
+};
+
+const submitAddAddress = async () => {
+  if (!addressForm.first_name || !addressForm.phone || !addressForm.address) {
+    alert("Mohon lengkapi semua field yang wajib diisi (*)");
+    return;
+  }
+
+  isSavingAddress.value = true;
+
+  const payload = {
+    address: addressForm.address,
+    city: addressForm.city,
+    city_id: addressForm.city_id,
+    city_label: addressForm.city_label,
+    district_id: addressForm.district_id,
+    district_label: addressForm.district_label,
+    email: addressForm.email,
+    first_name: addressForm.first_name,
+    is_primary: Boolean(addressForm.is_primary),
+    label_place: addressForm.label_place,
+    last_name: addressForm.last_name,
+    note_address: addressForm.note_address,
+    phone: addressForm.phone,
+    postal_code: addressForm.postal_code,
+    province: addressForm.province,
+    province_id: addressForm.province_id,
+    province_label: addressForm.province_label,
+    sub_district_id: addressForm.sub_district_id,
+    sub_district_label: addressForm.sub_district_label,
+  };
+
+  try {
+    const res = await addressService.createAddress(payload);
+    const newAddress = res.data?.data || res.data;
+
+    await fetchAddresses();
+    if (newAddress?.id) {
+      activeAddressId.value = newAddress.id;
+    }
+
+    showAddModal.value = false;
+    showSelectModal.value = false;
+  } catch (err) {
+    console.error("Gagal menyimpan alamat baru:", err);
+    alert(err.response?.data?.message || "Gagal menyimpan alamat baru.");
+  } finally {
+    isSavingAddress.value = false;
+  }
+};
+
+const fetchProtectionConfig = async () => {
+  try {
+    if (publicConfigService?.getProtection) {
+      const res = await publicConfigService.getProtection();
+      const data = res.data?.data || res.data;
+      if (data) {
+        protectionConfig.value = {
+          fee: Number(data.fee || data.value || 0),
+          description: data.description || "Melindungi barang dari kerusakan & kehilangan.",
+        };
+      }
+    }
+  } catch (err) {
+    console.error("Gagal memuat proteksi produk:", err);
+  }
+};
+
+const fetchApplicableVouchers = async () => {
+  isLoadingVouchers.value = true;
+  try {
+    if (voucherService?.getApplicable) {
+      const res = await voucherService.getApplicable({
+        subtotal: subtotal.value,
+        items: cartStore.items,
+      });
+      applicableVouchers.value = res.data?.data || res.data || [];
+    }
+  } catch (err) {
+    console.error("Gagal mengambil voucher:", err);
+  } finally {
+    isLoadingVouchers.value = false;
+  }
+};
+
+const fetchShippingCost = async () => {
+  if (!selectedAddress.value) return;
+
+  isLoadingOngkir.value = true;
+  courierOptions.value = [];
+  selectedCourier.value = null;
+  shippingFee.value = 0;
+
+  try {
+    const totalWeight = cartStore.items.reduce(
+      (acc, item) => acc + (item.weight || 1000) * item.quantity,
+      0
+    );
+
+    const payload = {
+      destination: String(selectedAddress.value.city_id || 143),
+      weight: totalWeight,
+      courier: "jne:sicepat:ide:sap:jnt:ninja:tiki:lion:anteraja:pos:ncs:rex:rpx:sentral:star:wahana",
+    };
+
+    const res = await shippingService.getShippingCost(payload);
+    const data = res.data?.data || res.data || [];
+    courierOptions.value = Array.isArray(data) ? data : [];
+
+    if (courierOptions.value.length > 0) {
+      selectCourierOption(courierOptions.value[0]);
+    }
+  } catch (err) {
+    console.error("Gagal menghitung ongkos kirim:", err);
+  } finally {
+    isLoadingOngkir.value = false;
+  }
+};
+
+// --- HANDLERS & ACTIONS ---
+const selectCourierOption = (option) => {
+  selectedCourier.value = option;
+  shippingFee.value = option.cost || option.price || 0;
+};
+
+const applyVoucher = (voucher) => {
+  if (selectedVoucher.value?.id === voucher.id) {
+    selectedVoucher.value = null;
+  } else {
+    selectedVoucher.value = voucher;
+  }
+  showVoucherModal.value = false;
+};
 
 const openSelectAddressModal = () => {
   tempSelectedAddressId.value = activeAddressId.value;
   showSelectModal.value = true;
 };
 
-const confirmAddressSelection = () => {
+const saveSelectedAddress = () => {
   activeAddressId.value = tempSelectedAddressId.value;
   showSelectModal.value = false;
 };
 
-const openAddModal = () => {
-  isEditing.value = false;
-  addressForm.value = {
-    id: null,
-    label_place: "Rumah",
-    first_name: userData.value?.name || userData.value?.username || "",
-    last_name: "",
-    phone: userData.value?.phone || "",
-    address: "",
-    province: "JAWA BARAT",
-    province_id: 5,
-    city: "Depok",
-    city_id: 199,
-    district_id: 2166,
-    sub_district_id: 25983,
-    postal_code: "",
-  };
-  showSelectModal.value = false;
-  showFormModal.value = true;
-};
-
-const openEditModal = (addr) => {
-  isEditing.value = true;
-  addressForm.value = {
-    id: addr.id,
-    label_place: addr.label_place || addr.label || "Rumah",
-    first_name: addr.first_name || addr.name || "",
-    last_name: addr.last_name || "",
-    phone: addr.phone || "",
-    address: addr.address || "",
-    province: addr.province || "JAWA BARAT",
-    province_id: addr.province_id || 5,
-    city: addr.city || "",
-    city_id: addr.city_id || 199,
-    district_id: addr.district_id || 2166,
-    sub_district_id: addr.sub_district_id || 25983,
-    postal_code: addr.postal_code || addr.postalCode || "",
-  };
-  showSelectModal.value = false;
-  showFormModal.value = true;
-};
-
-const saveAddress = async () => {
-  isSavingAddress.value = true;
-  const token = Cookies.get("auth_token");
-  const endpoint = isEditing.value
-    ? `${baseURL}/shipping-address/${addressForm.value.id}`
-    : `${baseURL}/shipping-address`;
-  const method = isEditing.value ? "PUT" : "POST";
-
-  try {
-    const response = await fetch(endpoint, {
-      method: method,
-      headers: {
-        "Content-Type": "application/json",
-        Accept: "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify(addressForm.value),
-    });
-
-    const result = await response.json();
-
-    if (!response.ok) {
-      throw new Error(result.message || "Gagal menyimpan alamat.");
-    }
-
-    await fetchAddresses();
-    if (result.data?.id) {
-      activeAddressId.value = result.data.id;
-    }
-
-    showFormModal.value = false;
-    showSelectModal.value = true;
-  } catch (err) {
-    alert(err.message || "Terjadi kesalahan saat menyimpan alamat.");
-  } finally {
-    isSavingAddress.value = false;
-  }
-};
-
-const deleteAddress = async (id) => {
-  if (addresses.value.length <= 1) {
-    alert("Minimal harus ada 1 alamat pengiriman.");
-    return;
-  }
-
-  if (!confirm("Apakah Anda yakin ingin menghapus alamat ini?")) return;
-
-  const token = Cookies.get("auth_token");
-
-  try {
-    const response = await fetch(`${baseURL}/shipping-address/${id}`, {
-      method: "DELETE",
-      headers: {
-        Accept: "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-    });
-
-    if (response.ok) {
-      await fetchAddresses();
-    } else {
-      const result = await response.json();
-      alert(result.message || "Gagal menghapus alamat.");
-    }
-  } catch (err) {
-    console.error("Gagal menghapus alamat:", err);
-  }
-};
-
+// --- PAYMENT INTEGRATION ---
 const handleCheckout = async () => {
   if (cartStore.items.length === 0) return;
   if (!selectedAddress.value) {
     alert("Silakan tambahkan atau pilih alamat pengiriman terlebih dahulu.");
     return;
   }
+  if (!selectedCourier.value) {
+    alert("Silakan pilih opsional kurir pengiriman.");
+    return;
+  }
 
   isProcessingPayment.value = true;
-  const token = Cookies.get("auth_token");
-
   const addr = selectedAddress.value;
 
   const createOrderPayload = {
@@ -305,196 +443,169 @@ const handleCheckout = async () => {
         city: addr.city,
         city_id: addr.city_id || 199,
         district_id: addr.district_id || 2166,
-        email: userData.value?.email || "mikegusto0@gmail.com",
-        first_name:
-          addr.first_name || addr.name || userData.value?.name || "Michael",
-        label_place: addr.label_place || addr.label || "Rumah",
+        email: userData.value?.email || "user@example.com",
+        first_name: addr.first_name || userData.value?.name || "Customer",
+        label_place: addr.label_place || "Rumah",
         last_name: addr.last_name || "",
         note_address: addr.note_address || "",
-        phone: addr.phone || userData.value?.phone || "081808710868",
-        postal_code: addr.postal_code || addr.postalCode || "16512",
+        phone: addr.phone || userData.value?.phone || "",
+        postal_code: addr.postal_code || "",
         province: addr.province || "JAWA BARAT",
         province_id: addr.province_id || 5,
         same_as_shipping: true,
         sub_district_id: addr.sub_district_id || 25983,
       },
       courier: {
-        agent: "pos",
+        agent: selectedCourier.value.agent || "pos",
         cost: shippingFee.value,
-        etd: "10 day",
-        service: "Pos Reguler",
-        service_desc: "240",
+        etd: selectedCourier.value.etd || "2-3 hari",
+        service: selectedCourier.value.service || "Pos Reguler",
+        service_desc: selectedCourier.value.description || "",
       },
       delivery_order_note: null,
       invoice_note: null,
-      payment_method: selectedGateway.value,
+      payment_method: "midtrans",
       products: cartStore.items.map((item) => ({
-        is_protected: false,
+        is_protected: isProtectionEnabled.value,
         note: null,
         qty: item.quantity,
-        variant_id: item.variant_id || item.variantId || item.id,
+        variant_id: item.variant_id || item.id,
       })),
       shipping: {
         address: addr.address,
         city: addr.city,
         city_id: addr.city_id || 199,
         district_id: addr.district_id || 2166,
-        email: userData.value?.email || "mikegusto0@gmail.com",
-        first_name:
-          addr.first_name || addr.name || userData.value?.name || "Michael",
-        label_place: addr.label_place || addr.label || "Rumah",
+        email: userData.value?.email || "user@example.com",
+        first_name: addr.first_name || userData.value?.name || "Customer",
+        label_place: addr.label_place || "Rumah",
         last_name: addr.last_name || "",
         note_address: addr.note_address || "",
-        phone: addr.phone || userData.value?.phone || "081808710868",
-        postal_code: addr.postal_code || addr.postalCode || "16512",
+        phone: addr.phone || userData.value?.phone || "",
+        postal_code: addr.postal_code || "",
         province: addr.province || "JAWA BARAT",
         province_id: addr.province_id || 5,
         sub_district_id: addr.sub_district_id || 25983,
       },
       use_points: false,
       voucher_discount: discount.value,
-      voucher_id: null,
+      voucher_id: selectedVoucher.value?.id || null,
     },
   };
 
   try {
-    const createOrderResponse = await fetch(`${baseURL}/checkout/create`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Accept: "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify(createOrderPayload),
-    });
+    const resOrder = await orderService.createOrder(createOrderPayload);
+    const orderId = resOrder.data?.data?.order?.id || resOrder.data?.order?.id;
 
-    const createOrderResult = await createOrderResponse.json();
+    if (!orderId) throw new Error("Order ID tidak ditemukan.");
 
-    if (!createOrderResponse.ok || !createOrderResult.success) {
-      throw new Error(createOrderResult.message || "Gagal membuat order.");
-    }
+    const resPay = await orderService.payOrderMidtrans(orderId, { payment_method: "midtrans" });
+    const snapToken = resPay.data?.snap_token || resPay.data?.data?.snap_token;
 
-    const orderId = createOrderResult.data?.order?.id;
-
-    if (!orderId) {
-      throw new Error("Order ID tidak ditemukan.");
-    }
-
-    const payResponse = await fetch(
-      `${baseURL}/orders/${orderId}/pay/${selectedGateway.value}`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Accept: "application/json",
-          Authorization: `Bearer ${token}`,
+    if (window.snap && snapToken) {
+      window.snap.pay(snapToken, {
+        onSuccess: () => {
+          alert("Pembayaran Berhasil!");
+          cartStore.clearCart();
+          router.push("/profile");
         },
-        body: JSON.stringify({
-          payment_method: selectedGateway.value,
-        }),
-      },
-    );
-
-    const payResult = await payResponse.json();
-
-    if (!payResponse.ok) {
-      throw new Error(payResult.message || "Gagal memproses pembayaran.");
-    }
-
-    if (selectedGateway.value === "midtrans") {
-      if (window.snap && payResult.snap_token) {
-        window.snap.pay(payResult.snap_token, {
-          onSuccess: (result) => {
-            alert("Pembayaran Berhasil!");
-            cartStore.items = [];
-            Cookies.remove("cart_items");
-            console.log(result);
-          },
-          onPending: (result) => {
-            alert("Menunggu Pembayaran!");
-            console.log(result);
-          },
-          onError: (result) => {
-            alert("Pembayaran Gagal!");
-            console.error(result);
-          },
-          onClose: () => {
-            alert("Kamu menutup popup tanpa menyelesaikan pembayaran.");
-          },
-        });
-      } else {
-        alert("Gagal memuat Snap Token Midtrans.");
-      }
-    } else if (selectedGateway.value === "xendit") {
-      if (payResult.invoice_url) {
-        window.location.href = payResult.invoice_url;
-      } else {
-        alert("Gagal mendapatkan invoice URL Xendit.");
-      }
+        onPending: () => {
+          alert("Menunggu Pembayaran!");
+          router.push("/profile");
+        },
+        onError: () => alert("Pembayaran Gagal!"),
+        onClose: () => alert("Kamu menutup popup tanpa menyelesaikan pembayaran."),
+      });
+    } else {
+      alert("Gagal memuat token pembayaran.");
     }
   } catch (err) {
     console.error("Checkout error:", err);
-    alert(err.message || "Terjadi kesalahan sistem.");
+    alert(err.response?.data?.message || err.message || "Terjadi kesalahan sistem.");
   } finally {
     isProcessingPayment.value = false;
   }
 };
+
+const showCourierModal = ref(false)
+
+const selectCourierOptionFromModal = (option) => {
+  selectCourierOption(option)
+  showCourierModal.value = false
+}
+
+// --- WATCHERS & LIFECYCLE ---
+watch(
+  selectedAddress,
+  (newAddress) => {
+    if (newAddress) {
+      fetchShippingCost();
+    }
+  },
+  { immediate: true, deep: true }
+);
+
+onMounted(() => {
+  fetchUserProfile();
+  fetchAddresses();
+  fetchProtectionConfig();
+  fetchApplicableVouchers();
+});
 </script>
 
 <template>
-  <div
-    class="min-h-screen bg-[#FAF6F0] py-8 px-4 sm:px-6 lg:px-8 font-sans text-gray-900"
-  >
+  <div class="min-h-screen bg-[#FAF6F0] py-8 px-4 sm:px-6 lg:px-8 font-sans text-gray-900">
     <div class="max-w-6xl mx-auto space-y-6">
       <div>
-        <h1 class="text-2xl sm:text-3xl font-extrabold text-gray-900">
-          Checkout
-        </h1>
-        <p class="text-xs text-gray-500 mt-1">
-          Tinjau pesanan dan selesaikan pembayaran kamu.
-        </p>
+        <h1 class="text-2xl sm:text-3xl font-extrabold text-gray-900">Checkout</h1>
+        <p class="text-xs text-gray-500 mt-1">Tinjau pesanan dan selesaikan pembayaran kamu.</p>
       </div>
 
       <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+        <!-- Kolom Kiri -->
         <div class="lg:col-span-8 space-y-5">
-          <div
-            class="bg-white rounded-2xl p-5 shadow-sm border border-gray-100"
-          >
+
+          <!-- Keranjang Belanja -->
+          <div class="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
             <h2 class="text-sm font-bold text-gray-900 mb-4">
               Keranjang Belanja ({{ cartStore.totalCount }})
             </h2>
 
-            <div
-              v-if="cartStore.items.length > 0"
-              class="divide-y divide-gray-100"
-            >
-              <div
-                v-for="item in cartStore.items"
-                :key="item.id"
-                class="py-3 flex items-center justify-between first:pt-0 last:pb-0"
-              >
+            <div v-if="cartStore.items.length > 0" class="divide-y divide-gray-100">
+              <div v-for="item in cartStore.items" :key="item.id"
+                class="py-3 flex items-center justify-between first:pt-0">
                 <div class="flex items-center gap-3">
-                  <img
-                    :src="item.image"
-                    :alt="item.title"
-                    class="w-12 h-12 rounded-lg object-cover bg-gray-100"
-                  />
+                  <img :src="item.image" :alt="item.title" class="w-12 h-12 rounded-lg object-cover bg-gray-100" />
                   <div>
-                    <h3 class="text-xs font-bold text-gray-800">
-                      {{ item.title }}
-                    </h3>
+                    <h3 class="text-xs font-bold text-gray-800">{{ item.title }}</h3>
                     <p class="text-[11px] text-gray-400 mt-0.5">
-                      {{ item.quantity }} × Rp
-                      {{ item.price ? item.price.toLocaleString("id-ID") : 0 }}
+                      {{ item.quantity }} × Rp {{ item.price ? item.price.toLocaleString("id-ID") : 0 }}
                     </p>
                   </div>
                 </div>
                 <span class="text-xs font-bold text-gray-900">
-                  Rp
-                  {{
-                    ((item.price || 0) * item.quantity).toLocaleString("id-ID")
-                  }}
+                  Rp {{ ((item.price || 0) * item.quantity).toLocaleString("id-ID") }}
                 </span>
+              </div>
+
+              <!-- Proteksi Produk -->
+              <div class="pt-3">
+                <div
+                  class="flex items-start justify-between gap-3 bg-[#FAF6F0]/50 p-3 rounded-xl border border-dashed border-gray-200">
+                  <div class="flex items-start gap-3">
+                    <input type="checkbox" id="protection" v-model="isProtectionEnabled"
+                      class="mt-1 w-4 h-4 text-[#E25C38] accent-[#E25C38] rounded cursor-pointer" />
+                    <label for="protection" class="cursor-pointer">
+                      <span class="text-xs font-bold text-gray-900 block">Proteksi Produk</span>
+                      <span class="text-[11px] text-gray-500 block mt-0.5">
+                        {{ protectionConfig.description }}
+                      </span>
+                    </label>
+                  </div>
+                  <span class="text-xs font-bold text-gray-900 shrink-0">
+                    Rp {{ ((protectionConfig.fee * subtotal) / 100).toLocaleString("id-ID") }}
+                  </span>
+                </div>
               </div>
             </div>
 
@@ -503,117 +614,124 @@ const handleCheckout = async () => {
             </div>
           </div>
 
-          <div
-            class="bg-white rounded-2xl p-5 shadow-sm border border-gray-100"
-          >
+          <!-- Alamat Pengiriman -->
+          <div class="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
             <div class="flex items-center justify-between mb-2">
               <h2 class="text-sm font-bold text-gray-900">Alamat Pengiriman</h2>
-              <button
-                @click="openSelectAddressModal"
-                class="text-xs font-bold text-[#E25C38] hover:underline cursor-pointer"
-              >
+              <button v-if="addresses.length > 0" @click="openSelectAddressModal"
+                class="text-xs font-bold text-[#E25C38] hover:underline cursor-pointer">
                 Ubah
               </button>
             </div>
 
-            <div
-              v-if="isLoadingAddresses || isLoadingUser"
-              class="text-xs text-gray-400 animate-pulse"
-            >
+            <div v-if="isLoadingAddresses || isLoadingUser" class="text-xs text-gray-400 animate-pulse">
               Memuat data alamat pengiriman...
             </div>
 
-            <div
-              v-else-if="selectedAddress"
-              class="text-xs text-gray-600 space-y-1"
-            >
+            <div v-else-if="selectedAddress" class="text-xs text-gray-600 space-y-1">
               <p class="font-bold text-gray-800">
                 {{ selectedAddress.first_name || selectedAddress.name }}
-                <span class="font-normal text-gray-400"
-                  >· {{ selectedAddress.phone }}</span
-                >
+                <span class="font-normal text-gray-400">· {{ selectedAddress.phone }}</span>
               </p>
               <p class="text-gray-500 leading-relaxed">
                 {{ selectedAddress.address }}, {{ selectedAddress.city }},
                 {{ selectedAddress.province }}
-                {{ selectedAddress.postal_code || selectedAddress.postalCode }}
+                {{ selectedAddress.postal_code }}
               </p>
             </div>
 
             <div v-else class="text-xs text-gray-400 space-y-2 py-2">
               <p>Belum ada alamat pengiriman yang tersimpan.</p>
-              <button
-                @click="openAddModal"
-                class="text-xs font-bold text-[#E25C38] hover:underline cursor-pointer"
-              >
+              <button @click="openAddModal" class="text-xs font-bold text-[#E25C38] hover:underline cursor-pointer">
                 + Tambah Alamat
               </button>
             </div>
           </div>
 
-          <div
-            class="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 space-y-3"
-          >
-            <h2 class="text-sm font-bold text-gray-900">
-              Pilih Payment Gateway
-            </h2>
+          <!-- Pilihan Kurir Pengiriman -->
+          <div class="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 space-y-3">
+            <div class="flex items-center justify-between">
+              <h2 class="text-sm font-bold text-gray-900">Metode Pengiriman</h2>
+              <button v-if="selectedAddress" @click="showCourierModal = true"
+                class="text-xs font-bold text-[#E25C38] hover:underline cursor-pointer">
+                {{ selectedCourier ? 'Ganti Kurir' : 'Pilih Kurir' }}
+              </button>
+            </div>
 
-            <div class="grid grid-cols-1 gap-3">
-              <div
-                v-for="gateway in paymentGateways"
-                :key="gateway.id"
-                @click="selectedGateway = gateway.id"
-                :class="[
-                  'p-4 rounded-xl border transition-all cursor-pointer flex items-start gap-3',
-                  selectedGateway === gateway.id
-                    ? 'border-[#E25C38] bg-[#FFF8F6]'
-                    : 'border-gray-200 hover:border-gray-300',
-                ]"
-              >
-                <div
-                  class="w-4 h-4 mt-0.5 rounded-full border flex items-center justify-center shrink-0"
-                  :class="
-                    selectedGateway === gateway.id
-                      ? 'border-[#E25C38]'
-                      : 'border-gray-300'
-                  "
-                >
-                  <div
-                    v-if="selectedGateway === gateway.id"
-                    class="w-2 h-2 rounded-full bg-[#E25C38]"
-                  ></div>
+            <div v-if="isLoadingOngkir" class="text-xs text-gray-400 animate-pulse">
+              Menghitung ongkos kirim...
+            </div>
+
+            <div v-else-if="selectedCourier"
+              class="p-3.5 rounded-xl border border-[#E25C38] bg-[#FFF8F6] flex items-center justify-between">
+              <div>
+                <div class="flex items-center gap-2">
+                  <span class="text-xs font-bold text-gray-900">
+                    {{ selectedCourier.name?.toUpperCase() || 'POS' }} - {{ selectedCourier.service }}
+                  </span>
                 </div>
-                <div>
-                  <h3 class="text-xs font-bold text-gray-900">
-                    {{ gateway.name }}
-                  </h3>
-                  <p class="text-[11px] text-gray-500 mt-0.5">
-                    {{ gateway.description }}
-                  </p>
-                </div>
+                <p class="text-[11px] text-gray-500 mt-0.5">
+                  Estimasi tiba: {{ selectedCourier.etd || '-' }} hari
+                </p>
               </div>
+              <span class="text-xs font-bold text-[#E25C38]">
+                Rp {{ (selectedCourier.cost || selectedCourier.price || 0).toLocaleString("id-ID") }}
+              </span>
+            </div>
+
+            <div v-else-if="selectedAddress" class="text-xs text-gray-500 flex items-center justify-between">
+              <span>Silakan pilih kurir dan layanan pengiriman.</span>
+              <button @click="showCourierModal = true"
+                class="px-3 py-1.5 bg-[#E25C38] text-white rounded-lg font-bold text-xs hover:bg-[#c94d2b]">
+                Pilih Ongkir
+              </button>
+            </div>
+
+            <div v-else class="text-xs text-gray-400">
+              Pilih alamat terlebih dahulu untuk melihat opsi ongkos kirim.
             </div>
           </div>
+
+          <!-- VOUCHER UI -->
+          <div class="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+              <span class="text-lg">🎟️</span>
+              <div>
+                <h2 class="text-xs font-bold text-gray-900">Voucher Diskon</h2>
+                <p class="text-[11px] text-gray-500 mt-0.5">
+                  {{ selectedVoucher ? (selectedVoucher.name || selectedVoucher.code) : 'Makin hemat dengan voucher' }}
+                </p>
+              </div>
+            </div>
+            <button @click="showVoucherModal = true"
+              class="text-xs font-bold text-[#E25C38] hover:underline cursor-pointer">
+              {{ selectedVoucher ? 'Ganti Voucher' : 'Gunakan Voucher' }}
+            </button>
+          </div>
+
         </div>
 
+        <!-- Kolom Kanan: Ringkasan Pesanan -->
         <div class="lg:col-span-4">
-          <div
-            class="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 space-y-4"
-          >
+          <div class="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 space-y-4">
             <h2 class="text-sm font-bold text-gray-900">Ringkasan Pesanan</h2>
 
             <div class="space-y-2 text-xs">
               <div class="flex justify-between text-gray-500">
                 <span>Subtotal ({{ cartStore.totalCount }} item)</span>
-                <span class="font-bold text-gray-800"
-                  >Rp {{ subtotal.toLocaleString("id-ID") }}</span
-                >
+                <span class="font-bold text-gray-800">Rp {{ subtotal.toLocaleString("id-ID") }}</span>
               </div>
               <div class="flex justify-between text-gray-500">
                 <span>Ongkos Kirim</span>
-                <span class="font-bold text-gray-800"
-                  >Rp {{ shippingFee.toLocaleString("id-ID") }}</span
-                >
+                <span class="font-bold text-gray-800">Rp {{ shippingFee.toLocaleString("id-ID") }}</span>
+              </div>
+              <div v-if="isProtectionEnabled" class="flex justify-between text-gray-500">
+                <span>Proteksi Produk</span>
+                <span class="font-bold text-gray-800">Rp {{ protectionFee.toLocaleString("id-ID") }}</span>
+              </div>
+              <div v-if="discount > 0" class="flex justify-between text-[#E25C38]">
+                <span>Diskon Voucher</span>
+                <span class="font-bold">- Rp {{ discount.toLocaleString("id-ID") }}</span>
               </div>
             </div>
 
@@ -621,31 +739,17 @@ const handleCheckout = async () => {
 
             <div class="flex justify-between items-baseline">
               <span class="text-xs font-bold text-gray-900">Total</span>
-              <span class="text-lg font-extrabold text-[#E25C38]"
-                >Rp {{ total.toLocaleString("id-ID") }}</span
-              >
+              <span class="text-lg font-extrabold text-[#E25C38]">Rp {{ total.toLocaleString("id-ID") }}</span>
             </div>
 
-            <button
-              @click="handleCheckout"
-              :disabled="
-                cartStore.items.length === 0 ||
-                isProcessingPayment ||
-                !selectedAddress
-              "
-              class="w-full py-3 bg-[#14120E] hover:bg-black disabled:bg-gray-200 disabled:text-gray-400 text-[#D4B26F] font-bold text-xs rounded-xl transition-all shadow-sm cursor-pointer disabled:cursor-not-allowed flex items-center justify-center gap-2"
-            >
-              <span v-if="isProcessingPayment" class="animate-spin text-sm"
-                >🌀</span
-              >
-              <span>{{
-                isProcessingPayment ? "Memproses..." : "Bayar Sekarang"
-              }}</span>
+            <button @click="handleCheckout"
+              :disabled="cartStore.items.length === 0 || isProcessingPayment || !selectedAddress || !selectedCourier"
+              class="w-full py-3 bg-[#14120E] hover:bg-black disabled:bg-gray-200 disabled:text-gray-400 text-[#D4B26F] font-bold text-xs rounded-xl transition-all shadow-sm cursor-pointer disabled:cursor-not-allowed flex items-center justify-center gap-2">
+              <span v-if="isProcessingPayment" class="animate-spin text-sm">🌀</span>
+              <span>{{ isProcessingPayment ? "Memproses..." : "Bayar Sekarang" }}</span>
             </button>
 
-            <p
-              class="text-[10px] text-gray-400 text-center flex items-center justify-center gap-1"
-            >
+            <p class="text-[10px] text-gray-400 text-center flex items-center justify-center gap-1">
               <span>🔒</span> Transaksi aman & terenkripsi
             </p>
           </div>
@@ -653,206 +757,270 @@ const handleCheckout = async () => {
       </div>
     </div>
 
-    <!-- Modal Pilih Alamat -->
-    <div
-      v-if="showSelectModal"
-      class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs"
-    >
-      <div class="bg-white w-full max-w-md rounded-2xl p-6 shadow-xl space-y-4">
-        <h3 class="text-base font-bold text-gray-900">
-          Pilih Alamat Pengiriman
-        </h3>
+    <!-- MODAL PILIH ONGKIR / KURIR -->
+    <div v-if="showCourierModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+      <div class="bg-white rounded-2xl max-w-md w-full p-5 space-y-4 shadow-xl">
+        <div class="flex items-center justify-between border-b pb-3">
+          <h3 class="text-sm font-bold text-gray-900">Pilih Opsi Pengiriman</h3>
+          <button @click="showCourierModal = false" class="text-gray-400 hover:text-gray-600 text-sm">✕</button>
+        </div>
 
-        <div class="space-y-3 max-h-[60vh] overflow-y-auto pr-1">
-          <div
-            v-for="addr in addresses"
-            :key="addr.id"
-            @click="tempSelectedAddressId = addr.id"
-            :class="[
-              'p-4 rounded-xl border transition-all cursor-pointer relative',
-              tempSelectedAddressId === addr.id
-                ? 'border-[#E25C38] bg-[#FFF8F6]'
-                : 'border-gray-200 hover:border-gray-300',
-            ]"
-          >
-            <div class="flex items-center gap-2 mb-1">
-              <div
-                class="w-3.5 h-3.5 rounded-full border flex items-center justify-center shrink-0"
-                :class="
-                  tempSelectedAddressId === addr.id
-                    ? 'border-[#E25C38]'
-                    : 'border-gray-300'
-                "
-              >
-                <div
-                  v-if="tempSelectedAddressId === addr.id"
-                  class="w-1.5 h-1.5 rounded-full bg-[#E25C38]"
-                ></div>
+        <div v-if="isLoadingOngkir" class="text-xs text-gray-400 animate-pulse text-center py-6">
+          Menghitung ongkos kirim...
+        </div>
+
+        <div v-else-if="courierOptions.length > 0" class="space-y-2 max-h-72 overflow-y-auto pr-1">
+          <div v-for="(opt, idx) in courierOptions" :key="idx" @click="selectCourierOptionFromModal(opt)" :class="[
+            'p-3.5 rounded-xl border transition-all cursor-pointer flex items-center justify-between',
+            selectedCourier?.service === opt.service
+              ? 'border-[#E25C38] bg-[#FFF8F6]'
+              : 'border-gray-200 hover:border-gray-300'
+          ]">
+            <div>
+              <div class="flex items-center gap-2">
+                <span class="text-xs font-bold text-gray-900">
+                  {{ opt.name?.toUpperCase() || 'POS' }} - {{ opt.service }}
+                </span>
               </div>
-              <span class="text-xs font-bold text-gray-900">
-                {{ addr.label_place || addr.label || "Alamat" }}
-                <span
-                  v-if="addr.is_primary || addr.isPrimary"
-                  class="text-gray-400 font-normal"
-                  >· Utama</span
-                >
-              </span>
-            </div>
-
-            <div class="pl-5 text-xs text-gray-500 space-y-1">
-              <p class="font-semibold text-gray-800">
-                {{ addr.first_name || addr.name }} · {{ addr.phone }}
+              <p class="text-[11px] text-gray-500 mt-0.5">
+                Estimasi tiba: {{ opt.etd || '-' }} hari
               </p>
-              <p class="text-[11px] leading-relaxed">
-                {{ addr.address }}, {{ addr.city }}
-              </p>
-
-              <div class="flex gap-3 pt-1">
-                <button
-                  @click.stop="openEditModal(addr)"
-                  class="text-[11px] font-bold text-[#E25C38] hover:underline cursor-pointer"
-                >
-                  Ubah
-                </button>
-                <button
-                  @click.stop="deleteAddress(addr.id)"
-                  class="text-[11px] font-bold text-red-500 hover:underline cursor-pointer"
-                >
-                  Hapus
-                </button>
-              </div>
             </div>
+            <span class="text-xs font-bold text-[#E25C38]">
+              Rp {{ (opt.cost || opt.price || 0).toLocaleString("id-ID") }}
+            </span>
           </div>
         </div>
 
-        <div class="space-y-2 pt-2">
-          <button
-            @click="openAddModal"
-            class="w-full py-2.5 border border-gray-800 rounded-xl font-bold text-xs text-gray-900 hover:bg-gray-50 transition-colors cursor-pointer"
-          >
-            + Tambah Alamat Baru
-          </button>
-          <button
-            @click="confirmAddressSelection"
-            class="w-full py-2.5 bg-[#14120E] hover:bg-black text-[#D4B26F] font-bold text-xs rounded-xl transition-colors cursor-pointer"
-          >
-            Gunakan Alamat Ini
+        <div v-else class="text-xs text-gray-400 text-center py-6">
+          Tidak ada opsi pengiriman yang tersedia untuk alamat ini.
+        </div>
+
+        <div class="flex justify-end pt-2 border-t">
+          <button @click="showCourierModal = false"
+            class="px-4 py-1.5 text-xs bg-gray-100 text-gray-700 font-bold rounded-lg hover:bg-gray-200">
+            Tutup
           </button>
         </div>
       </div>
     </div>
 
-    <!-- Modal Form Tambah / Ubah Alamat -->
-    <div
-      v-if="showFormModal"
-      class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs"
-    >
-      <div class="bg-white w-full max-w-md rounded-2xl p-6 shadow-xl space-y-4">
-        <h3 class="text-base font-bold text-gray-900">
-          {{ isEditing ? "Ubah Alamat" : "Tambah Alamat Baru" }}
-        </h3>
+    <!-- MODAL PILIH ALAMAT -->
+    <div v-if="showSelectModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+      <div class="bg-white rounded-2xl max-w-lg w-full p-5 space-y-4 shadow-xl">
+        <div class="flex items-center justify-between border-b pb-3">
+          <h3 class="text-sm font-bold text-gray-900">Pilih Alamat Pengiriman</h3>
+          <button @click="showSelectModal = false" class="text-gray-400 hover:text-gray-600 text-sm">✕</button>
+        </div>
 
-        <form @submit.prevent="saveAddress" class="space-y-3 text-xs">
-          <div>
-            <label class="block text-gray-500 font-medium mb-1"
-              >Label Alamat</label
-            >
-            <input
-              v-model="addressForm.label_place"
-              type="text"
-              required
-              placeholder="Rumah / Kantor / Apartemen"
-              class="w-full px-3 py-2.5 rounded-xl bg-gray-50 border border-gray-200 focus:outline-none focus:border-[#E25C38]"
-            />
-          </div>
-
-          <div>
-            <label class="block text-gray-500 font-medium mb-1"
-              >Nama Penerima</label
-            >
-            <input
-              v-model="addressForm.first_name"
-              type="text"
-              required
-              placeholder="Nama Lengkap / Depan"
-              class="w-full px-3 py-2.5 rounded-xl bg-gray-50 border border-gray-200 focus:outline-none focus:border-[#E25C38]"
-            />
-          </div>
-
-          <div>
-            <label class="block text-gray-500 font-medium mb-1"
-              >No. Handphone</label
-            >
-            <input
-              v-model="addressForm.phone"
-              type="text"
-              required
-              placeholder="08123456789"
-              class="w-full px-3 py-2.5 rounded-xl bg-gray-50 border border-gray-200 focus:outline-none focus:border-[#E25C38]"
-            />
-          </div>
-
-          <div>
-            <label class="block text-gray-500 font-medium mb-1"
-              >Alamat Lengkap</label
-            >
-            <textarea
-              v-model="addressForm.address"
-              rows="3"
-              required
-              placeholder="Jl. Melati No. 12, RT 04 / RW 06"
-              class="w-full px-3 py-2.5 rounded-xl bg-gray-50 border border-gray-200 focus:outline-none focus:border-[#E25C38] resize-none"
-            ></textarea>
-          </div>
-
-          <div class="grid grid-cols-2 gap-3">
-            <div>
-              <label class="block text-gray-500 font-medium mb-1"
-                >Kota / Kabupaten</label
-              >
-              <input
-                v-model="addressForm.city"
-                type="text"
-                required
-                placeholder="Kota Jakarta Barat"
-                class="w-full px-3 py-2.5 rounded-xl bg-gray-50 border border-gray-200 focus:outline-none focus:border-[#E25C38]"
-              />
+        <div v-if="addresses.length > 0" class="space-y-3 max-h-72 overflow-y-auto pr-1">
+          <div v-for="addr in addresses" :key="addr.id" @click="tempSelectedAddressId = addr.id" :class="[
+            'p-3.5 rounded-xl border transition-all cursor-pointer space-y-1',
+            tempSelectedAddressId === addr.id
+              ? 'border-[#E25C38] bg-[#FFF8F6]'
+              : 'border-gray-200 hover:border-gray-300'
+          ]">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-bold text-gray-900">
+                {{ addr.first_name || addr.name }}
+              </span>
+              <span v-if="addr.label_place || addr.label"
+                class="text-[10px] bg-gray-100 text-gray-600 px-2 py-0.5 rounded-md font-medium">
+                {{ addr.label_place || addr.label }}
+              </span>
             </div>
-            <div>
-              <label class="block text-gray-500 font-medium mb-1"
-                >Kode Pos</label
-              >
-              <input
-                v-model="addressForm.postal_code"
-                type="text"
-                required
-                placeholder="11111"
-                class="w-full px-3 py-2.5 rounded-xl bg-gray-50 border border-gray-200 focus:outline-none focus:border-[#E25C38]"
-              />
-            </div>
+            <p class="text-[11px] text-gray-500">
+              {{ addr.address }}, {{ addr.city }}, {{ addr.province }} {{ addr.postal_code }}
+            </p>
+            <p class="text-[11px] text-gray-400">{{ addr.phone }}</p>
           </div>
+        </div>
 
-          <div class="flex items-center gap-3 pt-2">
-            <button
-              type="button"
-              @click="
-                showFormModal = false;
-                showSelectModal = true;
-              "
-              class="flex-1 py-2.5 border border-gray-200 rounded-xl font-bold text-gray-700 hover:bg-gray-50 transition-colors cursor-pointer"
-            >
+        <div v-else class="text-xs text-gray-400 text-center py-6">
+          Belum ada alamat tersimpan.
+        </div>
+
+        <div class="flex items-center justify-between pt-2 border-t">
+          <button @click="openAddModal" class="text-xs font-bold text-[#E25C38] hover:underline cursor-pointer">
+            + Tambah Alamat Baru
+          </button>
+          <div class="flex gap-2">
+            <button @click="showSelectModal = false"
+              class="px-3 py-1.5 text-xs text-gray-600 hover:bg-gray-100 rounded-lg">
               Batal
             </button>
-            <button
-              type="submit"
-              :disabled="isSavingAddress"
-              class="flex-1 py-2.5 bg-[#14120E] hover:bg-black text-[#D4B26F] font-bold rounded-xl transition-colors cursor-pointer disabled:bg-gray-400"
-            >
-              {{ isSavingAddress ? "Menyimpan..." : "Simpan Alamat" }}
+            <button @click="saveSelectedAddress"
+              class="px-4 py-1.5 text-xs bg-[#E25C38] text-white font-bold rounded-lg hover:bg-[#c94d2b]">
+              Simpan
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- MODAL TAMBAH ALAMAT BARU -->
+    <div v-if="showAddModal"
+      class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 overflow-y-auto">
+      <div class="bg-white rounded-3xl max-w-xl w-full p-6 space-y-5 shadow-2xl relative my-8">
+        <div class="flex items-center justify-between">
+          <h2 class="text-lg font-extrabold text-gray-900">Alamat Baru</h2>
+          <button @click="showAddModal = false" class="text-gray-400 hover:text-gray-600 text-lg font-bold">✕</button>
+        </div>
+
+        <form @submit.prevent="submitAddAddress" class="space-y-4">
+          <div>
+            <label class="block text-xs font-bold text-gray-700 mb-1">Label Alamat</label>
+            <div class="flex gap-2">
+              <button type="button" v-for="opt in labelOptions" :key="opt" @click="addressForm.label_place = opt"
+                :class="[
+                  'px-3 py-1.5 text-xs rounded-xl border font-medium transition-all',
+                  addressForm.label_place === opt
+                    ? 'border-[#E25C38] bg-[#FFF8F6] text-[#E25C38]'
+                    : 'border-gray-200 text-gray-600 hover:bg-gray-50'
+                ]">
+                {{ opt }}
+              </button>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs font-bold text-gray-700 mb-1">Nama Depan *</label>
+              <input v-model="addressForm.first_name" type="text" required placeholder="Nama Depan"
+                class="w-full px-3 py-2 text-xs border border-gray-200 rounded-xl focus:outline-none focus:border-[#E25C38]" />
+            </div>
+            <div>
+              <label class="block text-xs font-bold text-gray-700 mb-1">Nama Belakang</label>
+              <input v-model="addressForm.last_name" type="text" placeholder="Nama Belakang"
+                class="w-full px-3 py-2 text-xs border border-gray-200 rounded-xl focus:outline-none focus:border-[#E25C38]" />
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs font-bold text-gray-700 mb-1">Nomor Telepon *</label>
+              <input v-model="addressForm.phone" type="tel" required placeholder="08123456789"
+                class="w-full px-3 py-2 text-xs border border-gray-200 rounded-xl focus:outline-none focus:border-[#E25C38]" />
+            </div>
+            <div>
+              <label class="block text-xs font-bold text-gray-700 mb-1">Kode Pos</label>
+              <input v-model="addressForm.postal_code" type="text" placeholder="12345"
+                class="w-full px-3 py-2 text-xs border border-gray-200 rounded-xl focus:outline-none focus:border-[#E25C38]" />
+            </div>
+          </div>
+
+          <!-- Cascading Dropdowns -->
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs font-bold text-gray-700 mb-1">Provinsi *</label>
+              <select v-model="selectedProvinceId" @change="onProvinceChange"
+                class="w-full px-3 py-2 text-xs border border-gray-200 rounded-xl focus:outline-none focus:border-[#E25C38]">
+                <option :value="null" disabled>Pilih Provinsi</option>
+                <option v-for="p in provinces" :key="p.id" :value="p.id">{{ p.name }}</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-xs font-bold text-gray-700 mb-1">Kota / Kabupaten *</label>
+              <select v-model="selectedCityId" @change="onCityChange" :disabled="!selectedProvinceId || isLoadingCities"
+                class="w-full px-3 py-2 text-xs border border-gray-200 rounded-xl focus:outline-none focus:border-[#E25C38] disabled:bg-gray-100">
+                <option :value="null" disabled>Pilih Kota/Kab</option>
+                <option v-for="c in cities" :key="c.id" :value="c.id">{{ c.name }}</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs font-bold text-gray-700 mb-1">Kecamatan *</label>
+              <select v-model="selectedDistrictId" @change="onDistrictChange"
+                :disabled="!selectedCityId || isLoadingDistricts"
+                class="w-full px-3 py-2 text-xs border border-gray-200 rounded-xl focus:outline-none focus:border-[#E25C38] disabled:bg-gray-100">
+                <option :value="null" disabled>Pilih Kecamatan</option>
+                <option v-for="d in districts" :key="d.id" :value="d.id">{{ d.name }}</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-xs font-bold text-gray-700 mb-1">Kelurahan *</label>
+              <select v-model="selectedSubDistrictId" @change="onSubDistrictChange"
+                :disabled="!selectedDistrictId || isLoadingSubDistricts"
+                class="w-full px-3 py-2 text-xs border border-gray-200 rounded-xl focus:outline-none focus:border-[#E25C38] disabled:bg-gray-100">
+                <option :value="null" disabled>Pilih Kelurahan</option>
+                <option v-for="sd in subDistricts" :key="sd.id" :value="sd.id">{{ sd.name }}</option>
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <label class="block text-xs font-bold text-gray-700 mb-1">Alamat Lengkap *</label>
+            <textarea v-model="addressForm.address" rows="3" required placeholder="Nama jalan, nomor rumah, RT/RW..."
+              class="w-full px-3 py-2 text-xs border border-gray-200 rounded-xl focus:outline-none focus:border-[#E25C38]"></textarea>
+          </div>
+
+          <div class="flex items-center gap-2">
+            <input type="checkbox" id="is_primary" v-model="addressForm.is_primary"
+              class="w-4 h-4 text-[#E25C38] accent-[#E25C38] rounded" />
+            <label for="is_primary" class="text-xs font-medium text-gray-700 cursor-pointer">
+              Jadikan Alamat Utama
+            </label>
+          </div>
+
+          <div class="flex justify-end gap-2 pt-3 border-t">
+            <button type="button" @click="showAddModal = false"
+              class="px-4 py-2 text-xs text-gray-600 hover:bg-gray-100 rounded-xl">
+              Batal
+            </button>
+            <button type="submit" :disabled="isSavingAddress"
+              class="px-5 py-2 text-xs bg-[#E25C38] text-white font-bold rounded-xl hover:bg-[#c94d2b] disabled:bg-gray-300">
+              {{ isSavingAddress ? 'Menyimpan...' : 'Simpan Alamat' }}
             </button>
           </div>
         </form>
       </div>
     </div>
+
+    <!-- MODAL PILIH VOUCHER -->
+    <div v-if="showVoucherModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+      <div class="bg-white rounded-2xl max-w-md w-full p-5 space-y-4 shadow-xl">
+        <div class="flex items-center justify-between border-b pb-3">
+          <h3 class="text-sm font-bold text-gray-900">Gunakan Voucher Diskon</h3>
+          <button @click="showVoucherModal = false" class="text-gray-400 hover:text-gray-600 text-sm">✕</button>
+        </div>
+
+        <div v-if="isLoadingVouchers" class="text-xs text-gray-400 animate-pulse text-center py-4">
+          Memuat voucher...
+        </div>
+
+        <div v-else-if="applicableVouchers.length > 0" class="space-y-2 max-h-60 overflow-y-auto pr-1">
+          <div v-for="v in applicableVouchers" :key="v.id" @click="applyVoucher(v)" :class="[
+            'p-3 rounded-xl border transition-all cursor-pointer flex items-center justify-between',
+            selectedVoucher?.id === v.id
+              ? 'border-[#E25C38] bg-[#FFF8F6]'
+              : 'border-gray-200 hover:border-gray-300'
+          ]">
+            <div>
+              <p class="text-xs font-bold text-gray-900">{{ v.name || v.code }}</p>
+              <p class="text-[11px] text-gray-500 mt-0.5">
+                {{ v.description || 'Potongan harga khusus transaksi ini' }}
+              </p>
+            </div>
+            <span class="text-xs font-bold text-[#E25C38]">
+              {{ selectedVoucher?.id === v.id ? 'Terpasang' : 'Gunakan' }}
+            </span>
+          </div>
+        </div>
+
+        <div v-else class="text-xs text-gray-400 text-center py-6">
+          Tidak ada voucher yang dapat digunakan untuk transaksi ini.
+        </div>
+
+        <div class="flex justify-end pt-2 border-t">
+          <button @click="showVoucherModal = false"
+            class="px-4 py-1.5 text-xs bg-gray-100 text-gray-700 font-bold rounded-lg hover:bg-gray-200">
+            Tutup
+          </button>
+        </div>
+      </div>
+    </div>
+
   </div>
 </template>
