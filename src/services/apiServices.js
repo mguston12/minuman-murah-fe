@@ -6,7 +6,8 @@ export const authService = {
   register: (data) => api.post("/auth/register", data),
   getMe: () => api.get("/auth/me"),
   logout: () => api.post("/auth/logout"),
-  verifyEmail: (data) => api.post('/api/verify-email', data),
+  verifyEmail: (token, email) =>
+    api.get(`/auth/verify-email/${token}`, { params: { email } }),
 };
 
 // Blog API
