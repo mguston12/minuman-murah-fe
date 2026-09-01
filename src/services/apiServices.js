@@ -64,6 +64,8 @@ export const shippingService = {
 export const orderService = {
   getOrders: (params) => api.get("/orders", { params }),
   getOrderById: (id) => api.get(`/orders/${id}`),
+  createOrder: (payload) => api.post("/checkout/create", payload),
+  payOrderMidtrans: (orderId, payload) => api.post(`/orders/${orderId}/pay/midtrans`, payload),
 };
 
 // Wishlist API
@@ -77,6 +79,7 @@ export const wishlistService = {
 // Voucher API
 export const voucherService = {
   getVouchers: () => api.get("/vouchers"),
+  getApplicable: (params) => api.post("/vouchers/applicable", params),
   checkVoucher: (code) => api.post("/vouchers/check", { code }),
 };
 

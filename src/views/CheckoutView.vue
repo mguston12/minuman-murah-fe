@@ -431,6 +431,32 @@ const saveSelectedAddress = () => {
   activeAddressId.value = tempSelectedAddressId.value;
   showSelectModal.value = false;
 };
+const loadSnapScript = () => {
+  return new Promise((resolve, reject) => {
+    if (window.snap) {
+      resolve(window.snap);
+      return;
+    }
+
+    const existingScript = document.getElementById("midtrans-snap-script");
+    if (existingScript) {
+      existingScript.onload = () => resolve(window.snap);
+      existingScript.onerror = () => reject(new Error("Gagal memuat script Midtrans"));
+      return;
+    }
+
+    const script = document.createElement("script");
+    script.src = "https://app.midtrans.com/snap/snap.js"; 
+    script.id = "midtrans-snap-script";
+    script.setAttribute("data-client-key", "Mid-client-5LwdNZy4xj2fsl_X"); 
+    script.async = true;
+
+    script.onload = () => resolve(window.snap);
+    script.onerror = () => reject(new Error("Gagal memuat script Midtrans"));
+
+    document.head.appendChild(script);
+  });
+};
 
 // --- PAYMENT INTEGRATION ---
 const handleCheckout = async () => {
@@ -513,22 +539,37 @@ const handleCheckout = async () => {
     const resPay = await orderService.payOrderMidtrans(orderId, {
       payment_method: "midtrans",
     });
-    const snapToken = resPay.data?.snap_token || resPay.data?.data?.snap_token;
+    const snapToken = resPay?.data?.snap_token || resPay?.snap_token;
+
+    await loadSnapScript();
+
+    // Debugging: Cek nilai di Console F12 browser
+    console.log("Token yang didapat:", snapToken);
+    console.log("Status window.snap:", window.snap);
+
+    if (!snapToken) {
+      alert("Gagal mendapatkan token pembayaran dari server.");
+      return;
+    }
+
+    if (!window.snap) {
+      alert("Script Midtrans Snap belum ter-load di halaman. Pastikan CDN Midtrans sudah ada di index.html.");
+      return;
+    }
 
     if (window.snap && snapToken) {
       window.snap.pay(snapToken, {
-        onSuccess: () => {
+        onSuccess: (result) => {
           alert("Pembayaran Berhasil!");
           cartStore.clearCart();
           router.push("/profile");
         },
-        onPending: () => {
+        onPending: (result) => {
           alert("Menunggu Pembayaran!");
           router.push("/profile");
         },
-        onError: () => alert("Pembayaran Gagal!"),
-        onClose: () =>
-          alert("Kamu menutup popup tanpa menyelesaikan pembayaran."),
+        onError: (result) => alert("Pembayaran Gagal!"),
+        onClose: () => alert("Kamu menutup popup tanpa menyelesaikan pembayaran."),
       });
     } else {
       alert("Gagal memuat token pembayaran.");
@@ -568,10 +609,9 @@ onMounted(() => {
   fetchApplicableVouchers();
 });
 </script>
+
 <template>
-  <div
-    class="min-h-screen bg-[#FAF6F0] py-8 px-4 sm:px-6 lg:px-8 font-sans text-gray-900"
-  >
+  <div class="min-h-screen bg-[#FAF6F0] py-8 px-4 sm:px-6 lg:px-8 font-sans text-gray-900">
     <div class="max-w-6xl mx-auto space-y-6">
       <div>
         <h1 class="text-3xl sm:text-4xl font-extrabold text-gray-900">
@@ -586,28 +626,16 @@ onMounted(() => {
         <!-- Kolom Kiri -->
         <div class="lg:col-span-8 space-y-5">
           <!-- Keranjang Belanja -->
-          <div
-            class="bg-white rounded-2xl p-6 shadow-sm border border-gray-100"
-          >
+          <div class="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
             <h2 class="text-base font-bold text-gray-900 mb-4">
               Keranjang Belanja ({{ cartStore.totalCount }})
             </h2>
 
-            <div
-              v-if="cartStore.items.length > 0"
-              class="divide-y divide-gray-100"
-            >
-              <div
-                v-for="item in cartStore.items"
-                :key="item.id"
-                class="py-4 flex items-center justify-between first:pt-0"
-              >
+            <div v-if="cartStore.items.length > 0" class="divide-y divide-gray-100">
+              <div v-for="item in cartStore.items" :key="item.id"
+                class="py-4 flex items-center justify-between first:pt-0">
                 <div class="flex items-center gap-4">
-                  <img
-                    :src="item.image"
-                    :alt="item.title"
-                    class="w-14 h-14 rounded-lg object-cover bg-gray-100"
-                  />
+                  <img :src="item.image" :alt="item.title" class="w-14 h-14 rounded-lg object-cover bg-gray-100" />
                   <div>
                     <h3 class="text-sm font-bold text-gray-800">
                       {{ item.title }}
@@ -629,19 +657,12 @@ onMounted(() => {
               <!-- Proteksi Produk -->
               <div class="pt-4">
                 <div
-                  class="flex items-start justify-between gap-3 bg-[#FAF6F0]/50 p-4 rounded-xl border border-dashed border-gray-200"
-                >
+                  class="flex items-start justify-between gap-3 bg-[#FAF6F0]/50 p-4 rounded-xl border border-dashed border-gray-200">
                   <div class="flex items-start gap-3">
-                    <input
-                      type="checkbox"
-                      id="protection"
-                      v-model="isProtectionEnabled"
-                      class="mt-1 w-4 h-4 text-[#E25C38] accent-[#E25C38] rounded cursor-pointer"
-                    />
+                    <input type="checkbox" id="protection" v-model="isProtectionEnabled"
+                      class="mt-1 w-4 h-4 text-[#E25C38] accent-[#E25C38] rounded cursor-pointer" />
                     <label for="protection" class="cursor-pointer">
-                      <span class="text-sm font-bold text-gray-900 block"
-                        >Proteksi Produk</span
-                      >
+                      <span class="text-sm font-bold text-gray-900 block">Proteksi Produk</span>
                       <span class="text-xs text-gray-500 block mt-1">
                         {{ protectionConfig.description }}
                       </span>
@@ -665,38 +686,25 @@ onMounted(() => {
           </div>
 
           <!-- Alamat Pengiriman -->
-          <div
-            class="bg-white rounded-2xl p-6 shadow-sm border border-gray-100"
-          >
+          <div class="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
             <div class="flex items-center justify-between mb-3">
               <h2 class="text-base font-bold text-gray-900">
                 Alamat Pengiriman
               </h2>
-              <button
-                v-if="addresses.length > 0"
-                @click="openSelectAddressModal"
-                class="text-sm font-bold text-[#E25C38] hover:underline cursor-pointer"
-              >
+              <button v-if="addresses.length > 0" @click="openSelectAddressModal"
+                class="text-sm font-bold text-[#E25C38] hover:underline cursor-pointer">
                 Ubah
               </button>
             </div>
 
-            <div
-              v-if="isLoadingAddresses || isLoadingUser"
-              class="text-sm text-gray-400 animate-pulse"
-            >
+            <div v-if="isLoadingAddresses || isLoadingUser" class="text-sm text-gray-400 animate-pulse">
               Memuat data alamat pengiriman...
             </div>
 
-            <div
-              v-else-if="selectedAddress"
-              class="text-sm text-gray-600 space-y-1"
-            >
+            <div v-else-if="selectedAddress" class="text-sm text-gray-600 space-y-1">
               <p class="font-bold text-gray-800">
                 {{ selectedAddress.first_name || selectedAddress.name }}
-                <span class="font-normal text-gray-500"
-                  >· {{ selectedAddress.phone }}</span
-                >
+                <span class="font-normal text-gray-500">· {{ selectedAddress.phone }}</span>
               </p>
               <p class="text-gray-600 leading-relaxed">
                 {{ selectedAddress.address }}, {{ selectedAddress.city }},
@@ -707,43 +715,30 @@ onMounted(() => {
 
             <div v-else class="text-sm text-gray-400 space-y-2 py-2">
               <p>Belum ada alamat pengiriman yang tersimpan.</p>
-              <button
-                @click="openAddModal"
-                class="text-sm font-bold text-[#E25C38] hover:underline cursor-pointer"
-              >
+              <button @click="openAddModal" class="text-sm font-bold text-[#E25C38] hover:underline cursor-pointer">
                 + Tambah Alamat
               </button>
             </div>
           </div>
 
           <!-- Pilihan Kurir Pengiriman -->
-          <div
-            class="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 space-y-4"
-          >
+          <div class="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 space-y-4">
             <div class="flex items-center justify-between">
               <h2 class="text-base font-bold text-gray-900">
                 Metode Pengiriman
               </h2>
-              <button
-                v-if="selectedAddress"
-                @click="showCourierModal = true"
-                class="text-sm font-bold text-[#E25C38] hover:underline cursor-pointer"
-              >
+              <button v-if="selectedAddress" @click="showCourierModal = true"
+                class="text-sm font-bold text-[#E25C38] hover:underline cursor-pointer">
                 {{ selectedCourier ? "Ganti Kurir" : "Pilih Kurir" }}
               </button>
             </div>
 
-            <div
-              v-if="isLoadingOngkir"
-              class="text-sm text-gray-400 animate-pulse"
-            >
+            <div v-if="isLoadingOngkir" class="text-sm text-gray-400 animate-pulse">
               Menghitung ongkos kirim...
             </div>
 
-            <div
-              v-else-if="selectedCourier"
-              class="p-4 rounded-xl border border-[#E25C38] bg-[#FFF8F6] flex items-center justify-between"
-            >
+            <div v-else-if="selectedCourier"
+              class="p-4 rounded-xl border border-[#E25C38] bg-[#FFF8F6] flex items-center justify-between">
               <div>
                 <div class="flex items-center gap-2">
                   <span class="text-sm font-bold text-gray-900">
@@ -767,15 +762,10 @@ onMounted(() => {
               </span>
             </div>
 
-            <div
-              v-else-if="selectedAddress"
-              class="text-sm text-gray-500 flex items-center justify-between"
-            >
+            <div v-else-if="selectedAddress" class="text-sm text-gray-500 flex items-center justify-between">
               <span>Silakan pilih kurir dan layanan pengiriman.</span>
-              <button
-                @click="showCourierModal = true"
-                class="px-4 py-2 bg-[#E25C38] text-white rounded-lg font-bold text-xs hover:bg-[#c94d2b]"
-              >
+              <button @click="showCourierModal = true"
+                class="px-4 py-2 bg-[#E25C38] text-white rounded-lg font-bold text-xs hover:bg-[#c94d2b]">
                 Pilih Ongkir
               </button>
             </div>
@@ -786,9 +776,7 @@ onMounted(() => {
           </div>
 
           <!-- VOUCHER UI -->
-          <div
-            class="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 flex items-center justify-between"
-          >
+          <div class="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 flex items-center justify-between">
             <div class="flex items-center gap-3">
               <span class="text-xl">🎟️</span>
               <div>
@@ -802,10 +790,8 @@ onMounted(() => {
                 </p>
               </div>
             </div>
-            <button
-              @click="showVoucherModal = true"
-              class="text-sm font-bold text-[#E25C38] hover:underline cursor-pointer"
-            >
+            <button @click="showVoucherModal = true"
+              class="text-sm font-bold text-[#E25C38] hover:underline cursor-pointer">
               {{ selectedVoucher ? "Ganti Voucher" : "Gunakan Voucher" }}
             </button>
           </div>
@@ -813,41 +799,25 @@ onMounted(() => {
 
         <!-- Kolom Kanan: Ringkasan Pesanan -->
         <div class="lg:col-span-4">
-          <div
-            class="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 space-y-4"
-          >
+          <div class="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 space-y-4">
             <h2 class="text-base font-bold text-gray-900">Ringkasan Pesanan</h2>
 
             <div class="space-y-3 text-sm">
               <div class="flex justify-between text-gray-600">
                 <span>Subtotal ({{ cartStore.totalCount }} item)</span>
-                <span class="font-bold text-gray-800"
-                  >Rp {{ subtotal.toLocaleString("id-ID") }}</span
-                >
+                <span class="font-bold text-gray-800">Rp {{ subtotal.toLocaleString("id-ID") }}</span>
               </div>
               <div class="flex justify-between text-gray-600">
                 <span>Ongkos Kirim</span>
-                <span class="font-bold text-gray-800"
-                  >Rp {{ shippingFee.toLocaleString("id-ID") }}</span
-                >
+                <span class="font-bold text-gray-800">Rp {{ shippingFee.toLocaleString("id-ID") }}</span>
               </div>
-              <div
-                v-if="isProtectionEnabled"
-                class="flex justify-between text-gray-600"
-              >
+              <div v-if="isProtectionEnabled" class="flex justify-between text-gray-600">
                 <span>Proteksi Produk</span>
-                <span class="font-bold text-gray-800"
-                  >Rp {{ protectionFee.toLocaleString("id-ID") }}</span
-                >
+                <span class="font-bold text-gray-800">Rp {{ protectionFee.toLocaleString("id-ID") }}</span>
               </div>
-              <div
-                v-if="discount > 0"
-                class="flex justify-between text-[#E25C38]"
-              >
+              <div v-if="discount > 0" class="flex justify-between text-[#E25C38]">
                 <span>Diskon Voucher</span>
-                <span class="font-bold"
-                  >- Rp {{ discount.toLocaleString("id-ID") }}</span
-                >
+                <span class="font-bold">- Rp {{ discount.toLocaleString("id-ID") }}</span>
               </div>
             </div>
 
@@ -855,32 +825,22 @@ onMounted(() => {
 
             <div class="flex justify-between items-baseline">
               <span class="text-sm font-bold text-gray-900">Total</span>
-              <span class="text-xl font-extrabold text-[#E25C38]"
-                >Rp {{ total.toLocaleString("id-ID") }}</span
-              >
+              <span class="text-xl font-extrabold text-[#E25C38]">Rp {{ total.toLocaleString("id-ID") }}</span>
             </div>
 
-            <button
-              @click="handleCheckout"
-              :disabled="
-                cartStore.items.length === 0 ||
-                isProcessingPayment ||
-                !selectedAddress ||
-                !selectedCourier
+            <button @click="handleCheckout" :disabled="cartStore.items.length === 0 ||
+              isProcessingPayment ||
+              !selectedAddress ||
+              !selectedCourier
               "
-              class="w-full py-3.5 bg-[#14120E] hover:bg-black disabled:bg-gray-200 disabled:text-gray-400 text-[#D4B26F] font-bold text-sm rounded-xl transition-all shadow-sm cursor-pointer disabled:cursor-not-allowed flex items-center justify-center gap-2"
-            >
-              <span v-if="isProcessingPayment" class="animate-spin text-base"
-                >🌀</span
-              >
+              class="w-full py-3.5 bg-[#14120E] hover:bg-black disabled:bg-gray-200 disabled:text-gray-400 text-[#D4B26F] font-bold text-sm rounded-xl transition-all shadow-sm cursor-pointer disabled:cursor-not-allowed flex items-center justify-center gap-2">
+              <span v-if="isProcessingPayment" class="animate-spin text-base">🌀</span>
               <span>{{
                 isProcessingPayment ? "Memproses..." : "Bayar Sekarang"
               }}</span>
             </button>
 
-            <p
-              class="text-xs text-gray-400 text-center flex items-center justify-center gap-1"
-            >
+            <p class="text-xs text-gray-400 text-center flex items-center justify-center gap-1">
               <span>🔒</span> Transaksi aman & terenkripsi
             </p>
           </div>
@@ -889,45 +849,28 @@ onMounted(() => {
     </div>
 
     <!-- MODAL PILIH ONGKIR / KURIR -->
-    <div
-      v-if="showCourierModal"
-      class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
-    >
+    <div v-if="showCourierModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
       <div class="bg-white rounded-2xl max-w-md w-full p-6 space-y-4 shadow-xl">
         <div class="flex items-center justify-between border-b pb-3">
           <h3 class="text-base font-bold text-gray-900">
             Pilih Opsi Pengiriman
           </h3>
-          <button
-            @click="showCourierModal = false"
-            class="text-gray-400 hover:text-gray-600 text-base"
-          >
+          <button @click="showCourierModal = false" class="text-gray-400 hover:text-gray-600 text-base">
             ✕
           </button>
         </div>
 
-        <div
-          v-if="isLoadingOngkir"
-          class="text-sm text-gray-400 animate-pulse text-center py-6"
-        >
+        <div v-if="isLoadingOngkir" class="text-sm text-gray-400 animate-pulse text-center py-6">
           Menghitung ongkos kirim...
         </div>
 
-        <div
-          v-else-if="courierOptions.length > 0"
-          class="space-y-2 max-h-72 overflow-y-auto pr-1"
-        >
-          <div
-            v-for="(opt, idx) in courierOptions"
-            :key="idx"
-            @click="selectCourierOptionFromModal(opt)"
-            :class="[
-              'p-4 rounded-xl border transition-all cursor-pointer flex items-center justify-between',
-              selectedCourier?.service === opt.service
-                ? 'border-[#E25C38] bg-[#FFF8F6]'
-                : 'border-gray-200 hover:border-gray-300',
-            ]"
-          >
+        <div v-else-if="courierOptions.length > 0" class="space-y-2 max-h-72 overflow-y-auto pr-1">
+          <div v-for="(opt, idx) in courierOptions" :key="idx" @click="selectCourierOptionFromModal(opt)" :class="[
+            'p-4 rounded-xl border transition-all cursor-pointer flex items-center justify-between',
+            selectedCourier?.service === opt.service
+              ? 'border-[#E25C38] bg-[#FFF8F6]'
+              : 'border-gray-200 hover:border-gray-300',
+          ]">
             <div>
               <div class="flex items-center gap-2">
                 <span class="text-sm font-bold text-gray-900">
@@ -949,10 +892,8 @@ onMounted(() => {
         </div>
 
         <div class="flex justify-end pt-3 border-t">
-          <button
-            @click="showCourierModal = false"
-            class="px-4 py-2 text-xs bg-gray-100 text-gray-700 font-bold rounded-lg hover:bg-gray-200"
-          >
+          <button @click="showCourierModal = false"
+            class="px-4 py-2 text-xs bg-gray-100 text-gray-700 font-bold rounded-lg hover:bg-gray-200">
             Tutup
           </button>
         </div>
@@ -960,46 +901,30 @@ onMounted(() => {
     </div>
 
     <!-- MODAL PILIH ALAMAT -->
-    <div
-      v-if="showSelectModal"
-      class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
-    >
+    <div v-if="showSelectModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
       <div class="bg-white rounded-2xl max-w-lg w-full p-6 space-y-4 shadow-xl">
         <div class="flex items-center justify-between border-b pb-3">
           <h3 class="text-base font-bold text-gray-900">
             Pilih Alamat Pengiriman
           </h3>
-          <button
-            @click="showSelectModal = false"
-            class="text-gray-400 hover:text-gray-600 text-base"
-          >
+          <button @click="showSelectModal = false" class="text-gray-400 hover:text-gray-600 text-base">
             ✕
           </button>
         </div>
 
-        <div
-          v-if="addresses.length > 0"
-          class="space-y-3 max-h-72 overflow-y-auto pr-1"
-        >
-          <div
-            v-for="addr in addresses"
-            :key="addr.id"
-            @click="tempSelectedAddressId = addr.id"
-            :class="[
-              'p-4 rounded-xl border transition-all cursor-pointer space-y-1',
-              tempSelectedAddressId === addr.id
-                ? 'border-[#E25C38] bg-[#FFF8F6]'
-                : 'border-gray-200 hover:border-gray-300',
-            ]"
-          >
+        <div v-if="addresses.length > 0" class="space-y-3 max-h-72 overflow-y-auto pr-1">
+          <div v-for="addr in addresses" :key="addr.id" @click="tempSelectedAddressId = addr.id" :class="[
+            'p-4 rounded-xl border transition-all cursor-pointer space-y-1',
+            tempSelectedAddressId === addr.id
+              ? 'border-[#E25C38] bg-[#FFF8F6]'
+              : 'border-gray-200 hover:border-gray-300',
+          ]">
             <div class="flex items-center justify-between">
               <span class="text-sm font-bold text-gray-900">
                 {{ addr.first_name || addr.name }}
               </span>
-              <span
-                v-if="addr.label_place || addr.label"
-                class="text-xs bg-gray-100 text-gray-600 px-2.5 py-0.5 rounded-md font-medium"
-              >
+              <span v-if="addr.label_place || addr.label"
+                class="text-xs bg-gray-100 text-gray-600 px-2.5 py-0.5 rounded-md font-medium">
                 {{ addr.label_place || addr.label }}
               </span>
             </div>
@@ -1016,23 +941,16 @@ onMounted(() => {
         </div>
 
         <div class="flex items-center justify-between pt-3 border-t">
-          <button
-            @click="openAddModal"
-            class="text-xs font-bold text-[#E25C38] hover:underline cursor-pointer"
-          >
+          <button @click="openAddModal" class="text-xs font-bold text-[#E25C38] hover:underline cursor-pointer">
             + Tambah Alamat Baru
           </button>
           <div class="flex gap-2">
-            <button
-              @click="showSelectModal = false"
-              class="px-4 py-2 text-xs text-gray-600 hover:bg-gray-100 rounded-lg"
-            >
+            <button @click="showSelectModal = false"
+              class="px-4 py-2 text-xs text-gray-600 hover:bg-gray-100 rounded-lg">
               Batal
             </button>
-            <button
-              @click="saveSelectedAddress"
-              class="px-4 py-2 text-xs bg-[#E25C38] text-white font-bold rounded-lg hover:bg-[#c94d2b]"
-            >
+            <button @click="saveSelectedAddress"
+              class="px-4 py-2 text-xs bg-[#E25C38] text-white font-bold rounded-lg hover:bg-[#c94d2b]">
               Simpan
             </button>
           </div>
@@ -1041,41 +959,27 @@ onMounted(() => {
     </div>
 
     <!-- MODAL TAMBAH ALAMAT BARU -->
-    <div
-      v-if="showAddModal"
-      class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 overflow-y-auto"
-    >
-      <div
-        class="bg-white rounded-3xl max-w-xl w-full p-6 space-y-5 shadow-2xl relative my-8"
-      >
+    <div v-if="showAddModal"
+      class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 overflow-y-auto">
+      <div class="bg-white rounded-3xl max-w-xl w-full p-6 space-y-5 shadow-2xl relative my-8">
         <div class="flex items-center justify-between">
           <h2 class="text-xl font-extrabold text-gray-900">Alamat Baru</h2>
-          <button
-            @click="showAddModal = false"
-            class="text-gray-400 hover:text-gray-600 text-xl font-bold"
-          >
+          <button @click="showAddModal = false" class="text-gray-400 hover:text-gray-600 text-xl font-bold">
             ✕
           </button>
         </div>
 
         <form @submit.prevent="submitAddAddress" class="space-y-4">
           <div>
-            <label class="block text-xs font-bold text-gray-700 mb-1.5"
-              >Label Alamat</label
-            >
+            <label class="block text-xs font-bold text-gray-700 mb-1.5">Label Alamat</label>
             <div class="flex gap-2">
-              <button
-                type="button"
-                v-for="opt in labelOptions"
-                :key="opt"
-                @click="addressForm.label_place = opt"
+              <button type="button" v-for="opt in labelOptions" :key="opt" @click="addressForm.label_place = opt"
                 :class="[
                   'px-3.5 py-1.5 text-xs rounded-xl border font-medium transition-all',
                   addressForm.label_place === opt
                     ? 'border-[#E25C38] bg-[#FFF8F6] text-[#E25C38]'
                     : 'border-gray-200 text-gray-600 hover:bg-gray-50',
-                ]"
-              >
+                ]">
                 {{ opt }}
               </button>
             </div>
@@ -1083,67 +987,36 @@ onMounted(() => {
 
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label class="block text-xs font-bold text-gray-700 mb-1.5"
-                >Nama Depan *</label
-              >
-              <input
-                v-model="addressForm.first_name"
-                type="text"
-                required
-                placeholder="Nama Depan"
-                class="w-full px-3.5 py-2.5 text-xs border border-gray-200 rounded-xl focus:outline-none focus:border-[#E25C38]"
-              />
+              <label class="block text-xs font-bold text-gray-700 mb-1.5">Nama Depan *</label>
+              <input v-model="addressForm.first_name" type="text" required placeholder="Nama Depan"
+                class="w-full px-3.5 py-2.5 text-xs border border-gray-200 rounded-xl focus:outline-none focus:border-[#E25C38]" />
             </div>
             <div>
-              <label class="block text-xs font-bold text-gray-700 mb-1.5"
-                >Nama Belakang</label
-              >
-              <input
-                v-model="addressForm.last_name"
-                type="text"
-                placeholder="Nama Belakang"
-                class="w-full px-3.5 py-2.5 text-xs border border-gray-200 rounded-xl focus:outline-none focus:border-[#E25C38]"
-              />
+              <label class="block text-xs font-bold text-gray-700 mb-1.5">Nama Belakang</label>
+              <input v-model="addressForm.last_name" type="text" placeholder="Nama Belakang"
+                class="w-full px-3.5 py-2.5 text-xs border border-gray-200 rounded-xl focus:outline-none focus:border-[#E25C38]" />
             </div>
           </div>
 
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label class="block text-xs font-bold text-gray-700 mb-1.5"
-                >Nomor Telepon *</label
-              >
-              <input
-                v-model="addressForm.phone"
-                type="tel"
-                required
-                placeholder="08123456789"
-                class="w-full px-3.5 py-2.5 text-xs border border-gray-200 rounded-xl focus:outline-none focus:border-[#E25C38]"
-              />
+              <label class="block text-xs font-bold text-gray-700 mb-1.5">Nomor Telepon *</label>
+              <input v-model="addressForm.phone" type="tel" required placeholder="08123456789"
+                class="w-full px-3.5 py-2.5 text-xs border border-gray-200 rounded-xl focus:outline-none focus:border-[#E25C38]" />
             </div>
             <div>
-              <label class="block text-xs font-bold text-gray-700 mb-1.5"
-                >Kode Pos</label
-              >
-              <input
-                v-model="addressForm.postal_code"
-                type="text"
-                placeholder="12345"
-                class="w-full px-3.5 py-2.5 text-xs border border-gray-200 rounded-xl focus:outline-none focus:border-[#E25C38]"
-              />
+              <label class="block text-xs font-bold text-gray-700 mb-1.5">Kode Pos</label>
+              <input v-model="addressForm.postal_code" type="text" placeholder="12345"
+                class="w-full px-3.5 py-2.5 text-xs border border-gray-200 rounded-xl focus:outline-none focus:border-[#E25C38]" />
             </div>
           </div>
 
           <!-- Cascading Dropdowns -->
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label class="block text-xs font-bold text-gray-700 mb-1.5"
-                >Provinsi *</label
-              >
-              <select
-                v-model="selectedProvinceId"
-                @change="onProvinceChange"
-                class="w-full px-3.5 py-2.5 text-xs border border-gray-200 rounded-xl focus:outline-none focus:border-[#E25C38]"
-              >
+              <label class="block text-xs font-bold text-gray-700 mb-1.5">Provinsi *</label>
+              <select v-model="selectedProvinceId" @change="onProvinceChange"
+                class="w-full px-3.5 py-2.5 text-xs border border-gray-200 rounded-xl focus:outline-none focus:border-[#E25C38]">
                 <option :value="null" disabled>Pilih Provinsi</option>
                 <option v-for="p in provinces" :key="p.id" :value="p.id">
                   {{ p.name }}
@@ -1151,15 +1024,9 @@ onMounted(() => {
               </select>
             </div>
             <div>
-              <label class="block text-xs font-bold text-gray-700 mb-1.5"
-                >Kota / Kabupaten *</label
-              >
-              <select
-                v-model="selectedCityId"
-                @change="onCityChange"
-                :disabled="!selectedProvinceId || isLoadingCities"
-                class="w-full px-3.5 py-2.5 text-xs border border-gray-200 rounded-xl focus:outline-none focus:border-[#E25C38] disabled:bg-gray-100"
-              >
+              <label class="block text-xs font-bold text-gray-700 mb-1.5">Kota / Kabupaten *</label>
+              <select v-model="selectedCityId" @change="onCityChange" :disabled="!selectedProvinceId || isLoadingCities"
+                class="w-full px-3.5 py-2.5 text-xs border border-gray-200 rounded-xl focus:outline-none focus:border-[#E25C38] disabled:bg-gray-100">
                 <option :value="null" disabled>Pilih Kota/Kab</option>
                 <option v-for="c in cities" :key="c.id" :value="c.id">
                   {{ c.name }}
@@ -1170,15 +1037,10 @@ onMounted(() => {
 
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label class="block text-xs font-bold text-gray-700 mb-1.5"
-                >Kecamatan *</label
-              >
-              <select
-                v-model="selectedDistrictId"
-                @change="onDistrictChange"
+              <label class="block text-xs font-bold text-gray-700 mb-1.5">Kecamatan *</label>
+              <select v-model="selectedDistrictId" @change="onDistrictChange"
                 :disabled="!selectedCityId || isLoadingDistricts"
-                class="w-full px-3.5 py-2.5 text-xs border border-gray-200 rounded-xl focus:outline-none focus:border-[#E25C38] disabled:bg-gray-100"
-              >
+                class="w-full px-3.5 py-2.5 text-xs border border-gray-200 rounded-xl focus:outline-none focus:border-[#E25C38] disabled:bg-gray-100">
                 <option :value="null" disabled>Pilih Kecamatan</option>
                 <option v-for="d in districts" :key="d.id" :value="d.id">
                   {{ d.name }}
@@ -1186,15 +1048,10 @@ onMounted(() => {
               </select>
             </div>
             <div>
-              <label class="block text-xs font-bold text-gray-700 mb-1.5"
-                >Kelurahan *</label
-              >
-              <select
-                v-model="selectedSubDistrictId"
-                @change="onSubDistrictChange"
+              <label class="block text-xs font-bold text-gray-700 mb-1.5">Kelurahan *</label>
+              <select v-model="selectedSubDistrictId" @change="onSubDistrictChange"
                 :disabled="!selectedDistrictId || isLoadingSubDistricts"
-                class="w-full px-3.5 py-2.5 text-xs border border-gray-200 rounded-xl focus:outline-none focus:border-[#E25C38] disabled:bg-gray-100"
-              >
+                class="w-full px-3.5 py-2.5 text-xs border border-gray-200 rounded-xl focus:outline-none focus:border-[#E25C38] disabled:bg-gray-100">
                 <option :value="null" disabled>Pilih Kelurahan</option>
                 <option v-for="sd in subDistricts" :key="sd.id" :value="sd.id">
                   {{ sd.name }}
@@ -1204,46 +1061,26 @@ onMounted(() => {
           </div>
 
           <div>
-            <label class="block text-xs font-bold text-gray-700 mb-1.5"
-              >Alamat Lengkap *</label
-            >
-            <textarea
-              v-model="addressForm.address"
-              rows="3"
-              required
-              placeholder="Nama jalan, nomor rumah, RT/RW..."
-              class="w-full px-3.5 py-2.5 text-xs border border-gray-200 rounded-xl focus:outline-none focus:border-[#E25C38]"
-            ></textarea>
+            <label class="block text-xs font-bold text-gray-700 mb-1.5">Alamat Lengkap *</label>
+            <textarea v-model="addressForm.address" rows="3" required placeholder="Nama jalan, nomor rumah, RT/RW..."
+              class="w-full px-3.5 py-2.5 text-xs border border-gray-200 rounded-xl focus:outline-none focus:border-[#E25C38]"></textarea>
           </div>
 
           <div class="flex items-center gap-2">
-            <input
-              type="checkbox"
-              id="is_primary"
-              v-model="addressForm.is_primary"
-              class="w-4 h-4 text-[#E25C38] accent-[#E25C38] rounded"
-            />
-            <label
-              for="is_primary"
-              class="text-xs font-medium text-gray-700 cursor-pointer"
-            >
+            <input type="checkbox" id="is_primary" v-model="addressForm.is_primary"
+              class="w-4 h-4 text-[#E25C38] accent-[#E25C38] rounded" />
+            <label for="is_primary" class="text-xs font-medium text-gray-700 cursor-pointer">
               Jadikan Alamat Utama
             </label>
           </div>
 
           <div class="flex justify-end gap-2 pt-3 border-t">
-            <button
-              type="button"
-              @click="showAddModal = false"
-              class="px-4 py-2 text-xs text-gray-600 hover:bg-gray-100 rounded-xl"
-            >
+            <button type="button" @click="showAddModal = false"
+              class="px-4 py-2 text-xs text-gray-600 hover:bg-gray-100 rounded-xl">
               Batal
             </button>
-            <button
-              type="submit"
-              :disabled="isSavingAddress"
-              class="px-5 py-2 text-xs bg-[#E25C38] text-white font-bold rounded-xl hover:bg-[#c94d2b] disabled:bg-gray-300"
-            >
+            <button type="submit" :disabled="isSavingAddress"
+              class="px-5 py-2 text-xs bg-[#E25C38] text-white font-bold rounded-xl hover:bg-[#c94d2b] disabled:bg-gray-300">
               {{ isSavingAddress ? "Menyimpan..." : "Simpan Alamat" }}
             </button>
           </div>
@@ -1252,45 +1089,28 @@ onMounted(() => {
     </div>
 
     <!-- MODAL PILIH VOUCHER -->
-    <div
-      v-if="showVoucherModal"
-      class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
-    >
+    <div v-if="showVoucherModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
       <div class="bg-white rounded-2xl max-w-md w-full p-6 space-y-4 shadow-xl">
         <div class="flex items-center justify-between border-b pb-3">
           <h3 class="text-base font-bold text-gray-900">
             Gunakan Voucher Diskon
           </h3>
-          <button
-            @click="showVoucherModal = false"
-            class="text-gray-400 hover:text-gray-600 text-base"
-          >
+          <button @click="showVoucherModal = false" class="text-gray-400 hover:text-gray-600 text-base">
             ✕
           </button>
         </div>
 
-        <div
-          v-if="isLoadingVouchers"
-          class="text-sm text-gray-400 animate-pulse text-center py-4"
-        >
+        <div v-if="isLoadingVouchers" class="text-sm text-gray-400 animate-pulse text-center py-4">
           Memuat voucher...
         </div>
 
-        <div
-          v-else-if="applicableVouchers.length > 0"
-          class="space-y-2 max-h-60 overflow-y-auto pr-1"
-        >
-          <div
-            v-for="v in applicableVouchers"
-            :key="v.id"
-            @click="applyVoucher(v)"
-            :class="[
-              'p-3.5 rounded-xl border transition-all cursor-pointer flex items-center justify-between',
-              selectedVoucher?.id === v.id
-                ? 'border-[#E25C38] bg-[#FFF8F6]'
-                : 'border-gray-200 hover:border-gray-300',
-            ]"
-          >
+        <div v-else-if="applicableVouchers.length > 0" class="space-y-2 max-h-60 overflow-y-auto pr-1">
+          <div v-for="v in applicableVouchers" :key="v.id" @click="applyVoucher(v)" :class="[
+            'p-3.5 rounded-xl border transition-all cursor-pointer flex items-center justify-between',
+            selectedVoucher?.id === v.id
+              ? 'border-[#E25C38] bg-[#FFF8F6]'
+              : 'border-gray-200 hover:border-gray-300',
+          ]">
             <div>
               <p class="text-sm font-bold text-gray-900">
                 {{ v.name || v.code }}
@@ -1310,10 +1130,8 @@ onMounted(() => {
         </div>
 
         <div class="flex justify-end pt-3 border-t">
-          <button
-            @click="showVoucherModal = false"
-            class="px-4 py-2 text-xs bg-gray-100 text-gray-700 font-bold rounded-lg hover:bg-gray-200"
-          >
+          <button @click="showVoucherModal = false"
+            class="px-4 py-2 text-xs bg-gray-100 text-gray-700 font-bold rounded-lg hover:bg-gray-200">
             Tutup
           </button>
         </div>
