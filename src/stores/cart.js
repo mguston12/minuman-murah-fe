@@ -2,7 +2,6 @@ import { ref, computed } from "vue";
 import { defineStore } from "pinia";
 import Cookies from "js-cookie";
 
-// Helper fungsi untuk membaca data cart dari Cookie
 const getInitialCart = () => {
   const savedCart = Cookies.get("cart_items");
   if (!savedCart) return [];
@@ -18,14 +17,22 @@ export const useCartStore = defineStore("cart", () => {
 
   const saveToCookies = () => {
     Cookies.set("cart_items", JSON.stringify(items.value), {
-      expires: 7, // Bertahan selama 7 hari
+      expires: 7,
       sameSite: "Lax",
     });
   };
 
-  const addToCart = (product, quantity = 1) => {
+  const addToCart = (product, quantity = 1, selectedVariant = null) => {
+    // 1. Ambil variant ID (dari argumen varian, atau elemen pertama variants[], atau ID produk)
+    const activeVariantId =
+      selectedVariant?.id ||
+      (Array.isArray(product.variants) && product.variants.length > 0
+        ? product.variants[0].id
+        : product.id);
+
+    // 2. Cari berdasarkan variant_id agar varian berbeda tidak tercampur
     const existingIndex = items.value.findIndex(
-      (item) => item.id === product.id,
+      (item) => item.variant_id === activeVariantId || item.id === product.id,
     );
 
     if (existingIndex > -1) {
@@ -33,11 +40,16 @@ export const useCartStore = defineStore("cart", () => {
     } else {
       items.value.push({
         id: product.id,
+        variant_id: activeVariantId, // <-- PENTING: Disimpan langsung di root item
         title: product.title || product.name,
-        price: product.price,
-        image: product.featured_image.path || product.image,
+        price: selectedVariant?.price || product.price,
+        image:
+          product.featured_image?.path ||
+          product.image ||
+          "https://via.placeholder.com/400",
         category: product.category || "",
         quantity: quantity,
+        variants: product.variants || [],
       });
     }
 
@@ -63,7 +75,7 @@ export const useCartStore = defineStore("cart", () => {
 
   const totalPrice = computed(() => {
     return items.value.reduce(
-      (sum, item) => sum + item.price * item.quantity,
+      (sum, item) => sum + Number(item.price) * item.quantity,
       0,
     );
   });
