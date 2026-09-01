@@ -1,10 +1,13 @@
 <script setup>
 import { ref, computed, onMounted, watch } from "vue";
-import { useRoute } from "vue-router";
+import { useRoute, useRouter } from "vue-router";
 import { productService } from "../services/apiServices";
+import { useCartStore } from "../stores/cart";
 import ProductCard from "../components/ProductCard.vue";
 
 const route = useRoute();
+const router = useRouter();
+const cartStore = useCartStore();
 
 const product = ref(null);
 const loading = ref(true);
@@ -17,53 +20,8 @@ const quantity = ref(1);
 const relatedProducts = ref([]);
 const loadingRelated = ref(false);
 
-// --- Dummy Data Ulasan Pembeli ---
-const dummyReviews = ref([
-  {
-    id: 1,
-    name: "Budi Santoso",
-    avatar: "https://i.pravatar.cc/100?img=11",
-    date: "12 Mar 2026",
-    rating: 5,
-    comment:
-      "Kualitas produk sangat bagus, pengiriman cepat dan respon penjual sangat ramah. Sangat direkomendasikan!",
-  },
-  {
-    id: 2,
-    name: "Siti Rahma",
-    avatar: "https://i.pravatar.cc/100?img=5",
-    date: "10 Mar 2026",
-    rating: 5,
-    comment:
-      "Bahan sesuai dengan deskripsi, ukurannya pas banget. Bikin ketagihan belanja di sini.",
-  },
-  {
-    id: 3,
-    name: "Dian Pratama",
-    avatar: "https://i.pravatar.cc/100?img=13",
-    date: "05 Mar 2026",
-    rating: 4,
-    comment:
-      "Barang oke, packing rapi pakai bubble wrap tebal. Cuma pengirimannya agak telat sehari dari kurir.",
-  },
-  {
-    id: 4,
-    name: "Eko Wijaya",
-    avatar: "https://i.pravatar.cc/100?img=60",
-    date: "01 Mar 2026",
-    rating: 5,
-    comment: "Mantap, worth it banget untuk harga segini. Presisi dan elegan.",
-  },
-  {
-    id: 5,
-    name: "Rina Kusuma",
-    avatar: "https://i.pravatar.cc/100?img=32",
-    date: "25 Feb 2026",
-    rating: 3,
-    comment:
-      "Kualitas lumayan untuk harga segini, tapi warnanya sedikit beda dari foto produk.",
-  },
-]);
+// --- Data Ulasan Pembeli (Kosong, Siap untuk diintegrasi API) ---
+const reviews = ref([]);
 
 // --- Fetch Data Produk Utama ---
 const fetchProductDetail = async () => {
@@ -82,6 +40,8 @@ const fetchProductDetail = async () => {
 
       if (product.value.variants && product.value.variants.length > 0) {
         selectedVariant.value = product.value.variants[0];
+      } else {
+        selectedVariant.value = null;
       }
 
       selectedImage.value =
@@ -101,7 +61,7 @@ const fetchProductDetail = async () => {
   }
 };
 
-// --- Fetch Related Products (/products) ---
+// --- Fetch Related Products ---
 const fetchRelatedProducts = async () => {
   loadingRelated.value = true;
   try {
@@ -146,6 +106,17 @@ const decrementQty = () => {
   if (quantity.value > 1) quantity.value--;
 };
 
+// --- Cart Handlers ---
+const handleAddToCart = () => {
+  if (!product.value) return;
+  cartStore.addToCart(product.value, quantity.value, selectedVariant.value);
+};
+
+const handleBuyNow = () => {
+  handleAddToCart();
+  router.push("/cart");
+};
+
 // --- Computed Properties ---
 const activePrice = computed(() => {
   if (!product.value) return 0;
@@ -167,17 +138,17 @@ const activeCategoryName = computed(() => {
   return product.value?.categories?.[0]?.category_name || "PRODUK";
 });
 
-// --- Review Breakdown Computations (Menggunakan Dummy Data) ---
+// --- Review Breakdown Computations ---
 const ratingCounts = computed(() => {
   const counts = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
-  dummyReviews.value.forEach((r) => {
+  reviews.value.forEach((r) => {
     if (counts[r.rating] !== undefined) counts[r.rating]++;
   });
   return counts;
 });
 
 const getRatingPercentage = (star) => {
-  const total = dummyReviews.value.length;
+  const total = reviews.value.length;
   if (!total) return 0;
   return Math.round((ratingCounts.value[star] / total) * 100);
 };
@@ -194,10 +165,10 @@ const filterOptions = [
 ];
 
 const filteredReviews = computed(() => {
-  if (selectedFilter.value === "Semua") return dummyReviews.value;
+  if (selectedFilter.value === "Semua") return reviews.value;
 
   const targetRating = parseInt(selectedFilter.value.charAt(0));
-  return dummyReviews.value.filter((r) => r.rating === targetRating);
+  return reviews.value.filter((r) => r.rating === targetRating);
 });
 </script>
 
@@ -298,7 +269,7 @@ const filteredReviews = computed(() => {
                     v-for="i in 5"
                     :key="i"
                     :class="
-                      i <= Math.round(product.average_rating || 4.8)
+                      i <= Math.round(product.average_rating || 0)
                         ? 'text-amber-400'
                         : 'text-gray-300'
                     "
@@ -306,11 +277,11 @@ const filteredReviews = computed(() => {
                   >
                 </div>
                 <span class="font-bold text-gray-700">{{
-                  product.average_rating || "4.8"
+                  product.average_rating || "0"
                 }}</span>
                 <span class="text-gray-300">&bull;</span>
                 <span class="text-gray-400"
-                  >{{ dummyReviews.length }} ulasan</span
+                  >{{ reviews.length }} ulasan</span
                 >
               </div>
             </div>
@@ -382,11 +353,13 @@ const filteredReviews = computed(() => {
             <!-- Action Buttons -->
             <div class="grid grid-cols-2 gap-3 pt-2">
               <button
+                @click="handleAddToCart"
                 class="py-2.5 px-4 border border-gray-800 rounded-xl font-bold text-xs text-gray-900 bg-white hover:bg-gray-50 transition-colors flex items-center justify-center"
               >
                 + Keranjang
               </button>
               <button
+                @click="handleBuyNow"
                 class="py-2.5 px-4 bg-[#14120E] hover:bg-black text-[#D4B26F] rounded-xl font-bold text-xs transition-colors"
               >
                 Beli Sekarang
@@ -434,19 +407,18 @@ const filteredReviews = computed(() => {
               class="text-center md:text-left space-y-1 md:pr-8 md:border-r border-gray-100"
             >
               <div class="text-4xl font-extrabold text-[#E25C38]">
-                {{ product.average_rating || "4.8" }}
+                {{ product.average_rating || "0" }}
               </div>
               <p class="text-[11px] text-gray-400">dari 5.0</p>
               <div
                 class="flex justify-center md:justify-start text-amber-400 text-sm"
               >
-                ★★★★★
+                <span v-for="i in 5" :key="i">
+                  {{ i <= Math.round(product.average_rating || 0) ? '★' : '☆' }}
+                </span>
               </div>
-              <p class="text-xs text-gray-600 font-medium mt-1">
-                98% pembeli merasa puas
-              </p>
-              <p class="text-[10px] text-gray-400">
-                {{ dummyReviews.length }} ulasan
+              <p class="text-[10px] text-gray-400 mt-1">
+                {{ reviews.length }} ulasan
               </p>
             </div>
 
@@ -505,7 +477,7 @@ const filteredReviews = computed(() => {
             >
               <div class="flex items-center gap-3">
                 <img
-                  :src="review.avatar"
+                  :src="review.avatar || 'https://via.placeholder.com/100'"
                   :alt="review.name"
                   class="w-9 h-9 rounded-full object-cover"
                 />
@@ -537,15 +509,16 @@ const filteredReviews = computed(() => {
             </div>
           </div>
 
+          <!-- Empty Reviews Fallback -->
           <div
             v-else
             class="bg-white rounded-2xl p-8 border border-gray-100 text-center text-gray-400 text-xs"
           >
-            Tidak ada ulasan untuk filter rating ini.
+            Belum ada ulasan untuk produk ini.
           </div>
         </section>
 
-        <!-- SECTION 3: Related Products Section (Menggunakan ProductCard Component) -->
+        <!-- SECTION 3: Related Products Section -->
         <section class="space-y-6 pt-8 border-t border-gray-200/60">
           <div class="flex items-center justify-between">
             <h2 class="text-lg font-bold text-gray-900">Produk Terkait</h2>
