@@ -72,6 +72,7 @@ const shippingFee = ref(0);
 const selectedCourier = ref(null);
 const courierOptions = ref([]);
 const isLoadingOngkir = ref(false);
+const showCourierModal = ref(false);
 
 // --- STATE PRODUCT PROTECTION ---
 const isProtectionEnabled = ref(false);
@@ -413,6 +414,11 @@ const selectCourierOption = (option) => {
   shippingFee.value = option.cost || option.price || 0;
 };
 
+const selectCourierOptionFromModal = (option) => {
+  selectCourierOption(option);
+  showCourierModal.value = false;
+};
+
 const applyVoucher = (voucher) => {
   if (selectedVoucher.value?.id === voucher.id) {
     selectedVoucher.value = null;
@@ -431,12 +437,18 @@ const saveSelectedAddress = () => {
   activeAddressId.value = tempSelectedAddressId.value;
   showSelectModal.value = false;
 };
-const loadSnapScript = () => {
+
+// --- MIDTRANS SDK LOADER ---
+// --- MIDTRANS SDK LOADER (SANDBOX) ---
+const loadSnapScript = (clientKey = "Mid-client-5LwdNZy4xj2fsl_X") => {
   return new Promise((resolve, reject) => {
     if (window.snap) {
       resolve(window.snap);
       return;
     }
+
+    // PAKSA GUNAKAN URL SANDBOX SESUAI DENGAN PENGATURAN BACKEND
+    const snapUrl = "https://app.sandbox.midtrans.com/snap/snap.js";
 
     const existingScript = document.getElementById("midtrans-snap-script");
     if (existingScript) {
@@ -446,18 +458,17 @@ const loadSnapScript = () => {
     }
 
     const script = document.createElement("script");
-    script.src = "https://app.midtrans.com/snap/snap.js"; 
+    script.src = snapUrl;
     script.id = "midtrans-snap-script";
-    script.setAttribute("data-client-key", "Mid-client-5LwdNZy4xj2fsl_X"); 
+    script.setAttribute("data-client-key", clientKey);
     script.async = true;
 
     script.onload = () => resolve(window.snap);
-    script.onerror = () => reject(new Error("Gagal memuat script Midtrans"));
+    script.onerror = () => reject(new Error("Gagal memuat script Midtrans Sandbox"));
 
     document.head.appendChild(script);
   });
 };
-
 // --- PAYMENT INTEGRATION ---
 const handleCheckout = async () => {
   if (cartStore.items.length === 0) return;
@@ -466,7 +477,7 @@ const handleCheckout = async () => {
     return;
   }
   if (!selectedCourier.value) {
-    alert("Silakan pilih opsional kurir pengiriman.");
+    alert("Silakan pilih opsi kurir pengiriman.");
     return;
   }
 
@@ -532,48 +543,52 @@ const handleCheckout = async () => {
 
   try {
     const resOrder = await orderService.createOrder(createOrderPayload);
-    const orderId = resOrder.data?.data?.order?.id || resOrder.data?.order?.id;
+    const orderId = resOrder.data?.data?.order?.id || resOrder.data?.order?.id || resOrder.data?.id;
 
     if (!orderId) throw new Error("Order ID tidak ditemukan.");
 
     const resPay = await orderService.payOrderMidtrans(orderId, {
       payment_method: "midtrans",
     });
-    const snapToken = resPay?.data?.snap_token || resPay?.snap_token;
 
-    await loadSnapScript();
-
-    // Debugging: Cek nilai di Console F12 browser
-    console.log("Token yang didapat:", snapToken);
-    console.log("Status window.snap:", window.snap);
+    // Pengecekan multi-level token response
+    const snapToken =
+      resPay?.data?.data?.snap_token ||
+      resPay?.data?.snap_token ||
+      resPay?.snap_token;
 
     if (!snapToken) {
       alert("Gagal mendapatkan token pembayaran dari server.");
       return;
     }
 
+    // Memastikan script Snap ter-load
+    await loadSnapScript();
+
     if (!window.snap) {
-      alert("Script Midtrans Snap belum ter-load di halaman. Pastikan CDN Midtrans sudah ada di index.html.");
+      alert("Script Midtrans Snap gagal dimuat.");
       return;
     }
 
-    if (window.snap && snapToken) {
-      window.snap.pay(snapToken, {
-        onSuccess: (result) => {
-          alert("Pembayaran Berhasil!");
-          cartStore.clearCart();
-          router.push("/profile");
-        },
-        onPending: (result) => {
-          alert("Menunggu Pembayaran!");
-          router.push("/profile");
-        },
-        onError: (result) => alert("Pembayaran Gagal!"),
-        onClose: () => alert("Kamu menutup popup tanpa menyelesaikan pembayaran."),
-      });
-    } else {
-      alert("Gagal memuat token pembayaran.");
-    }
+    // Memunculkan Pop-up Midtrans Snap
+    window.snap.pay(snapToken, {
+      onSuccess: (result) => {
+        alert("Pembayaran Berhasil!");
+        cartStore.clearCart();
+        router.push("/profile");
+      },
+      onPending: (result) => {
+        alert("Menunggu Pembayaran!");
+        cartStore.clearCart();
+        router.push("/profile");
+      },
+      onError: (result) => {
+        alert("Pembayaran Gagal!");
+      },
+      onClose: () => {
+        alert("Kamu menutup popup tanpa menyelesaikan pembayaran.");
+      },
+    });
   } catch (err) {
     console.error("Checkout error:", err);
     alert(
@@ -582,13 +597,6 @@ const handleCheckout = async () => {
   } finally {
     isProcessingPayment.value = false;
   }
-};
-
-const showCourierModal = ref(false);
-
-const selectCourierOptionFromModal = (option) => {
-  selectCourierOption(option);
-  showCourierModal.value = false;
 };
 
 // --- WATCHERS & LIFECYCLE ---
@@ -607,6 +615,7 @@ onMounted(() => {
   fetchAddresses();
   fetchProtectionConfig();
   fetchApplicableVouchers();
+  loadSnapScript(); // Preload SDK saat mounted
 });
 </script>
 

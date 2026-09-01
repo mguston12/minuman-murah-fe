@@ -8,6 +8,10 @@ export const authService = {
   logout: () => api.post("/auth/logout"),
   verifyEmail: (token, email) =>
     api.get(`/auth/verify-email/${token}`, { params: { email } }),
+  // Tambahan untuk alur Lupa Password
+  forgotPassword: (email) => api.post("/auth/forgot-password", { email }),
+  resetPassword: (payload) => api.post("/auth/reset-password", payload),
+  updateProfile: (data) => api.put("/auth/profile", data),
 };
 
 // Blog API
@@ -20,10 +24,12 @@ export const blogService = {
 // Product API
 export const productService = {
   getProducts: (params = {}) => api.get("/products", { params }),
-  getProductBySlug(slug) {
-    return api.get(`/products/${slug}`);
-  },
+  getProductBySlug: (slug) => api.get(`/products/${slug}`),
   getBrands: () => api.get("/brands/all"),
+  // Tambahan Search & Related Products jika dibutuhkan
+  searchProducts: (query) =>
+    api.get("/products/search", { params: { q: query } }),
+  getRelatedProducts: (id) => api.get(`/products/${id}/related`),
 };
 
 // Taxonomy / Category API
@@ -45,6 +51,8 @@ export const addressService = {
   createAddress: (data) => api.post("/shipping-addresses", data),
   updateAddress: (id, data) => api.put(`/shipping-addresses/${id}`, data),
   deleteAddress: (id) => api.delete(`/shipping-addresses/${id}`),
+  // Tambahan untuk mengubah alamat utama
+  setPrimaryAddress: (id) => api.patch(`/shipping-addresses/${id}/set-primary`),
 };
 
 // Shipping / Region API
@@ -58,6 +66,9 @@ export const shippingService = {
     api.get("/shipping/sub-districts", { params: { district_id: districtId } }),
 
   getShippingCost: (payload) => api.post("/shipping/cost", payload),
+  // Tambahan untuk melacak resi pengiriman
+  trackShipping: (waybill, courier) =>
+    api.post("/shipping/track", { waybill, courier }),
 };
 
 // Order API
@@ -65,7 +76,12 @@ export const orderService = {
   getOrders: (params) => api.get("/orders", { params }),
   getOrderById: (id) => api.get(`/orders/${id}`),
   createOrder: (payload) => api.post("/checkout/create", payload),
-  payOrderMidtrans: (orderId, payload) => api.post(`/orders/${orderId}/pay/midtrans`, payload),
+  payOrderMidtrans: (orderId, payload) =>
+    api.post(`/orders/${orderId}/pay/midtrans`, payload),
+  // Tambahan untuk manajemen transaksi user
+  cancelOrder: (orderId, reason) =>
+    api.post(`/orders/${orderId}/cancel`, { reason }),
+  confirmReceived: (orderId) => api.post(`/orders/${orderId}/confirm-received`),
 };
 
 // Wishlist API
@@ -88,10 +104,10 @@ export const publicConfigService = {
   getPublicConfigs: () => api.get("/public-configs"),
   getConfigByKey: (key) => api.get(`/public-configs/${key}`),
   getProtection: () => api.get("/public-configs/product_protection"),
+  // Tambahan untuk mengambil Client Key Midtrans dari Server
+  getMidtransConfig: () => api.get("/public-configs/midtrans"),
 };
 
 export const bannerService = {
-  getMainBanners() {
-    return api.get("/public/main-banners");
-  },
+  getMainBanners: () => api.get("/public/main-banners"),
 };
