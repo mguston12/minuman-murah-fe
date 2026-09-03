@@ -23,16 +23,30 @@ export const useCartStore = defineStore("cart", () => {
   };
 
   const addToCart = (product, quantity = 1, selectedVariant = null) => {
-    // 1. Ambil variant ID (dari argumen varian, atau elemen pertama variants[], atau ID produk)
+    if (!product) return;
+
+    console.log(product);
+
     const activeVariantId =
       selectedVariant?.id ||
       (Array.isArray(product.variants) && product.variants.length > 0
         ? product.variants[0].id
-        : product.id);
+        : null);
 
-    // 2. Cari berdasarkan variant_id agar varian berbeda tidak tercampur
+    const imageUrl = product.featured_image?.path;
+    product.images?.[0]?.path;
+
+    const itemPrice = Number(
+      selectedVariant?.price ||
+        selectedVariant?.final_price ||
+        product.final_price ||
+        product.base_price ||
+        product.price ||
+        0,
+    );
+
     const existingIndex = items.value.findIndex(
-      (item) => item.variant_id === activeVariantId || item.id === product.id,
+      (item) => item.id === product.id && item.variant_id === activeVariantId,
     );
 
     if (existingIndex > -1) {
@@ -40,29 +54,32 @@ export const useCartStore = defineStore("cart", () => {
     } else {
       items.value.push({
         id: product.id,
-        variant_id: activeVariantId, // <-- PENTING: Disimpan langsung di root item
-        title: product.title || product.name,
-        price: selectedVariant?.price || product.price,
-        image:
-          product.featured_image?.path ||
-          product.image ||
-          "https://via.placeholder.com/400",
-        category: product.category || "",
+        variant_id: activeVariantId,
+        variant_name:
+          selectedVariant?.variant_name || selectedVariant?.name || "",
+        title: product.name || product.title,
+        price: itemPrice,
+        image: imageUrl,
+        category:
+          product.categories?.[0]?.category_name || product.category || "",
         quantity: quantity,
-        variants: product.variants || [],
       });
     }
 
     saveToCookies();
   };
 
-  const removeFromCart = (productId) => {
-    items.value = items.value.filter((item) => item.id !== productId);
+  const removeFromCart = (productId, variantId = null) => {
+    items.value = items.value.filter(
+      (item) => !(item.id === productId && item.variant_id === variantId),
+    );
     saveToCookies();
   };
 
-  const updateQuantity = (productId, qty) => {
-    const item = items.value.find((i) => i.id === productId);
+  const updateQuantity = (productId, qty, variantId = null) => {
+    const item = items.value.find(
+      (i) => i.id === productId && i.variant_id === variantId,
+    );
     if (item) {
       item.quantity = Math.max(1, qty);
       saveToCookies();

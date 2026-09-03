@@ -8,7 +8,6 @@ export const authService = {
   logout: () => api.post("/auth/logout"),
   verifyEmail: (token, email) =>
     api.get(`/auth/verify-email/${token}`, { params: { email } }),
-  // Tambahan untuk alur Lupa Password
   forgotPassword: (email) => api.post("/auth/forgot-password", { email }),
   resetPassword: (payload) => api.post("/auth/reset-password", payload),
   updateProfile: (data) => api.put("/auth/profile", data),
@@ -26,7 +25,6 @@ export const productService = {
   getProducts: (params = {}) => api.get("/products", { params }),
   getProductBySlug: (slug) => api.get(`/products/${slug}`),
   getBrands: () => api.get("/brands/all"),
-  // Tambahan Search & Related Products jika dibutuhkan
   searchProducts: (query) =>
     api.get("/products/search", { params: { q: query } }),
   getRelatedProducts: (id) => api.get(`/products/${id}/related`),
@@ -45,13 +43,39 @@ export const attributeService = {
   getActiveAttributes: () => api.get("/attributes/active"),
 };
 
+// Banner API (Dibutuhkan untuk Hero Slide)
+export const bannerService = {
+  getMainBanners: (params = {}) => api.get("/public/main-banners", { params }),
+};
+
+// Public Config API
+export const publicConfigService = {
+  getPublicConfigs: () => api.get("/public-configs"),
+  getConfigByKey: (key) => api.get(`/public-configs/${key}`),
+  getTopBannerConfig: () => api.get("/public-configs/topbanner"),
+  getProtection: () => api.get("/public-configs/product_protection"),
+  getMidtransConfig: () => api.get("/public-configs/midtrans"),
+};
+
+// Alias / Export Tambahan untuk Kompatibilitas Import
+export const configService = publicConfigService;
+
+// Cart API (Tambahan Fitur Keranjang)
+export const cartService = {
+  getCart: () => api.get("/cart"),
+  addToCart: (payload) => api.post("/cart", payload), // { product_id, quantity, variant_id }
+  updateCartItem: (cartItemId, payload) =>
+    api.put(`/cart/${cartItemId}`, payload), // { quantity }
+  removeCartItem: (cartItemId) => api.delete(`/cart/${cartItemId}`),
+  clearCart: () => api.delete("/cart/clear"),
+};
+
 // Address API
 export const addressService = {
   getAddresses: () => api.get("/shipping-addresses"),
   createAddress: (data) => api.post("/shipping-addresses", data),
   updateAddress: (id, data) => api.put(`/shipping-addresses/${id}`, data),
   deleteAddress: (id) => api.delete(`/shipping-addresses/${id}`),
-  // Tambahan untuk mengubah alamat utama
   setPrimaryAddress: (id) => api.patch(`/shipping-addresses/${id}/set-primary`),
 };
 
@@ -66,7 +90,6 @@ export const shippingService = {
     api.get("/shipping/sub-districts", { params: { district_id: districtId } }),
 
   getShippingCost: (payload) => api.post("/shipping/cost", payload),
-  // Tambahan untuk melacak resi pengiriman
   trackShipping: (waybill, courier) =>
     api.post("/shipping/track", { waybill, courier }),
 };
@@ -78,7 +101,6 @@ export const orderService = {
   createOrder: (payload) => api.post("/checkout/create", payload),
   payOrderMidtrans: (orderId, payload) =>
     api.post(`/orders/${orderId}/pay/midtrans`, payload),
-  // Tambahan untuk manajemen transaksi user
   cancelOrder: (orderId, reason) =>
     api.post(`/orders/${orderId}/cancel`, { reason }),
   confirmReceived: (orderId) => api.post(`/orders/${orderId}/confirm-received`),
@@ -99,15 +121,9 @@ export const voucherService = {
   checkVoucher: (code) => api.post("/vouchers/check", { code }),
 };
 
-// Public Config API
-export const publicConfigService = {
-  getPublicConfigs: () => api.get("/public-configs"),
-  getConfigByKey: (key) => api.get(`/public-configs/${key}`),
-  getProtection: () => api.get("/public-configs/product_protection"),
-  // Tambahan untuk mengambil Client Key Midtrans dari Server
-  getMidtransConfig: () => api.get("/public-configs/midtrans"),
-};
-
-export const bannerService = {
-  getMainBanners: () => api.get("/public/main-banners"),
+// Review API (Tambahan Ulasan Produk)
+export const reviewService = {
+  getProductReviews: (productId, params) =>
+    api.get(`/products/${productId}/reviews`, { params }),
+  createReview: (payload) => api.post("/reviews", payload),
 };
