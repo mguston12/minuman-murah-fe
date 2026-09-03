@@ -1,0 +1,1 @@
+.no-scrollbar[data-v-2969849a]::-webkit-scrollbar{display:none}.no-scrollbar[data-v-2969849a]{-ms-overflow-style:none;scrollbar-width:none}@keyframes cartBounce-2969849a{0%{transform:scale(1)}50%{transform:scale(1.35)}to{transform:scale(1)}}[data-v-2969849a] .animate-bounce-cart{animation:.4s cubic-bezier(.18,.89,.32,1.28) cartBounce-2969849a}
