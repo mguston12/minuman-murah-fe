@@ -1,7 +1,7 @@
 <script setup>
 import { ref, onMounted, onUnmounted } from "vue";
 import ProductCard from "../components/ProductCard.vue";
-import { productService, brandService, bannerService, configService } from "../services/apiServices";
+import { productGroupService, brandService, bannerService, configService } from "../services/apiServices";
 
 // --- HELPER FUNCTIONS UNTUK COOKIES ---
 const getCookie = (name) => {
@@ -45,7 +45,7 @@ const handleRejectAge = () => {
   isUnderAge.value = true;
 };
 
-// --- DATA SLIDER HERO BANNER (DARI API MAIN BANNERS) ---
+// --- DATA SLIDER HERO BANNER ---
 const heroSlides = ref([]);
 const isLoadingHero = ref(false);
 const heroError = ref(null);
@@ -54,7 +54,6 @@ const fetchMainBanners = async () => {
   isLoadingHero.value = true;
   heroError.value = null;
   try {
-    // Sesuaikan method dengan service API milikmu, misalnya: bannerService.getMainBanners()
     const response = await bannerService.getMainBanners({ per_page: "all" });
     const resData = response?.data?.data || [];
     heroSlides.value = resData.filter((item) => item.status === "ACTIVE");
@@ -93,7 +92,7 @@ const stopHeroAutoSlide = () => {
   if (heroTimer) clearInterval(heroTimer);
 };
 
-// --- DATA PROMO / TOP BANNER (DARI API TOPBANNER CONFIG) ---
+// --- DATA PROMO / TOP BANNER ---
 const topBannerText = ref("Diskon 25% untuk Pengguna Baru");
 const isLoadingTopBanner = ref(false);
 
@@ -153,21 +152,21 @@ const topBrands = ref([]);
 const isLoadingBrands = ref(false);
 const brandsError = ref(null);
 
-// --- STATE PRODUK API ---
-const popularProducts = ref([]);
-const cheapProducts = ref([]);
+// --- STATE SUB-GROUPS PRODUK DINAMIS ---
+const productGroups = ref([]);
+const isLoadingGroups = ref(false);
+const groupsError = ref(null);
 
-const isLoadingPopular = ref(false);
-const isLoadingCheap = ref(false);
-
-const popularError = ref(null);
-const cheapError = ref(null);
-
-// --- REFS CONTAINER UNTUK SLIDER ---
+// Container refs untuk scroll navigasi slider
 const categoryContainer = ref(null);
 const brandsContainer = ref(null);
-const popularContainer = ref(null);
-const cheapContainer = ref(null);
+const groupContainers = ref({});
+
+const setContainerRef = (el, groupId) => {
+  if (el) {
+    groupContainers.value[groupId] = el;
+  }
+};
 
 const scrollContainer = (containerRef, direction) => {
   if (!containerRef) return;
@@ -194,41 +193,23 @@ const fetchTopBrands = async () => {
   }
 };
 
-const fetchPopularProducts = async () => {
-  isLoadingPopular.value = true;
-  popularError.value = null;
+const fetchProductGroups = async () => {
+  isLoadingGroups.value = true;
+  groupsError.value = null;
   try {
-    const response = await productService.getProducts({
-      page: 1,
-      per_page: 10,
-      sort_direction: "desc",
-    });
-    const resData = response?.data?.data;
-    popularProducts.value = resData?.products || [];
-  } catch (err) {
-    console.error("Gagal mengambil produk terlaris:", err);
-    popularError.value = "Gagal memuat produk terlaris.";
-  } finally {
-    isLoadingPopular.value = false;
-  }
-};
+    // Memanggil endpoint: /product-groups/3/sub-groups
+    const response = await productGroupService.getSubGroups(3);
+    const resData = response?.data?.data || response?.data || [];
 
-const fetchCheapProducts = async () => {
-  isLoadingCheap.value = true;
-  cheapError.value = null;
-  try {
-    const response = await productService.getProducts({
-      page: 1,
-      per_page: 10,
-      sort_direction: "asc",
-    });
-    const resData = response?.data?.data;
-    cheapProducts.value = resData?.products || [];
+    // Filter status 'ACTIVE' dan urutkan berdasarkan 'sort'
+    productGroups.value = resData
+      .filter((group) => group.status === "ACTIVE" || !group.status)
+      .sort((a, b) => (a.sort ?? 0) - (b.sort ?? 0));
   } catch (err) {
-    console.error("Gagal mengambil produk termurah:", err);
-    cheapError.value = "Gagal memuat produk murah.";
+    console.error("Gagal mengambil sub-groups produk:", err);
+    groupsError.value = "Gagal memuat daftar produk.";
   } finally {
-    isLoadingCheap.value = false;
+    isLoadingGroups.value = false;
   }
 };
 
@@ -237,8 +218,7 @@ onMounted(() => {
   fetchMainBanners();
   fetchTopBannerConfig();
   fetchTopBrands();
-  fetchPopularProducts();
-  fetchCheapProducts();
+  fetchProductGroups();
   startHeroAutoSlide();
 });
 
@@ -309,7 +289,7 @@ const handleQuickView = (product) => {
 
     <!-- MAIN CONTENT WEBSITE -->
     <main class="bg-[#FBF7F1] max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-10">
-      <!-- 1. Hero Section Slide Carousel (Gambar Main Banner API) -->
+      <!-- 1. Hero Section Slide Carousel -->
       <section v-if="heroSlides.length > 0" class="relative rounded-2xl overflow-hidden shadow-sm group w-full"
         @mouseenter="stopHeroAutoSlide" @mouseleave="startHeroAutoSlide">
         <div class="flex w-full transition-transform duration-500 ease-in-out"
@@ -423,7 +403,7 @@ const handleQuickView = (product) => {
         </div>
       </section>
 
-      <!-- 4. Promo Banner Voucher (Top Banner dari API) -->
+      <!-- 4. Promo Banner Voucher -->
       <section class="relative rounded-xl overflow-hidden shadow-sm bg-[#D4AF37] text-black p-6 text-center space-y-1">
         <div class="my-3">
           <h3 class="text-lg md:text-md font-bold tracking-wide">
@@ -432,97 +412,60 @@ const handleQuickView = (product) => {
         </div>
       </section>
 
-      <!-- 5. Produk Terlaris Slide Carousel -->
-      <section class="space-y-4">
-        <div class="flex items-center justify-between">
-          <h2 class="text-xl sm:text-2xl font-bold text-gray-900">
-            Produk Terlaris
-          </h2>
-          <div class="flex items-center gap-3">
-            <router-link to="/products"
-              class="text-xs font-semibold text-[#E25C38] hover:underline flex items-center gap-1">
-              Lihat semua &rarr;
-            </router-link>
+      <!-- 5. DYNAMIC PRODUCT GROUPS / SUB-GROUPS SECTION -->
+      <template v-if="isLoadingGroups">
+        <div class="bg-white rounded-2xl p-8 text-center text-xs text-gray-400">
+          Memuat daftar produk...
+        </div>
+      </template>
 
-            <div v-if="popularProducts.length" class="hidden sm:flex items-center gap-1">
-              <button @click="scrollContainer(popularContainer, 'prev')" aria-label="Scroll left"
-                class="w-7 h-7 rounded-full bg-white border border-gray-200 flex items-center justify-center text-gray-700 hover:bg-gray-100 shadow-sm transition-colors">
-                &#10094;
-              </button>
-              <button @click="scrollContainer(popularContainer, 'next')" aria-label="Scroll right"
-                class="w-7 h-7 rounded-full bg-white border border-gray-200 flex items-center justify-center text-gray-700 hover:bg-gray-100 shadow-sm transition-colors">
-                &#10095;
-              </button>
+      <template v-else-if="groupsError">
+        <div class="bg-white rounded-2xl p-8 text-center text-xs text-red-500">
+          {{ groupsError }}
+        </div>
+      </template>
+
+      <template v-else-if="productGroups.length">
+        <section v-for="group in productGroups" :key="group.id || group.title" class="space-y-4">
+          <div class="flex items-center justify-between">
+            <h2 class="text-xl sm:text-2xl font-bold text-gray-900">
+              {{ group.title || group.name }}
+            </h2>
+            <div class="flex items-center gap-3">
+              <router-link :to="`/products?group=${group.id || ''}`"
+                class="text-xs font-semibold text-[#E25C38] hover:underline flex items-center gap-1">
+                Lihat semua &rarr;
+              </router-link>
+
+              <div v-if="group.products && group.products.length" class="hidden sm:flex items-center gap-1">
+                <button @click="scrollContainer(groupContainers[group.id], 'prev')" aria-label="Scroll left"
+                  class="w-7 h-7 rounded-full bg-[#FFFFFF] border border-gray-200 flex items-center justify-center text-gray-700 hover:bg-gray-100 shadow-sm transition-colors">
+                  &#10094;
+                </button>
+                <button @click="scrollContainer(groupContainers[group.id], 'next')" aria-label="Scroll right"
+                  class="w-7 h-7 rounded-full bg-[#FFFFFF] border border-gray-200 flex items-center justify-center text-gray-700 hover:bg-gray-100 shadow-sm transition-colors">
+                  &#10095;
+                </button>
+              </div>
             </div>
           </div>
-        </div>
 
-        <div v-if="isLoadingPopular" class="bg-white rounded-2xl p-8 text-center text-xs text-gray-400">
-          Memuat produk terlaris...
-        </div>
-
-        <div v-else-if="popularError" class="bg-white rounded-2xl p-8 text-center text-xs text-red-500">
-          {{ popularError }}
-        </div>
-
-        <div v-else-if="!popularProducts.length" class="bg-white rounded-2xl p-8 text-center text-xs text-gray-500">
-          Belum ada produk terlaris.
-        </div>
-
-        <div v-else ref="popularContainer"
-          class="flex gap-4 overflow-x-auto scrollbar-none scroll-smooth pb-2 -mx-1 px-1">
-          <div v-for="product in popularProducts" :key="product.id"
-            class="w-[calc(50%-8px)] sm:w-[calc(33.333%-11px)] md:w-[calc(20%-13px)] flex-shrink-0">
-            <ProductCard :product="product" @add-to-cart="handleAddToCart" @quick-view="handleQuickView" />
+          <!-- Empty State per Group -->
+          <div v-if="!group.products || !group.products.length"
+            class="bg-white rounded-2xl p-8 text-center text-xs text-gray-500">
+            Belum ada produk untuk {{ group.title || group.name }}.
           </div>
-        </div>
-      </section>
 
-      <!-- 6. Harga Murah Slide Carousel -->
-      <section class="space-y-4">
-        <div class="flex items-center justify-between">
-          <h2 class="text-xl sm:text-2xl font-bold text-gray-900">
-            Harga Murah
-          </h2>
-          <div class="flex items-center gap-3">
-            <router-link to="/products"
-              class="text-xs font-semibold text-[#E25C38] hover:underline flex items-center gap-1">
-              Lihat semua &rarr;
-            </router-link>
-
-            <div v-if="cheapProducts.length" class="hidden sm:flex items-center gap-1">
-              <button @click="scrollContainer(cheapContainer, 'prev')" aria-label="Scroll left"
-                class="w-7 h-7 rounded-full bg-white border border-gray-200 flex items-center justify-center text-gray-700 hover:bg-gray-100 shadow-sm transition-colors">
-                &#10094;
-              </button>
-              <button @click="scrollContainer(cheapContainer, 'next')" aria-label="Scroll right"
-                class="w-7 h-7 rounded-full bg-white border border-gray-200 flex items-center justify-center text-gray-700 hover:bg-gray-100 shadow-sm transition-colors">
-                &#10095;
-              </button>
+          <!-- Product Slider Carousel -->
+          <div v-else :ref="(el) => setContainerRef(el, group.id)"
+            class="flex gap-4 overflow-x-auto scrollbar-none scroll-smooth pb-2 -mx-1 px-1">
+            <div v-for="product in group.products" :key="product.id"
+              class="w-[calc(50%-8px)] sm:w-[calc(33.333%-11px)] md:w-[calc(20%-13px)] flex-shrink-0">
+              <ProductCard :product="product" @add-to-cart="handleAddToCart" @quick-view="handleQuickView" />
             </div>
           </div>
-        </div>
-
-        <div v-if="isLoadingCheap" class="bg-white rounded-2xl p-8 text-center text-xs text-gray-400">
-          Memuat produk harga murah...
-        </div>
-
-        <div v-else-if="cheapError" class="bg-white rounded-2xl p-8 text-center text-xs text-red-500">
-          {{ cheapError }}
-        </div>
-
-        <div v-else-if="!cheapProducts.length" class="bg-white rounded-2xl p-8 text-center text-xs text-gray-500">
-          Belum ada produk murah.
-        </div>
-
-        <div v-else ref="cheapContainer"
-          class="flex gap-4 overflow-x-auto scrollbar-none scroll-smooth pb-2 -mx-1 px-1">
-          <div v-for="product in cheapProducts" :key="product.id"
-            class="w-[calc(50%-8px)] sm:w-[calc(33.333%-11px)] md:w-[calc(20%-13px)] flex-shrink-0">
-            <ProductCard :product="product" @add-to-cart="handleAddToCart" @quick-view="handleQuickView" />
-          </div>
-        </div>
-      </section>
+        </section>
+      </template>
     </main>
   </div>
 </template>

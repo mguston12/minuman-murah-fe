@@ -3,11 +3,13 @@ import { ref, computed, onMounted, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { productService } from "../services/apiServices";
 import { useCartStore } from "../stores/cart";
+import { useWishlistStore } from "../stores/wishlist"; // <-- Import Wishlist Store
 import ProductCard from "../components/ProductCard.vue";
 
 const route = useRoute();
 const router = useRouter();
 const cartStore = useCartStore();
+const wishlistStore = useWishlistStore(); // <-- Inisialisasi Wishlist Store
 
 const product = ref(null);
 const loading = ref(true);
@@ -28,6 +30,13 @@ const flyingStyle = ref({});
 // --- Data Ulasan Pembeli ---
 const reviews = ref([]);
 
+// --- Helper Stok Bersih ---
+const getAvailableQty = (storeRelation) => {
+  if (!storeRelation) return 0;
+  const available = (storeRelation.qty || 0) - (storeRelation.reserved_qty || 0);
+  return available > 0 ? available : 0;
+};
+
 // --- Fetch Data Produk Utama ---
 const fetchProductDetail = async () => {
   const slug = route.params.slug;
@@ -43,18 +52,33 @@ const fetchProductDetail = async () => {
     if (data?.success) {
       product.value = data.data.product;
 
-      // Inisialisasi Varian Terpilih
+      // 1. Set varian pertama jika ada
       if (product.value.variants && product.value.variants.length > 0) {
-        selectedVariant.value = product.value.variants[0];
+        const firstVariant = product.value.variants[0];
+        selectedVariant.value = firstVariant;
+
+        // Auto-select toko pertama yang stok bersihnya > 0
+        if (firstVariant.stock_relations && firstVariant.stock_relations.length > 0) {
+          const availableStore = firstVariant.stock_relations.find(
+            (s) => getAvailableQty(s) > 0
+          ) || firstVariant.stock_relations[0];
+          selectedStore.value = availableStore;
+        } else {
+          selectedStore.value = null;
+        }
       } else {
         selectedVariant.value = null;
+        selectedStore.value = null;
       }
 
-      // Inisialisasi Gambar Utama
+      // 2. Set Gambar Utama
       selectedImage.value =
         product.value.featured_image?.path ||
         product.value.images?.[0]?.path ||
         "";
+
+      // 3. Ambil Ulasan (jika ada)
+      reviews.value = product.value.reviews || [];
 
       fetchRelatedProducts();
     } else {
@@ -68,18 +92,20 @@ const fetchProductDetail = async () => {
   }
 };
 
-// Auto-select toko pertama dari variant yang aktif & reset quantity jika stok toko lebih kecil
+// Auto-select toko pertama yang ada stok bersih saat ganti varian & reset quantity
 watch(
   selectedVariant,
   (newVariant) => {
     if (newVariant?.stock_relations && newVariant.stock_relations.length > 0) {
-      selectedStore.value = newVariant.stock_relations[0];
+      const availableStore = newVariant.stock_relations.find(
+        (s) => getAvailableQty(s) > 0
+      ) || newVariant.stock_relations[0];
+      selectedStore.value = availableStore;
     } else {
       selectedStore.value = null;
     }
     quantity.value = 1;
-  },
-  { immediate: true }
+  }
 );
 
 // --- Fetch Related Products ---
@@ -132,27 +158,44 @@ const decrementQty = () => {
   if (quantity.value > 1) quantity.value--;
 };
 
+// --- Wishlist Handler ---
+const isInWishlist = computed(() => {
+  if (!product.value) return false;
+  // Menyesuaikan dengan struktur method store wishlist Anda (misal hasItem atau cek id)
+  if (typeof wishlistStore.hasItem === "function") {
+    return wishlistStore.hasItem(product.value.id);
+  }
+  return wishlistStore.items?.some((item) => item.id === product.value.id);
+});
+
+const toggleWishlist = () => {
+  if (!product.value) return;
+  if (typeof wishlistStore.toggleWishlist === "function") {
+    wishlistStore.toggleWishlist(product.value);
+  } else if (isInWishlist.value) {
+    wishlistStore.removeItem(product.value.id);
+  } else {
+    wishlistStore.addItem(product.value);
+  }
+};
+
 // --- Cart Handlers & Flying Animation ---
 const handleAddToCart = (event) => {
-  if (!product.value || isAnimating.value) return;
+  if (!product.value || isAnimating.value || maxStock.value <= 0) return;
 
-  // 1. Ambil posisi tombol yang diklik
   const buttonRect = event.currentTarget.getBoundingClientRect();
-
-  // 2. Ambil posisi ikon keranjang di header/navbar (pastikan ikon keranjang punya id="cart-icon")
   const cartIcon = document.getElementById("cart-icon");
 
-  // 3. Tambahkan produk ke Pinia Store
   cartStore.addToCart(
     product.value,
     quantity.value,
-    selectedVariant.value
+    selectedVariant.value,
+    selectedStore.value
   );
 
   if (cartIcon) {
     const cartRect = cartIcon.getBoundingClientRect();
 
-    // Set titik awal posisi flying badge (di tengah tombol)
     flyingStyle.value = {
       top: `${buttonRect.top + buttonRect.height / 2 - 16}px`,
       left: `${buttonRect.left + buttonRect.width / 2 - 16}px`,
@@ -162,7 +205,6 @@ const handleAddToCart = (event) => {
 
     isAnimating.value = true;
 
-    // Jalankan animasi meluncur ke arah ikon keranjang
     requestAnimationFrame(() => {
       flyingStyle.value = {
         top: `${cartRect.top + cartRect.height / 2 - 12}px`,
@@ -173,7 +215,6 @@ const handleAddToCart = (event) => {
       };
     });
 
-    // Reset animasi & beri efek membal pada ikon keranjang
     setTimeout(() => {
       isAnimating.value = false;
       cartIcon.classList.add("animate-bounce-cart");
@@ -183,12 +224,13 @@ const handleAddToCart = (event) => {
 };
 
 const handleBuyNow = () => {
-  if (!product.value) return;
+  if (!product.value || maxStock.value <= 0) return;
 
   cartStore.addToCart(
     product.value,
     quantity.value,
-    selectedVariant.value
+    selectedVariant.value,
+    selectedStore.value
   );
 
   router.push("/checkout");
@@ -215,12 +257,13 @@ const activeCategoryName = computed(() => {
   return product.value?.categories?.[0]?.category_name || "PRODUK";
 });
 
+// Hitung max stock berdasarkan stok bersih toko terpilih
 const maxStock = computed(() => {
   if (selectedStore.value) {
-    return selectedStore.value.qty;
+    return getAvailableQty(selectedStore.value);
   }
-  if (selectedVariant.value) {
-    return selectedVariant.value.stock || 0;
+  if (selectedVariant.value && selectedVariant.value.stock > 0) {
+    return selectedVariant.value.stock;
   }
   return product.value?.total_stock || 0;
 });
@@ -318,23 +361,40 @@ const filteredReviews = computed(() => {
 
           <!-- Product Info & Actions -->
           <div class="space-y-4">
-            <div>
-              <span class="text-[11px] font-bold tracking-widest text-gray-400 uppercase">
-                {{ activeCategoryName }}
-              </span>
-              <h1 class="text-2xl sm:text-3xl font-extrabold text-[#0F172A] mt-0.5">
-                {{ product.name }}
-              </h1>
-
-              <div class="flex items-center gap-2 mt-1.5 text-xs">
-                <div class="flex text-xs gap-0.5">
-                  <span v-for="i in 5" :key="i"
-                    :class="i <= Math.round(product.average_rating || 0) ? 'text-amber-400' : 'text-gray-300'">★</span>
-                </div>
-                <span class="font-bold text-gray-700">{{ product.average_rating || "0" }}</span>
-                <span class="text-gray-300">&bull;</span>
-                <span class="text-gray-400">{{ reviews.length }} ulasan</span>
+            <div class="flex items-start justify-between gap-4">
+              <div>
+                <span class="text-[11px] font-bold tracking-widest text-gray-400 uppercase">
+                  {{ activeCategoryName }}
+                </span>
+                <h1 class="text-2xl sm:text-3xl font-extrabold text-[#0F172A] mt-0.5">
+                  {{ product.name }}
+                </h1>
               </div>
+
+              <!-- Wishlist Toggle Button -->
+            <button @click="toggleWishlist" type="button" :class="[
+    'px-4 py-2.5 rounded-xl border text-xs font-bold transition-all shrink-0 flex items-center justify-center gap-2',
+    isInWishlist
+      ? 'bg-rose-50 border-rose-200 text-rose-500 hover:bg-rose-100'
+      : 'bg-white border-gray-200 text-gray-700 hover:text-rose-500 hover:border-rose-200'
+  ]" :title="isInWishlist ? 'Remove From Wishlist' : 'Add To Wishlist'">
+  <svg class="w-4 h-4 shrink-0" :fill="isInWishlist ? 'currentColor' : 'none'" stroke="currentColor"
+    viewBox="0 0 24 24">
+    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+      d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+  </svg>
+  <span>{{ isInWishlist ? 'Remove From Wishlist' : 'Add To Wishlist' }}</span>
+</button>
+            </div>
+
+            <div class="flex items-center gap-2 mt-1.5 text-xs">
+              <div class="flex text-xs gap-0.5">
+                <span v-for="i in 5" :key="i"
+                  :class="i <= Math.round(product.average_rating || 0) ? 'text-amber-400' : 'text-gray-300'">★</span>
+              </div>
+              <span class="font-bold text-gray-700">{{ product.average_rating || "0" }}</span>
+              <span class="text-gray-300">&bull;</span>
+              <span class="text-gray-400">{{ reviews.length }} ulasan</span>
             </div>
 
             <!-- Price -->
@@ -365,12 +425,12 @@ const filteredReviews = computed(() => {
               <label class="text-[11px] font-semibold text-gray-600 block">Pilih Lokasi Toko</label>
               <div class="flex flex-wrap gap-2">
                 <button v-for="item in selectedVariant.stock_relations" :key="item.id" type="button"
-                  @click="selectedStore = item" :disabled="item.qty <= 0" :class="[
+                  @click="selectedStore = item" :disabled="getAvailableQty(item) <= 0" :class="[
                     'px-3.5 py-1.5 rounded-lg text-xs transition-all border flex items-center gap-1.5',
                     selectedStore?.id === item.id
                       ? 'border-[#E25C38] bg-[#E25C38]/10 text-[#E25C38] font-semibold'
                       : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300',
-                    item.qty <= 0 ? 'opacity-50 cursor-not-allowed bg-gray-50' : ''
+                    getAvailableQty(item) <= 0 ? 'opacity-50 cursor-not-allowed bg-gray-50' : ''
                   ]">
                   <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -379,7 +439,7 @@ const filteredReviews = computed(() => {
                       d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
                   </svg>
                   <span>{{ item.store?.name }}</span>
-                  <span class="text-[10px] text-gray-400">({{ item.qty }} stok)</span>
+                  <span class="text-[10px] text-gray-400">({{ getAvailableQty(item) }} stok)</span>
                 </button>
               </div>
             </div>
@@ -422,7 +482,8 @@ const filteredReviews = computed(() => {
               <span class="w-1.5 h-1.5 rounded-full inline-block"
                 :class="maxStock > 0 ? 'bg-emerald-500' : 'bg-rose-500'"></span>
               <span v-if="maxStock > 0">
-                Stok tersedia (Sisa {{ maxStock }}) &bull; Estimasi tiba hari ini
+                Stok tersedia (Sisa {{ maxStock }} di toko {{ selectedStore?.store?.name }}) &bull; Estimasi tiba hari
+                ini
               </span>
               <span v-else>Stok habis</span>
             </p>
@@ -470,75 +531,52 @@ const filteredReviews = computed(() => {
             </div>
           </div>
 
+          <!-- Review Filters -->
           <div class="flex items-center gap-2 overflow-x-auto pb-2 no-scrollbar">
             <button v-for="filter in filterOptions" :key="filter" @click="selectedFilter = filter" :class="[
               'px-4 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all',
-              selectedFilter === filter ? 'bg-[#E25C38] text-white' : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-200/60'
+              selectedFilter === filter
+                ? 'bg-[#E25C38] text-white'
+                : 'bg-white text-gray-600 hover:bg-gray-100'
             ]">
               {{ filter }}
             </button>
           </div>
 
-          <div v-if="filteredReviews.length > 0" class="space-y-3">
+          <!-- Review List -->
+          <div class="space-y-4">
+            <div v-if="filteredReviews.length === 0" class="bg-white rounded-xl p-8 text-center text-gray-400 text-xs">
+              Belum ada ulasan untuk kategori filter ini.
+            </div>
             <div v-for="review in filteredReviews" :key="review.id"
-              class="bg-white rounded-2xl p-5 border border-gray-100/80 shadow-sm space-y-3">
-              <div class="flex items-center gap-3">
-                <img :src="review.avatar || 'https://placehold.co/100'" :alt="review.name"
-                  class="w-9 h-9 rounded-full object-cover" />
-                <div>
-                  <h4 class="text-xs font-bold text-gray-900">{{ review.name }}</h4>
-                  <p class="text-[10px] text-gray-400">Pembeli Terverifikasi &bull; {{ review.date }}</p>
-                </div>
+              class="bg-white rounded-xl p-4 border border-gray-100 space-y-2">
+              <div class="flex items-center justify-between">
+                <span class="font-bold text-xs text-gray-800">{{ review.user_name || 'Pembeli' }}</span>
+                <span class="text-[10px] text-gray-400">{{ review.created_at }}</span>
               </div>
-
-              <div class="flex text-xs gap-0.5">
-                <span v-for="n in 5" :key="n" :class="n <= review.rating ? 'text-amber-400' : 'text-gray-300'">★</span>
+              <div class="flex text-amber-400 text-xs">
+                <span v-for="i in 5" :key="i">{{ i <= review.rating ? '★' : '☆' }}</span>
               </div>
-
               <p class="text-xs text-gray-600 leading-relaxed">{{ review.comment }}</p>
             </div>
           </div>
-
-          <div v-else class="bg-white rounded-2xl p-8 border border-gray-100 text-center text-gray-400 text-xs">
-            Belum ada ulasan untuk produk ini.
-          </div>
         </section>
 
-        <!-- SECTION 3: Related Products Section -->
-        <section class="space-y-6 pt-8 border-t border-gray-200/60">
-          <div class="flex items-center justify-between">
-            <h2 class="text-lg font-bold text-gray-900">Produk Terkait</h2>
-            <router-link to="/products" class="text-xs font-semibold text-[#E25C38] hover:underline">
-              Lihat Semua &rsaquo;
-            </router-link>
-          </div>
-
-          <div v-if="loadingRelated" class="grid grid-cols-2 sm:grid-cols-4 gap-4">
-            <div v-for="i in 4" :key="i" class="bg-white rounded-2xl p-4 h-64 animate-pulse space-y-3">
-              <div class="bg-gray-200 h-36 rounded-xl w-full"></div>
-              <div class="bg-gray-200 h-4 rounded w-3/4"></div>
-              <div class="bg-gray-200 h-4 rounded w-1/2"></div>
-            </div>
-          </div>
-
-          <div v-else-if="relatedProducts.length > 0" class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        <!-- SECTION 3: Related Products -->
+        <section v-if="relatedProducts.length > 0" class="space-y-4 pt-6">
+          <h2 class="text-lg font-bold text-gray-900">Produk Serupa</h2>
+          <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
             <ProductCard v-for="item in relatedProducts" :key="item.id" :product="item" />
-          </div>
-
-          <div v-else class="text-center py-8 text-xs text-gray-400">
-            Tidak ada produk terkait lainnya.
           </div>
         </section>
       </template>
     </div>
 
-    <!-- Elemen Terbang / Flying Floating Badge -->
-    <Teleport to="body">
-      <div v-if="isAnimating" :style="flyingStyle"
-        class="fixed z-[9999] pointer-events-none w-8 h-8 bg-[#E25C38] text-white rounded-full flex items-center justify-center font-bold text-xs shadow-xl">
-        +{{ quantity }}
-      </div>
-    </Teleport>
+    <!-- Flying Badge Element untuk Animasi -->
+    <div v-if="isAnimating" :style="flyingStyle"
+      class="fixed w-8 h-8 bg-[#E25C38] text-white rounded-full flex items-center justify-center font-bold text-xs pointer-events-none z-50 shadow-lg">
+      +{{ quantity }}
+    </div>
   </div>
 </template>
 
@@ -550,23 +588,5 @@ const filteredReviews = computed(() => {
 .no-scrollbar {
   -ms-overflow-style: none;
   scrollbar-width: none;
-}
-
-@keyframes cartBounce {
-  0% {
-    transform: scale(1);
-  }
-
-  50% {
-    transform: scale(1.35);
-  }
-
-  100% {
-    transform: scale(1);
-  }
-}
-
-:deep(.animate-bounce-cart) {
-  animation: cartBounce 0.4s cubic-bezier(0.18, 0.89, 0.32, 1.28);
 }
 </style>

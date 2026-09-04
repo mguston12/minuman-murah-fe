@@ -13,8 +13,8 @@
       <aside class="w-full md:w-64 bg-white rounded-2xl p-5 shadow-sm border border-gray-100 shrink-0">
         <!-- USER INFO HEADER -->
         <div class="flex items-center gap-3 pb-4 border-b border-gray-100">
-          <img :src="profile.avatar || 'https://via.placeholder.com/150'" :alt="profile.fullName"
-            class="w-12 h-12 rounded-full object-cover border border-gray-200" />
+          <!-- <img :src="profile.avatar || 'https://via.placeholder.com/150'" :alt="profile.fullName"
+            class="w-12 h-12 rounded-full object-cover border border-gray-200" /> -->
           <div class="overflow-hidden">
             <h3 class="text-sm font-bold text-gray-900 truncate">
               {{ profile.fullName || "User" }}
@@ -234,52 +234,14 @@
         <!-- TAB 4: WISHLIST SAYA -->
         <div v-if="activeTab === 'wishlist'">
           <div v-if="wishlist.length > 0" class="grid grid-cols-2 sm:grid-cols-3 gap-4">
-            <div v-for="item in wishlist" :key="item.id"
-              class="bg-white rounded-2xl p-3 shadow-sm border border-gray-100 flex flex-col justify-between group hover:shadow-md transition-all duration-200">
-              <div>
-                <div class="relative w-full aspect-square bg-gray-50 rounded-xl overflow-hidden mb-3">
-                  <img :src="item.image" :alt="item.title"
-                    class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
-                  <span v-if="item.badge"
-                    class="absolute top-2 left-2 bg-[#E25C38] text-white text-[9px] font-extrabold px-2 py-0.5 rounded-md">
-                    {{ item.badge }}
-                  </span>
-                  <button @click="handleRemoveWishlist(item.id)"
-                    class="absolute top-2 right-2 w-6 h-6 bg-white/80 hover:bg-white text-gray-600 rounded-full flex items-center justify-center text-xs shadow-sm transition-colors">
-                    ✕
-                  </button>
-                </div>
+            <div v-for="item in wishlist" :key="item.id" class="relative group">
+              <button @click.prevent="handleRemoveWishlist(item.id)"
+                class="absolute top-3 right-3 z-10 w-7 h-7 bg-white/90 hover:bg-white text-gray-600 hover:text-red-500 rounded-full flex items-center justify-center text-xs shadow-md transition-colors"
+                title="Hapus dari Wishlist">
+                ✕
+              </button>
 
-                <span class="text-[9px] font-bold tracking-wider text-gray-400 uppercase">
-                  {{ item.category }}
-                </span>
-                <h3
-                  class="text-xs font-bold text-gray-900 mt-0.5 line-clamp-1 group-hover:text-[#E25C38] transition-colors">
-                  {{ item.title }}
-                </h3>
-                <p class="text-xs font-extrabold text-[#E25C38] mt-1">
-                  Rp {{ item.price.toLocaleString("id-ID") }}
-                </p>
-              </div>
-
-              <div class="pt-3 mt-2 border-t border-gray-50 flex items-center justify-start gap-2">
-                <router-link :to="`/product/${item.id}`"
-                  class="p-2 border border-gray-200 rounded-lg text-gray-500 hover:bg-gray-50 hover:text-black transition-colors">
-                  <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                      d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                  </svg>
-                </router-link>
-
-                <button @click="handleAddToCart(item)"
-                  class="p-1.5 rounded-lg bg-[#1C1A17] text-white hover:bg-black transition-colors flex items-center justify-center">
-                  <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24"
-                    stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                      d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
-                  </svg>
-                </button>
-              </div>
+              <ProductCard :product="item" />
             </div>
           </div>
 
@@ -443,15 +405,25 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from "vue";
+import { ref, reactive, computed, onMounted } from "vue";
 import { useRouter } from "vue-router";
 import {
   authService,
   addressService,
   shippingService,
   orderService,
-  wishlistService,
 } from "../services/apiServices";
+
+import { useWishlistStore } from "../stores/wishlist";
+import ProductCard from '../components/ProductCard.vue';
+
+const wishlistStore = useWishlistStore();
+
+const wishlist = computed(() => wishlistStore.items);
+
+const handleRemoveWishlist = (id) => {
+  wishlistStore.removeItem(id);
+};
 
 const router = useRouter();
 
@@ -470,7 +442,6 @@ const profile = reactive({
 });
 
 const orders = ref([]);
-const wishlist = ref([]);
 const addresses = ref([]);
 
 // State Modal Alamat
@@ -591,23 +562,6 @@ const fetchUserData = async () => {
     }));
   } catch (error) {
     console.error("Gagal mengambil data pesanan:", error);
-  }
-
-  // 4. Fetch Wishlist
-  try {
-    const resWishlist = await wishlistService.getWishlist();
-    const rawWishlist = resWishlist.data?.data || [];
-    wishlist.value = rawWishlist.map((item) => ({
-      id: item.id || item.product_id,
-      title: item.name || item.title,
-      category: item.category?.name || item.category || "PRODUK",
-      price: item.price || 0,
-      image: item.image || item.cover_url,
-      badge: item.badge || null,
-    }));
-  } catch (error) {
-    console.warn("Wishlist endpoint error atau belum tersedia:", error);
-    wishlist.value = [];
   } finally {
     isLoading.value = false;
   }
@@ -871,15 +825,6 @@ const handleDeleteAddress = async (id) => {
   }
 };
 
-const handleRemoveWishlist = async (id) => {
-  try {
-    await wishlistService.removeFromWishlist(id);
-    wishlist.value = wishlist.value.filter((item) => item.id !== id);
-  } catch (error) {
-    console.error("Gagal menghapus dari wishlist:", error);
-  }
-};
-
 const handleLogout = async () => {
   try {
     await authService.logout();
@@ -890,5 +835,3 @@ const handleLogout = async () => {
   }
 };
 </script>
-
-<style scoped></style>

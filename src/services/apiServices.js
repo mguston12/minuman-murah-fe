@@ -11,6 +11,7 @@ export const authService = {
   forgotPassword: (email) => api.post("/auth/forgot-password", { email }),
   resetPassword: (payload) => api.post("/auth/reset-password", payload),
   updateProfile: (data) => api.put("/auth/profile", data),
+  changePassword: (data) => api.put("/auth/change-password", data),
 };
 
 // Blog API
@@ -30,6 +31,27 @@ export const productService = {
   getRelatedProducts: (id) => api.get(`/products/${id}/related`),
 };
 
+// Product Group & Sub-Group API
+export const productGroupService = {
+  getProductGroups: (params = {}) =>
+    api.get("/public/product-groups", { params }),
+  getProductGroupById: (id) => api.get(`/public/product-groups/${id}`),
+  getSubGroups: (groupId, params = {}) =>
+    api.get(`/public/product-groups/${groupId}/sub-groups`, { params }),
+};
+
+// Alias untuk subGroupService
+export const subGroupService = {
+  getSubGroups: (groupId, params = {}) =>
+    productGroupService.getSubGroups(groupId, params),
+};
+
+// Store / Toko API
+export const storeService = {
+  getStores: (params = {}) => api.get("/stores", { params }),
+  getStoreById: (id) => api.get(`/stores/${id}`),
+};
+
 // Taxonomy / Category API
 export const taxonomyService = {
   getTaxoByType: (type) => api.get(`/taxo-lists/type/${type}`),
@@ -43,7 +65,7 @@ export const attributeService = {
   getActiveAttributes: () => api.get("/attributes/active"),
 };
 
-// Banner API (Dibutuhkan untuk Hero Slide)
+// Banner API
 export const bannerService = {
   getMainBanners: (params = {}) => api.get("/public/main-banners", { params }),
 };
@@ -60,13 +82,13 @@ export const publicConfigService = {
 // Alias / Export Tambahan untuk Kompatibilitas Import
 export const configService = publicConfigService;
 
-// Cart API (Tambahan Fitur Keranjang)
+// Cart API
 export const cartService = {
   getCart: () => api.get("/cart"),
-  addToCart: (payload) => api.post("/cart", payload), // { product_id, quantity, variant_id }
+  addToCart: (payload) => api.post("/cart/items", payload),
   updateCartItem: (cartItemId, payload) =>
-    api.put(`/cart/${cartItemId}`, payload), // { quantity }
-  removeCartItem: (cartItemId) => api.delete(`/cart/${cartItemId}`),
+    api.put(`/cart/items/${cartItemId}`, payload),
+  removeCartItem: (cartItemId) => api.delete(`/cart/items/${cartItemId}`),
   clearCart: () => api.delete("/cart/clear"),
 };
 
@@ -94,13 +116,14 @@ export const shippingService = {
     api.post("/shipping/track", { waybill, courier }),
 };
 
-// Order API
+// Order & Payment API
 export const orderService = {
   getOrders: (params) => api.get("/orders", { params }),
   getOrderById: (id) => api.get(`/orders/${id}`),
   createOrder: (payload) => api.post("/checkout/create", payload),
   payOrderMidtrans: (orderId, payload) =>
     api.post(`/orders/${orderId}/pay/midtrans`, payload),
+  getPaymentStatus: (orderId) => api.get(`/orders/${orderId}/payment-status`),
   cancelOrder: (orderId, reason) =>
     api.post(`/orders/${orderId}/cancel`, { reason }),
   confirmReceived: (orderId) => api.post(`/orders/${orderId}/confirm-received`),
@@ -121,9 +144,10 @@ export const voucherService = {
   checkVoucher: (code) => api.post("/vouchers/check", { code }),
 };
 
-// Review API (Tambahan Ulasan Produk)
+// Review API
 export const reviewService = {
   getProductReviews: (productId, params) =>
     api.get(`/products/${productId}/reviews`, { params }),
   createReview: (payload) => api.post("/reviews", payload),
+  checkEligible: (productId) => api.get(`/reviews/eligible/${productId}`),
 };
