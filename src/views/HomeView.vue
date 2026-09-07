@@ -553,7 +553,7 @@ const handleQuickView = (product) => {
             </h2>
             <div class="flex items-center gap-3">
               <router-link
-                :to="`/products?category_ids=${group.id || ''}`"
+                :to="`/products?group_id=${group.id}`"
                 class="text-xs font-semibold text-[#E25C38] hover:underline flex items-center gap-1"
               >
                 Lihat semua &rarr;

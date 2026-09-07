@@ -7,6 +7,7 @@ import {
   brandService,
   attributeService,
   productService,
+  productGroupService,
 } from "../services/apiServices";
 
 const route = useRoute();
@@ -17,26 +18,49 @@ const sortBy = ref("Paling Sesuai");
 
 const filterSections = ref([
   { id: "kategori", name: "Kategori", open: true, options: [] },
+  { id: "grup", name: "Grup Produk", open: true, options: [] },
   { id: "brand", name: "Brand", open: true, options: [] },
   { id: "ukuran", name: "Ukuran", open: true, options: [] },
   { id: "harga", name: "Harga", open: true, options: [] },
 ]);
 
-/* ============================================================
- * FILTER DARI URL (query param)
- * Disimpan terpisah dari checkbox sidebar karena id/slug yang
- * datang dari Home (kategori pilihan, product group, brand)
- * belum tentu match dengan opsi yang sudah ter-load di sidebar.
- * Tetap harus dikirim ke API meski tidak ada checkbox yang
- * kebetulan cocok.
- *
- * brand_ids adalah cara utama sekarang (Home mengirim brand_ids).
- * brand_slugs tetap didukung untuk backward compatibility kalau
- * ada link lama yang masih memakainya.
- * ============================================================ */
+const isLoadingGroups = ref(false);
+const groupsError = ref(null);
+
 const urlCategoryIds = ref([]);
 const urlBrandIds = ref([]);
 const urlBrandSlugs = ref([]);
+
+const groupsData = ref([]);
+
+const fetchGroupTaxonomy = async () => {
+  isLoadingGroups.value = true;
+  groupsError.value = null;
+  try {
+    const response = await productGroupService.getSubGroups(3);
+    const resData = response?.data?.data || response?.data || [];
+    const activeGroups = (Array.isArray(resData) ? resData : [])
+      .filter((item) => item.status === "ACTIVE" || !item.status)
+      .sort((a, b) => (a.sort ?? 0) - (b.sort ?? 0));
+
+    groupsData.value = activeGroups;
+
+    const groupSection = filterSections.value.find((s) => s.id === "grup");
+    if (groupSection) {
+      groupSection.options = activeGroups.map((item) => ({
+        id: item.id,
+        label: item.title || item.name,
+        slug: item.slug,
+        checked: false,
+      }));
+    }
+  } catch (err) {
+    console.error("Gagal mengambil grup produk:", err);
+    groupsError.value = "Gagal memuat grup produk.";
+  } finally {
+    isLoadingGroups.value = false;
+  }
+};
 
 const activeFiltersList = computed(() => {
   const list = [];
@@ -96,12 +120,43 @@ const isLoadingBrands = ref(false);
 const brandError = ref(null);
 const isLoadingAttributes = ref(false);
 const attributeError = ref(null);
+const urlGroupId = ref(null);
 
 const fetchProducts = async (page = 1) => {
   isLoadingProducts.value = true;
   productError.value = null;
 
   try {
+    const checkedGroupIds =
+      filterSections.value
+        .find((s) => s.id === "grup")
+        ?.options.filter((o) => o.checked)
+        .map((o) => o.id) || [];
+
+    if (checkedGroupIds.length) {
+      const matchedGroups = groupsData.value.filter((g) =>
+        checkedGroupIds.includes(g.id),
+      );
+
+      const mergedProductsMap = new Map();
+      matchedGroups.forEach((g) => {
+        (g.products || []).forEach((p) => {
+          mergedProductsMap.set(p.id, p); 
+        });
+      });
+
+      products.value = Array.from(mergedProductsMap.values());
+      pagination.value = {
+        current_page: 1,
+        last_page: 1,
+        total: products.value.length,
+        per_page: products.value.length || perPage.value,
+      };
+      currentPage.value = 1;
+      isLoadingProducts.value = false;
+      return; 
+    }
+
     let sortByParam = "created_at";
     let sortDir = "desc";
 
@@ -120,7 +175,6 @@ const fetchProducts = async (page = 1) => {
       sort_direction: sortDir,
     };
 
-    // Gabungkan category_ids dari checkbox sidebar + dari URL (union, dedupe)
     const checkedCategoryIds =
       filterSections.value
         .find((s) => s.id === "kategori")
@@ -136,7 +190,6 @@ const fetchProducts = async (page = 1) => {
       params.category_ids = Array.from(selectedCategories).join(",");
     }
 
-    // Gabungkan brand_ids dari checkbox sidebar + dari URL (union, dedupe)
     const checkedBrandIds =
       filterSections.value
         .find((s) => s.id === "brand")
@@ -152,7 +205,6 @@ const fetchProducts = async (page = 1) => {
       params.brand_ids = Array.from(selectedBrandIds).join(",");
     }
 
-    // brand_slugs tetap dikirim kalau ada (backward compatibility)
     if (urlBrandSlugs.value.length) {
       params.brand_slugs = urlBrandSlugs.value.join(",");
     }
@@ -194,8 +246,9 @@ const fetchProducts = async (page = 1) => {
     isLoadingProducts.value = false;
   }
 };
-
 const syncFiltersFromUrl = () => {
+  urlGroupId.value = route.query.group_id ? Number(route.query.group_id) : null;
+
   urlCategoryIds.value = route.query.category_ids
     ? route.query.category_ids
         .toString()
@@ -220,16 +273,10 @@ const syncFiltersFromUrl = () => {
         .map((s) => s.trim())
     : [];
 
-  // Centang checkbox sidebar kalau id/slug dari URL kebetulan match
-  // dengan opsi yang sudah ter-load. Kalau tidak match (mis. id dari
-  // product group yang bukan bagian dari taxonomy type=2), filter
-  // tetap dikirim ke API lewat urlCategoryIds/urlBrandIds/urlBrandSlugs
-  // di atas — hanya representasi visual checkbox-nya saja yang tidak
-  // tercentang.
-  const categorySection = filterSections.value.find((s) => s.id === "kategori");
-  if (categorySection && categorySection.options.length) {
-    categorySection.options.forEach((opt) => {
-      opt.checked = urlCategoryIds.value.includes(opt.id);
+  const groupSection = filterSections.value.find((s) => s.id === "grup");
+  if (groupSection && groupSection.options.length) {
+    groupSection.options.forEach((opt) => {
+      opt.checked = urlGroupId.value === opt.id;
     });
   }
 
@@ -336,6 +383,7 @@ const fetchAttributes = async () => {
 
 onMounted(async () => {
   await Promise.all([
+    fetchGroupTaxonomy(),
     fetchCategoryTaxonomy(),
     fetchBrands(),
     fetchAttributes(),
@@ -384,6 +432,10 @@ const removeActiveFilter = (item) => {
   if (item.type === "harga") {
     priceMin.value = null;
     priceMax.value = null;
+  } else if (item.type === "group") {
+    urlGroupId.value = null;
+    const groupSection = filterSections.value.find((s) => s.id === "grup");
+    groupSection?.options.forEach((o) => (o.checked = false));
   } else {
     const section = filterSections.value.find((s) => s.id === item.type);
     if (section) {
@@ -391,9 +443,6 @@ const removeActiveFilter = (item) => {
       if (option) option.checked = false;
     }
 
-    // Kalau filter yang dihapus ini juga berasal dari URL (mis. dari
-    // Home), hapus juga dari state urlCategoryIds/urlBrandIds/urlBrandSlugs
-    // supaya tidak "nempel" lagi walaupun checkbox sudah di-uncheck.
     if (item.type === "kategori") {
       urlCategoryIds.value = urlCategoryIds.value.filter(
         (id) => id !== item.id,
@@ -401,7 +450,6 @@ const removeActiveFilter = (item) => {
     }
     if (item.type === "brand") {
       urlBrandIds.value = urlBrandIds.value.filter((id) => id !== item.id);
-
       const brandSection = filterSections.value.find((s) => s.id === "brand");
       const removedSlug = brandSection?.options.find(
         (o) => o.id === item.id,
@@ -418,6 +466,7 @@ const removeActiveFilter = (item) => {
 };
 
 const clearAllFilters = () => {
+  urlGroupId.value = null;
   priceMin.value = null;
   priceMax.value = null;
   urlCategoryIds.value = [];
