@@ -118,14 +118,19 @@ export const shippingService = {
 
 // Order & Payment API
 export const orderService = {
-  getOrders: (params) => api.get("/orders", { params }),
+  getOrders: (params) => api.get("/customer/orders", { params }),
   getOrderById: (id) => api.get(`/orders/${id}`),
+  getOrderByOrderNumber: (orderNumber) =>
+    api.get(`/orders/order-number/${orderNumber}`),
   createOrder: (payload) => api.post("/checkout/create", payload),
   payOrderMidtrans: (orderId, payload) =>
     api.post(`/orders/${orderId}/pay/midtrans`, payload),
   getPaymentStatus: (orderId) => api.get(`/orders/${orderId}/payment-status`),
   cancelOrder: (orderId, reason) =>
     api.post(`/orders/${orderId}/cancel`, { reason }),
+  completeOrder: (orderId) => api.post(`/orders/${orderId}/complete`),
+  confirmPayment: (orderId, payload) =>
+    api.post(`/orders/${orderId}/confirm-payment`, payload),
   confirmReceived: (orderId) => api.post(`/orders/${orderId}/confirm-received`),
 };
 
