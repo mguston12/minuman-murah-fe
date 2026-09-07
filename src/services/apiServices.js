@@ -147,6 +147,7 @@ export const voucherService = {
   getVouchers: () => api.get("/vouchers"),
   getApplicable: (params) => api.post("/vouchers/applicable", params),
   checkVoucher: (code) => api.post("/vouchers/check", { code }),
+  validateVoucher: (payload) => api.post("/vouchers/validate", payload),
 };
 
 // Review API

@@ -20,7 +20,7 @@ const routes = [
   {
     path: "/checkout",
     name: "checkout",
-    component: () => import("../views/CheckoutView.vue"),
+    component: () => import("../views/CheckoutView2.vue"),
     meta: { requiresAuth: true }, // Butuh login
   },
   {

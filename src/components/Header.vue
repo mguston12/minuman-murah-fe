@@ -3,10 +3,9 @@ import { ref, onMounted, onUnmounted } from "vue";
 import { useRouter } from "vue-router";
 import Cookies from "js-cookie";
 import logoMM from "../assets/logo-3.png";
-import { useCartStore } from "../stores/cart";
 import { useAuth } from "../composables/useAuth";
 import CartDrawer from "./CartDrawer.vue";
-import { taxonomyService } from "../services/apiServices";
+import { taxonomyService, cartService } from "../services/apiServices";
 
 const router = useRouter();
 const searchQuery = ref("");
@@ -17,6 +16,7 @@ const profileDropdownRef = ref(null);
 const { isLoggedIn, user, logout, setAuthData } = useAuth();
 
 const categories = ref([]);
+const totalCount = ref(0);
 
 const fetchCategories = async () => {
   try {
@@ -39,6 +39,17 @@ const fetchCategories = async () => {
   }
 };
 
+const fetchCartCount = async () => {
+  try {
+    const response = await cartService.getCart();
+    const resData = response?.data?.data || response?.data || {};
+    const items = resData.cart || [];
+    totalCount.value = resData.calculation?.total_cart || items.reduce((acc, item) => acc + item.qty, 0);
+  } catch (err) {
+    console.error("Gagal memuat jumlah keranjang:", err);
+  }
+};
+
 const handleClickOutside = (event) => {
   if (
     profileDropdownRef.value &&
@@ -48,8 +59,12 @@ const handleClickOutside = (event) => {
   }
 };
 
+// Handler untuk event kustom cart-updated
+const handleCartUpdated = () => {
+  fetchCartCount();
+};
+
 onMounted(() => {
-  // Ambil token dan data user dari Cookie
   const currentToken = Cookies.get("auth_token");
   const currentUser = Cookies.get("auth_user");
 
@@ -63,30 +78,28 @@ onMounted(() => {
     setAuthData(currentToken, parsedUser);
   }
 
-  // Listener click outside
   document.addEventListener("click", handleClickOutside);
 
-  // Panggil API Kategori saat mounted
+  // Daftarkan listener agar Header mendengarkan perubahan keranjang dari komponen manapun
+  window.addEventListener("cart-updated", handleCartUpdated);
+
   fetchCategories();
+  fetchCartCount();
 });
 
 onUnmounted(() => {
   document.removeEventListener("click", handleClickOutside);
+  window.removeEventListener("cart-updated", handleCartUpdated);
 });
 
 const handleLogout = () => {
   isProfileMenuOpen.value = false;
-
-  // Hapus cookie saat logout
   Cookies.remove("auth_token");
   Cookies.remove("auth_user");
-
   logout();
-
   window.location.href = "/";
 };
 
-// --- HANDLER SEARCH ---
 const handleSearch = () => {
   if (searchQuery.value.trim()) {
     router.push({
@@ -95,9 +108,7 @@ const handleSearch = () => {
     });
   }
 };
-
-const cartStore = useCartStore();
-</script>
+</script>F
 
 <template>
   <header class="w-full bg-black shadow-md border-b border-zinc-800 sticky top-0 z-40">
@@ -174,7 +185,7 @@ const cartStore = useCartStore();
             </router-link>
           </template>
 
-          <!-- Cart Button (Ditambahkan id="cart-icon") -->
+          <!-- Cart Button -->
           <button id="cart-icon" @click="isCartOpen = true" type="button"
             class="flex items-center gap-1.5 border border-zinc-700 bg-zinc-900/80 rounded-lg px-3 py-1.5 hover:bg-zinc-800 text-gray-200 hover:text-white font-medium ml-1 transition-colors relative">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24"
@@ -185,9 +196,9 @@ const cartStore = useCartStore();
 
             <span class="hidden sm:inline">Keranjang</span>
 
-            <span v-if="cartStore.totalCount > 0"
+            <span v-if="totalCount > 0"
               class="ml-1 bg-[#E25C38] text-white text-xs px-1.5 py-0.5 rounded-full font-bold">
-              {{ cartStore.totalCount }}
+              {{ totalCount }}
             </span>
           </button>
         </div>
@@ -209,7 +220,7 @@ const cartStore = useCartStore();
   </header>
 
   <!-- 4. Cart Drawer Component -->
-  <CartDrawer :is-open="isCartOpen" @close="isCartOpen = false" />
+  <CartDrawer :is-open="isCartOpen" @close="isCartOpen = false; fetchCartCount()" />
 </template>
 
 <style scoped>
@@ -218,23 +229,7 @@ const cartStore = useCartStore();
 }
 
 .no-scrollbar {
-  -ms-overflow-style: none;
+  ms-overflow-style: none;
   scrollbar-width: none;
 }
-
-/* @keyframes bounce-cart {
-
-  0%,
-  100% {
-    transform: scale(1);
-  }
-
-  50% {
-    transform: scale(1.2);
-  }
-}
-
-:deep(.animate-bounce-cart) {
-  animation: bounce-cart 0.4s cubic-bezier(0.18, 0.89, 0.32, 1.28);
-} */
 </style>

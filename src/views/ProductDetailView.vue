@@ -1,15 +1,17 @@
 <script setup>
 import { ref, computed, onMounted, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { productService } from "../services/apiServices";
+import { productService, cartService } from "../services/apiServices";
 import { useCartStore } from "../stores/cart";
-import { useWishlistStore } from "../stores/wishlist"; // <-- Import Wishlist Store
+import { useWishlistStore } from "../stores/wishlist";
+import { useAuth } from "../composables/useAuth";
 import ProductCard from "../components/ProductCard.vue";
 
 const route = useRoute();
 const router = useRouter();
 const cartStore = useCartStore();
-const wishlistStore = useWishlistStore(); // <-- Inisialisasi Wishlist Store
+const wishlistStore = useWishlistStore();
+const { isLoggedIn } = useAuth();
 
 const product = ref(null);
 const loading = ref(true);
@@ -161,7 +163,6 @@ const decrementQty = () => {
 // --- Wishlist Handler ---
 const isInWishlist = computed(() => {
   if (!product.value) return false;
-  // Menyesuaikan dengan struktur method store wishlist Anda (misal hasItem atau cek id)
   if (typeof wishlistStore.hasItem === "function") {
     return wishlistStore.hasItem(product.value.id);
   }
@@ -169,6 +170,11 @@ const isInWishlist = computed(() => {
 });
 
 const toggleWishlist = () => {
+  if (!isLoggedIn.value) {
+    router.push({ path: "/login", query: { redirect: route.fullPath } });
+    return;
+  }
+
   if (!product.value) return;
   if (typeof wishlistStore.toggleWishlist === "function") {
     wishlistStore.toggleWishlist(product.value);
@@ -180,60 +186,110 @@ const toggleWishlist = () => {
 };
 
 // --- Cart Handlers & Flying Animation ---
-const handleAddToCart = (event) => {
+const handleAddToCart = async (event) => {
+  if (!isLoggedIn.value) {
+    router.push({ path: "/login", query: { redirect: route.fullPath } });
+    return;
+  }
+
   if (!product.value || isAnimating.value || maxStock.value <= 0) return;
 
   const buttonRect = event.currentTarget.getBoundingClientRect();
   const cartIcon = document.getElementById("cart-icon");
 
-  cartStore.addToCart(
-    product.value,
-    quantity.value,
-    selectedVariant.value,
-    selectedStore.value
-  );
-
-  if (cartIcon) {
-    const cartRect = cartIcon.getBoundingClientRect();
-
-    flyingStyle.value = {
-      top: `${buttonRect.top + buttonRect.height / 2 - 16}px`,
-      left: `${buttonRect.left + buttonRect.width / 2 - 16}px`,
-      opacity: 1,
-      transform: "scale(1)",
+  try {
+    const payload = {
+      variant_id: selectedVariant.value ? selectedVariant.value.id : null,
+      qty: quantity.value,
+      note: null,
+      store_id: selectedStore.value ? selectedStore.value.store_id || selectedStore.value.id : null,
+      is_protected: false,
     };
 
-    isAnimating.value = true;
+    await cartService.addToCart(payload);
 
-    requestAnimationFrame(() => {
+    window.dispatchEvent(new CustomEvent("cart-updated"));
+
+    if (typeof cartStore.fetchCart === "function") {
+      await cartStore.fetchCart();
+    } else {
+      cartStore.addToCart(
+        product.value,
+        quantity.value,
+        selectedVariant.value,
+        selectedStore.value
+      );
+    }
+
+    if (cartIcon) {
+      const cartRect = cartIcon.getBoundingClientRect();
+
       flyingStyle.value = {
-        top: `${cartRect.top + cartRect.height / 2 - 12}px`,
-        left: `${cartRect.left + cartRect.width / 2 - 12}px`,
-        opacity: 0.2,
-        transform: "scale(0.3)",
-        transition: "all 0.65s cubic-bezier(0.18, 0.89, 0.32, 1.28)",
+        top: `${buttonRect.top + buttonRect.height / 2 - 16}px`,
+        left: `${buttonRect.left + buttonRect.width / 2 - 16}px`,
+        opacity: 1,
+        transform: "scale(1)",
       };
-    });
 
-    setTimeout(() => {
-      isAnimating.value = false;
-      cartIcon.classList.add("animate-bounce-cart");
-      setTimeout(() => cartIcon.classList.remove("animate-bounce-cart"), 400);
-    }, 650);
+      isAnimating.value = true;
+
+      requestAnimationFrame(() => {
+        flyingStyle.value = {
+          top: `${cartRect.top + cartRect.height / 2 - 12}px`,
+          left: `${cartRect.left + cartRect.width / 2 - 12}px`,
+          opacity: 0.2,
+          transform: "scale(0.3)",
+          transition: "all 0.65s cubic-bezier(0.18, 0.89, 0.32, 1.28)",
+        };
+      });
+
+      setTimeout(() => {
+        isAnimating.value = false;
+        cartIcon.classList.add("animate-bounce-cart");
+        setTimeout(() => cartIcon.classList.remove("animate-bounce-cart"), 400);
+      }, 650);
+    }
+  } catch (err) {
+    console.error("Gagal menambahkan ke keranjang:", err);
+    alert(err.response?.data?.message || "Terjadi kesalahan saat menambahkan ke keranjang.");
   }
 };
 
-const handleBuyNow = () => {
+const handleBuyNow = async () => {
+  if (!isLoggedIn.value) {
+    router.push({ path: "/login", query: { redirect: route.fullPath } });
+    return;
+  }
+
   if (!product.value || maxStock.value <= 0) return;
 
-  cartStore.addToCart(
-    product.value,
-    quantity.value,
-    selectedVariant.value,
-    selectedStore.value
-  );
+  try {
+    const payload = {
+      variant_id: selectedVariant.value ? selectedVariant.value.id : null,
+      qty: quantity.value,
+      note: null,
+      store_id: selectedStore.value ? selectedStore.value.store_id || selectedStore.value.id : null,
+      is_protected: false,
+    };
 
-  router.push("/checkout");
+    await cartService.addToCart(payload);
+
+    if (typeof cartStore.fetchCart === "function") {
+      await cartStore.fetchCart();
+    } else {
+      cartStore.addToCart(
+        product.value,
+        quantity.value,
+        selectedVariant.value,
+        selectedStore.value
+      );
+    }
+
+    router.push("/checkout");
+  } catch (err) {
+    console.error("Gagal proses beli sekarang:", err);
+    alert(err.response?.data?.message || "Terjadi kesalahan.");
+  }
 };
 
 // --- Computed Properties ---
@@ -372,19 +428,19 @@ const filteredReviews = computed(() => {
               </div>
 
               <!-- Wishlist Toggle Button -->
-            <button @click="toggleWishlist" type="button" :class="[
-    'px-4 py-2.5 rounded-xl border text-xs font-bold transition-all shrink-0 flex items-center justify-center gap-2',
-    isInWishlist
-      ? 'bg-rose-50 border-rose-200 text-rose-500 hover:bg-rose-100'
-      : 'bg-white border-gray-200 text-gray-700 hover:text-rose-500 hover:border-rose-200'
-  ]" :title="isInWishlist ? 'Remove From Wishlist' : 'Add To Wishlist'">
-  <svg class="w-4 h-4 shrink-0" :fill="isInWishlist ? 'currentColor' : 'none'" stroke="currentColor"
-    viewBox="0 0 24 24">
-    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-      d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
-  </svg>
-  <span>{{ isInWishlist ? 'Remove From Wishlist' : 'Add To Wishlist' }}</span>
-</button>
+              <button @click="toggleWishlist" type="button" :class="[
+                'px-4 py-2.5 rounded-xl border text-xs font-bold transition-all shrink-0 flex items-center justify-center gap-2',
+                isInWishlist
+                  ? 'bg-rose-50 border-rose-200 text-rose-500 hover:bg-rose-100'
+                  : 'bg-white border-gray-200 text-gray-700 hover:text-rose-500 hover:border-rose-200'
+              ]" :title="isInWishlist ? 'Remove From Wishlist' : 'Add To Wishlist'">
+                <svg class="w-4 h-4 shrink-0" :fill="isInWishlist ? 'currentColor' : 'none'" stroke="currentColor"
+                  viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                </svg>
+                <span>{{ isInWishlist ? 'Remove From Wishlist' : 'Add To Wishlist' }}</span>
+              </button>
             </div>
 
             <div class="flex items-center gap-2 mt-1.5 text-xs">

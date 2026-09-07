@@ -1,7 +1,6 @@
 <script setup>
 import { ref, reactive, computed, onMounted, watch } from "vue";
 import { useRouter } from "vue-router";
-import { useCartStore } from "../stores/cart";
 import {
   authService,
   addressService,
@@ -9,10 +8,64 @@ import {
   orderService,
   voucherService,
   publicConfigService,
+  cartService,
 } from "../services/apiServices";
 
 const router = useRouter();
-const cartStore = useCartStore();
+
+// --- STATE CART API ---
+const cartItems = ref([]);
+const outOfStockItems = ref([]);
+const cartCalculation = ref({
+  sub_total: 0,
+  total_cart: 0,
+  total_weight: 0,
+  product_protection_percent: 10,
+  product_protection_amount: 0,
+});
+const isLoadingCart = ref(false);
+
+const fetchCartData = async () => {
+  isLoadingCart.value = true;
+  try {
+    const res = await cartService.getCart();
+    const responseData = res.data?.data || res.data;
+
+    // Sesuai struktur JSON baru: res.data.data.cart
+    cartItems.value = responseData?.cart || [];
+    outOfStockItems.value = responseData?.out_of_stock || [];
+
+    if (responseData?.calculation) {
+      cartCalculation.value = responseData.calculation;
+    }
+  } catch (err) {
+    console.error("Gagal mengambil data keranjang:", err);
+  } finally {
+    isLoadingCart.value = false;
+  }
+};
+
+const clearCartData = async () => {
+  try {
+    await cartService.clearCart();
+    cartItems.value = [];
+    outOfStockItems.value = [];
+  } catch (err) {
+    console.error("Gagal mengosongkan keranjang:", err);
+  }
+};
+
+const subtotal = computed(() => {
+  // Mengambil dari calculation API jika ada, atau hitung manual dari purchase_price / discount_price
+  if (cartCalculation.value.sub_total > 0) {
+    return cartCalculation.value.sub_total;
+  }
+  return cartItems.value.reduce((acc, item) => {
+    const price = item.purchase_price || item.discount_price || item.actual_price || 0;
+    const qty = item.qty || item.quantity || 1;
+    return acc + price * qty;
+  }, 0);
+});
 
 // --- STATE USER & ADDRESS ---
 const userData = ref(null);
@@ -77,7 +130,7 @@ const showCourierModal = ref(false);
 // --- STATE PRODUCT PROTECTION ---
 const isProtectionEnabled = ref(false);
 const protectionConfig = ref({
-  fee: 0,
+  fee: 10,
   description: "Melindungi barang dari kerusakan & kehilangan.",
 });
 
@@ -91,8 +144,6 @@ const showVoucherModal = ref(false);
 const isProcessingPayment = ref(false);
 
 // --- COMPUTED PROPERTIES ---
-const subtotal = computed(() => cartStore.totalPrice);
-
 const selectedAddress = computed(() => {
   return (
     addresses.value.find((a) => a.id === activeAddressId.value) ||
@@ -112,13 +163,12 @@ const discount = computed(() => {
 });
 
 const protectionFee = computed(() => {
-  return isProtectionEnabled.value
-    ? (protectionConfig.value.fee * subtotal.value) / 100
-    : 0;
+  const percent = cartCalculation.value.product_protection_percent || protectionConfig.value.fee;
+  return isProtectionEnabled.value ? (percent * subtotal.value) / 100 : 0;
 });
 
 const total = computed(() => {
-  if (cartStore.items.length === 0) return 0;
+  if (cartItems.value.length === 0) return 0;
   return Math.max(
     0,
     subtotal.value + shippingFee.value + protectionFee.value - discount.value,
@@ -296,27 +346,7 @@ const submitAddAddress = async () => {
 
   isSavingAddress.value = true;
 
-  const payload = {
-    address: addressForm.address,
-    city: addressForm.city,
-    city_id: addressForm.city_id,
-    city_label: addressForm.city_label,
-    district_id: addressForm.district_id,
-    district_label: addressForm.district_label,
-    email: addressForm.email,
-    first_name: addressForm.first_name,
-    is_primary: Boolean(addressForm.is_primary),
-    label_place: addressForm.label_place,
-    last_name: addressForm.last_name,
-    note_address: addressForm.note_address,
-    phone: addressForm.phone,
-    postal_code: addressForm.postal_code,
-    province: addressForm.province,
-    province_id: addressForm.province_id,
-    province_label: addressForm.province_label,
-    sub_district_id: addressForm.sub_district_id,
-    sub_district_label: addressForm.sub_district_label,
-  };
+  const payload = { ...addressForm, is_primary: Boolean(addressForm.is_primary) };
 
   try {
     const res = await addressService.createAddress(payload);
@@ -344,10 +374,8 @@ const fetchProtectionConfig = async () => {
       const data = res.data?.data || res.data;
       if (data) {
         protectionConfig.value = {
-          fee: Number(data.fee || data.value || 0),
-          description:
-            data.description ||
-            "Melindungi barang dari kerusakan & kehilangan.",
+          fee: Number(data.fee || data.value || 10),
+          description: data.description || "Melindungi barang dari kerusakan & kehilangan.",
         };
       }
     }
@@ -362,7 +390,7 @@ const fetchApplicableVouchers = async () => {
     if (voucherService?.getApplicable) {
       const res = await voucherService.getApplicable({
         subtotal: subtotal.value,
-        items: cartStore.items,
+        items: cartItems.value,
       });
       applicableVouchers.value = res.data?.data || res.data || [];
     }
@@ -382,16 +410,15 @@ const fetchShippingCost = async () => {
   shippingFee.value = 0;
 
   try {
-    const totalWeight = cartStore.items.reduce(
-      (acc, item) => acc + (item.weight || 1000) * item.quantity,
-      0,
-    );
+    // Menggunakan total_weight dari kalkulasi API cart jika tersedia
+    const totalWeight = cartCalculation.value.total_weight > 0
+      ? cartCalculation.value.total_weight
+      : cartItems.value.reduce((acc, item) => acc + (item.weight || 1000) * (item.qty || 1), 0);
 
     const payload = {
-      destination: String(selectedAddress.value.city_id || 143),
+      destination: String(selectedAddress.value.city_id || 136),
       weight: totalWeight,
-      courier:
-        "jne:sicepat:ide:sap:jnt:ninja:tiki:lion:anteraja:pos:ncs:rex:rpx:sentral:star:wahana",
+      courier: "jne:sicepat:ide:sap:jnt:ninja:tiki:lion:anteraja:pos:ncs:rex:rpx:sentral:star:wahana",
     };
 
     const res = await shippingService.getShippingCost(payload);
@@ -446,14 +473,11 @@ const loadSnapScript = (clientKey = "Mid-client-5LwdNZy4xj2fsl_X") => {
       return;
     }
 
-    // PAKSA GUNAKAN URL SANDBOX SESUAI DENGAN PENGATURAN BACKEND
     const snapUrl = "https://app.sandbox.midtrans.com/snap/snap.js";
-
     const existingScript = document.getElementById("midtrans-snap-script");
     if (existingScript) {
       existingScript.onload = () => resolve(window.snap);
-      existingScript.onerror = () =>
-        reject(new Error("Gagal memuat script Midtrans"));
+      existingScript.onerror = () => reject(new Error("Gagal memuat script Midtrans"));
       return;
     }
 
@@ -464,15 +488,15 @@ const loadSnapScript = (clientKey = "Mid-client-5LwdNZy4xj2fsl_X") => {
     script.async = true;
 
     script.onload = () => resolve(window.snap);
-    script.onerror = () =>
-      reject(new Error("Gagal memuat script Midtrans Sandbox"));
+    script.onerror = () => reject(new Error("Gagal memuat script Midtrans Sandbox"));
 
     document.head.appendChild(script);
   });
 };
+
 // --- PAYMENT INTEGRATION ---
 const handleCheckout = async () => {
-  if (cartStore.items.length === 0) return;
+  if (cartItems.value.length === 0) return;
   if (!selectedAddress.value) {
     alert("Silakan tambahkan atau pilih alamat pengiriman terlebih dahulu.");
     return;
@@ -514,30 +538,17 @@ const handleCheckout = async () => {
       delivery_order_note: null,
       invoice_note: null,
       payment_method: "midtrans",
-      products: cartStore.items.map((item) => {
-        const variantsArray =
-          item.variants || item.product?.variants || item.product_variants;
-
-        const selectedVariantId =
-          item.variant_id ||
-          item.selectedVariant?.id ||
-          item.id_variant ||
-          (Array.isArray(variantsArray) && variantsArray.length > 0
-            ? variantsArray[0].id
-            : null);
-
-        return {
-          is_protected: isProtectionEnabled.value,
-          note: item.note || null,
-          qty: item.quantity || item.qty || 1,
-          variant_id: selectedVariantId,
-        };
-      }),
+      products: cartItems.value.map((item) => ({
+        is_protected: isProtectionEnabled.value ? 1 : 0,
+        note: item.note || null,
+        qty: item.qty || item.quantity || 1,
+        variant_id: item.variant_id,
+      })),
       shipping: {
         address: addr.address,
         city: addr.city,
-        city_id: addr.city_id || 199,
-        district_id: addr.district_id || 2166,
+        city_id: addr.city_id || 136,
+        district_id: addr.district_id || 0,
         email: userData.value?.email || "user@example.com",
         first_name: addr.first_name || userData.value?.name || "Customer",
         label_place: addr.label_place || "Rumah",
@@ -545,9 +556,9 @@ const handleCheckout = async () => {
         note_address: addr.note_address || "",
         phone: addr.phone || userData.value?.phone || "",
         postal_code: addr.postal_code || "",
-        province: addr.province || "JAWA BARAT",
-        province_id: addr.province_id || 5,
-        sub_district_id: addr.sub_district_id || 25983,
+        province: addr.province || "",
+        province_id: addr.province_id || 0,
+        sub_district_id: addr.sub_district_id || 0,
       },
       use_points: false,
       voucher_discount: discount.value,
@@ -586,14 +597,14 @@ const handleCheckout = async () => {
     }
 
     window.snap.pay(snapToken, {
-      onSuccess: (result) => {
+      onSuccess: async (result) => {
         alert("Pembayaran Berhasil!");
-        cartStore.clearCart();
+        await clearCartData();
         router.push("/profile");
       },
-      onPending: (result) => {
+      onPending: async (result) => {
         alert("Menunggu Pembayaran!");
-        cartStore.clearCart();
+        await clearCartData();
         router.push("/profile");
       },
       onError: (result) => {
@@ -625,11 +636,12 @@ watch(
 );
 
 onMounted(() => {
+  fetchCartData();
   fetchUserProfile();
   fetchAddresses();
   fetchProtectionConfig();
   fetchApplicableVouchers();
-  loadSnapScript(); // Preload SDK saat mounted
+  loadSnapScript();
 });
 </script>
 
@@ -651,10 +663,10 @@ onMounted(() => {
           <!-- Keranjang Belanja -->
           <div class="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
             <h2 class="text-base font-bold text-gray-900 mb-4">
-              Keranjang Belanja ({{ cartStore.totalCount }})
+              Keranjang Belanja ({{ cartStore?.totalCount || 0 }})
             </h2>
 
-            <div v-if="cartStore.items.length > 0" class="divide-y divide-gray-100">
+            <div v-if="cartStore?.items?.length > 0" class="divide-y divide-gray-100">
               <div v-for="item in cartStore.items" :key="item.id"
                 class="py-4 flex items-center justify-between first:pt-0">
                 <div class="flex items-center gap-4">
@@ -664,16 +676,12 @@ onMounted(() => {
                       {{ item.title }}
                     </h3>
                     <p class="text-xs text-gray-500 mt-1">
-                      {{ item.quantity }} × Rp
-                      {{ item.price ? item.price.toLocaleString("id-ID") : 0 }}
+                      {{ item.quantity }} × Rp {{ (item.price ?? 0).toLocaleString("id-ID") }}
                     </p>
                   </div>
                 </div>
                 <span class="text-sm font-bold text-gray-900">
-                  Rp
-                  {{
-                    ((item.price || 0) * item.quantity).toLocaleString("id-ID")
-                  }}
+                  Rp {{ (((item.price ?? 0) * item.quantity)).toLocaleString("id-ID") }}
                 </span>
               </div>
 
@@ -687,17 +695,12 @@ onMounted(() => {
                     <label for="protection" class="cursor-pointer">
                       <span class="text-sm font-bold text-gray-900 block">Proteksi Produk</span>
                       <span class="text-xs text-gray-500 block mt-1">
-                        {{ protectionConfig?.description }} ({{ protectionConfig?.fee }} %)
+                        {{ protectionConfig?.description }} ({{ protectionConfig?.fee ?? 0 }} %)
                       </span>
                     </label>
                   </div>
                   <span class="text-sm font-bold text-gray-900 shrink-0">
-                    Rp
-                    {{
-                      ((protectionConfig.fee * subtotal) / 100).toLocaleString(
-                        "id-ID",
-                      )
-                    }}
+                    Rp {{ ((((protectionConfig?.fee ?? 0) * subtotal) / 100)).toLocaleString("id-ID") }}
                   </span>
                 </div>
               </div>
@@ -714,7 +717,7 @@ onMounted(() => {
               <h2 class="text-base font-bold text-gray-900">
                 Alamat Pengiriman
               </h2>
-              <button v-if="addresses.length > 0" @click="openSelectAddressModal"
+              <button v-if="addresses?.length > 0" @click="openSelectAddressModal"
                 class="text-sm font-bold text-[#E25C38] hover:underline cursor-pointer">
                 Ubah
               </button>
@@ -731,8 +734,7 @@ onMounted(() => {
               </p>
               <p class="text-gray-600 leading-relaxed">
                 {{ selectedAddress.address }}, {{ selectedAddress.city }},
-                {{ selectedAddress.province }}
-                {{ selectedAddress.postal_code }}
+                {{ selectedAddress.province }} {{ selectedAddress.postal_code }}
               </p>
             </div>
 
@@ -765,8 +767,7 @@ onMounted(() => {
               <div>
                 <div class="flex items-center gap-2">
                   <span class="text-sm font-bold text-gray-900">
-                    {{ selectedCourier.name?.toUpperCase() || "POS" }} -
-                    {{ selectedCourier.service }}
+                    {{ selectedCourier.name?.toUpperCase() || "POS" }} - {{ selectedCourier.service }}
                   </span>
                 </div>
                 <p class="text-xs text-gray-500 mt-1">
@@ -774,14 +775,7 @@ onMounted(() => {
                 </p>
               </div>
               <span class="text-sm font-bold text-[#E25C38]">
-                Rp
-                {{
-                  (
-                    selectedCourier.cost ||
-                    selectedCourier.price ||
-                    0
-                  ).toLocaleString("id-ID")
-                }}
+                Rp {{ (selectedCourier.cost || selectedCourier.price || 0).toLocaleString("id-ID") }}
               </span>
             </div>
 
@@ -805,11 +799,7 @@ onMounted(() => {
               <div>
                 <h2 class="text-sm font-bold text-gray-900">Voucher Diskon</h2>
                 <p class="text-xs text-gray-500 mt-0.5">
-                  {{
-                    selectedVoucher
-                      ? selectedVoucher.name || selectedVoucher.code
-                      : "Makin hemat dengan voucher"
-                  }}
+                  {{ selectedVoucher ? (selectedVoucher.name || selectedVoucher.code) : "Makin hemat dengan voucher" }}
                 </p>
               </div>
             </div>
@@ -827,7 +817,7 @@ onMounted(() => {
 
             <div class="space-y-3 text-sm">
               <div class="flex justify-between text-gray-600">
-                <span>Subtotal ({{ cartStore.totalCount }} item)</span>
+                <span>Subtotal ({{ cartStore?.totalCount || 0 }} item)</span>
                 <span class="font-bold text-gray-800">Rp {{ subtotal.toLocaleString("id-ID") }}</span>
               </div>
               <div class="flex justify-between text-gray-600">
@@ -851,16 +841,11 @@ onMounted(() => {
               <span class="text-xl font-extrabold text-[#E25C38]">Rp {{ total.toLocaleString("id-ID") }}</span>
             </div>
 
-            <button @click="handleCheckout" :disabled="cartStore.items.length === 0 ||
-              isProcessingPayment ||
-              !selectedAddress ||
-              !selectedCourier
-              "
+            <button @click="handleCheckout"
+              :disabled="!cartStore?.items?.length || isProcessingPayment || !selectedAddress || !selectedCourier"
               class="w-full py-3.5 bg-[#14120E] hover:bg-black disabled:bg-gray-200 disabled:text-gray-400 text-[#D4B26F] font-bold text-sm rounded-xl transition-all shadow-sm cursor-pointer disabled:cursor-not-allowed flex items-center justify-center gap-2">
               <span v-if="isProcessingPayment" class="animate-spin text-base">🌀</span>
-              <span>{{
-                isProcessingPayment ? "Memproses..." : "Bayar Sekarang"
-              }}</span>
+              <span>{{ isProcessingPayment ? "Memproses..." : "Bayar Sekarang" }}</span>
             </button>
 
             <p class="text-xs text-gray-400 text-center flex items-center justify-center gap-1">
@@ -875,24 +860,18 @@ onMounted(() => {
     <div v-if="showCourierModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
       <div class="bg-white rounded-2xl max-w-md w-full p-6 space-y-4 shadow-xl">
         <div class="flex items-center justify-between border-b pb-3">
-          <h3 class="text-base font-bold text-gray-900">
-            Pilih Opsi Pengiriman
-          </h3>
-          <button @click="showCourierModal = false" class="text-gray-400 hover:text-gray-600 text-base">
-            ✕
-          </button>
+          <h3 class="text-base font-bold text-gray-900">Pilih Opsi Pengiriman</h3>
+          <button @click="showCourierModal = false" class="text-gray-400 hover:text-gray-600 text-base">✕</button>
         </div>
 
         <div v-if="isLoadingOngkir" class="text-sm text-gray-400 animate-pulse text-center py-6">
           Menghitung ongkos kirim...
         </div>
 
-        <div v-else-if="courierOptions.length > 0" class="space-y-2 max-h-72 overflow-y-auto pr-1">
+        <div v-else-if="courierOptions?.length > 0" class="space-y-2 max-h-72 overflow-y-auto pr-1">
           <div v-for="(opt, idx) in courierOptions" :key="idx" @click="selectCourierOptionFromModal(opt)" :class="[
             'p-4 rounded-xl border transition-all cursor-pointer flex items-center justify-between',
-            selectedCourier?.service === opt.service
-              ? 'border-[#E25C38] bg-[#FFF8F6]'
-              : 'border-gray-200 hover:border-gray-300',
+            selectedCourier?.service === opt.service ? 'border-[#E25C38] bg-[#FFF8F6]' : 'border-gray-200 hover:border-gray-300',
           ]">
             <div>
               <div class="flex items-center gap-2">
@@ -900,9 +879,7 @@ onMounted(() => {
                   {{ opt.name?.toUpperCase() || "POS" }} - {{ opt.service }}
                 </span>
               </div>
-              <p class="text-xs text-gray-500 mt-1">
-                Estimasi tiba: {{ opt.etd || "-" }} hari
-              </p>
+              <p class="text-xs text-gray-500 mt-1">Estimasi tiba: {{ opt.etd || "-" }} hari</p>
             </div>
             <span class="text-sm font-bold text-[#E25C38]">
               Rp {{ (opt.cost || opt.price || 0).toLocaleString("id-ID") }}
@@ -927,33 +904,24 @@ onMounted(() => {
     <div v-if="showSelectModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
       <div class="bg-white rounded-2xl max-w-lg w-full p-6 space-y-4 shadow-xl">
         <div class="flex items-center justify-between border-b pb-3">
-          <h3 class="text-base font-bold text-gray-900">
-            Pilih Alamat Pengiriman
-          </h3>
-          <button @click="showSelectModal = false" class="text-gray-400 hover:text-gray-600 text-base">
-            ✕
-          </button>
+          <h3 class="text-base font-bold text-gray-900">Pilih Alamat Pengiriman</h3>
+          <button @click="showSelectModal = false" class="text-gray-400 hover:text-gray-600 text-base">✕</button>
         </div>
 
-        <div v-if="addresses.length > 0" class="space-y-3 max-h-72 overflow-y-auto pr-1">
+        <div v-if="addresses?.length > 0" class="space-y-3 max-h-72 overflow-y-auto pr-1">
           <div v-for="addr in addresses" :key="addr.id" @click="tempSelectedAddressId = addr.id" :class="[
             'p-4 rounded-xl border transition-all cursor-pointer space-y-1',
-            tempSelectedAddressId === addr.id
-              ? 'border-[#E25C38] bg-[#FFF8F6]'
-              : 'border-gray-200 hover:border-gray-300',
+            tempSelectedAddressId === addr.id ? 'border-[#E25C38] bg-[#FFF8F6]' : 'border-gray-200 hover:border-gray-300',
           ]">
             <div class="flex items-center justify-between">
-              <span class="text-sm font-bold text-gray-900">
-                {{ addr.first_name || addr.name }}
-              </span>
+              <span class="text-sm font-bold text-gray-900">{{ addr.first_name || addr.name }}</span>
               <span v-if="addr.label_place || addr.label"
                 class="text-xs bg-gray-100 text-gray-600 px-2.5 py-0.5 rounded-md font-medium">
                 {{ addr.label_place || addr.label }}
               </span>
             </div>
             <p class="text-xs text-gray-600">
-              {{ addr.address }}, {{ addr.city }}, {{ addr.province }}
-              {{ addr.postal_code }}
+              {{ addr.address }}, {{ addr.city }}, {{ addr.province }} {{ addr.postal_code }}
             </p>
             <p class="text-xs text-gray-400">{{ addr.phone }}</p>
           </div>
@@ -987,9 +955,7 @@ onMounted(() => {
       <div class="bg-white rounded-3xl max-w-xl w-full p-6 space-y-5 shadow-2xl relative my-8">
         <div class="flex items-center justify-between">
           <h2 class="text-xl font-extrabold text-gray-900">Alamat Baru</h2>
-          <button @click="showAddModal = false" class="text-gray-400 hover:text-gray-600 text-xl font-bold">
-            ✕
-          </button>
+          <button @click="showAddModal = false" class="text-gray-400 hover:text-gray-600 text-xl font-bold">✕</button>
         </div>
 
         <form @submit.prevent="submitAddAddress" class="space-y-4">
@@ -999,9 +965,7 @@ onMounted(() => {
               <button type="button" v-for="opt in labelOptions" :key="opt" @click="addressForm.label_place = opt"
                 :class="[
                   'px-3.5 py-1.5 text-xs rounded-xl border font-medium transition-all',
-                  addressForm.label_place === opt
-                    ? 'border-[#E25C38] bg-[#FFF8F6] text-[#E25C38]'
-                    : 'border-gray-200 text-gray-600 hover:bg-gray-50',
+                  addressForm.label_place === opt ? 'border-[#E25C38] bg-[#FFF8F6] text-[#E25C38]' : 'border-gray-200 text-gray-600 hover:bg-gray-50',
                 ]">
                 {{ opt }}
               </button>
@@ -1041,9 +1005,7 @@ onMounted(() => {
               <select v-model="selectedProvinceId" @change="onProvinceChange"
                 class="w-full px-3.5 py-2.5 text-xs border border-gray-200 rounded-xl focus:outline-none focus:border-[#E25C38]">
                 <option :value="null" disabled>Pilih Provinsi</option>
-                <option v-for="p in provinces" :key="p.id" :value="p.id">
-                  {{ p.name }}
-                </option>
+                <option v-for="p in provinces" :key="p.id" :value="p.id">{{ p.name }}</option>
               </select>
             </div>
             <div>
@@ -1051,9 +1013,7 @@ onMounted(() => {
               <select v-model="selectedCityId" @change="onCityChange" :disabled="!selectedProvinceId || isLoadingCities"
                 class="w-full px-3.5 py-2.5 text-xs border border-gray-200 rounded-xl focus:outline-none focus:border-[#E25C38] disabled:bg-gray-100">
                 <option :value="null" disabled>Pilih Kota/Kab</option>
-                <option v-for="c in cities" :key="c.id" :value="c.id">
-                  {{ c.name }}
-                </option>
+                <option v-for="c in cities" :key="c.id" :value="c.id">{{ c.name }}</option>
               </select>
             </div>
           </div>
@@ -1065,9 +1025,7 @@ onMounted(() => {
                 :disabled="!selectedCityId || isLoadingDistricts"
                 class="w-full px-3.5 py-2.5 text-xs border border-gray-200 rounded-xl focus:outline-none focus:border-[#E25C38] disabled:bg-gray-100">
                 <option :value="null" disabled>Pilih Kecamatan</option>
-                <option v-for="d in districts" :key="d.id" :value="d.id">
-                  {{ d.name }}
-                </option>
+                <option v-for="d in districts" :key="d.id" :value="d.id">{{ d.name }}</option>
               </select>
             </div>
             <div>
@@ -1076,9 +1034,7 @@ onMounted(() => {
                 :disabled="!selectedDistrictId || isLoadingSubDistricts"
                 class="w-full px-3.5 py-2.5 text-xs border border-gray-200 rounded-xl focus:outline-none focus:border-[#E25C38] disabled:bg-gray-100">
                 <option :value="null" disabled>Pilih Kelurahan</option>
-                <option v-for="sd in subDistricts" :key="sd.id" :value="sd.id">
-                  {{ sd.name }}
-                </option>
+                <option v-for="sd in subDistricts" :key="sd.id" :value="sd.id">{{ sd.name }}</option>
               </select>
             </div>
           </div>
@@ -1115,32 +1071,22 @@ onMounted(() => {
     <div v-if="showVoucherModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
       <div class="bg-white rounded-2xl max-w-md w-full p-6 space-y-4 shadow-xl">
         <div class="flex items-center justify-between border-b pb-3">
-          <h3 class="text-base font-bold text-gray-900">
-            Gunakan Voucher Diskon
-          </h3>
-          <button @click="showVoucherModal = false" class="text-gray-400 hover:text-gray-600 text-base">
-            ✕
-          </button>
+          <h3 class="text-base font-bold text-gray-900">Gunakan Voucher Diskon</h3>
+          <button @click="showVoucherModal = false" class="text-gray-400 hover:text-gray-600 text-base">✕</button>
         </div>
 
         <div v-if="isLoadingVouchers" class="text-sm text-gray-400 animate-pulse text-center py-4">
           Memuat voucher...
         </div>
 
-        <div v-else-if="applicableVouchers.length > 0" class="space-y-2 max-h-60 overflow-y-auto pr-1">
+        <div v-else-if="applicableVouchers?.length > 0" class="space-y-2 max-h-60 overflow-y-auto pr-1">
           <div v-for="v in applicableVouchers" :key="v.id" @click="applyVoucher(v)" :class="[
             'p-3.5 rounded-xl border transition-all cursor-pointer flex items-center justify-between',
-            selectedVoucher?.id === v.id
-              ? 'border-[#E25C38] bg-[#FFF8F6]'
-              : 'border-gray-200 hover:border-gray-300',
+            selectedVoucher?.id === v.id ? 'border-[#E25C38] bg-[#FFF8F6]' : 'border-gray-200 hover:border-gray-300',
           ]">
             <div>
-              <p class="text-sm font-bold text-gray-900">
-                {{ v.name || v.code }}
-              </p>
-              <p class="text-xs text-gray-500 mt-0.5">
-                {{ v.description || "Potongan harga khusus transaksi ini" }}
-              </p>
+              <p class="text-sm font-bold text-gray-900">{{ v.name || v.code }}</p>
+              <p class="text-xs text-gray-500 mt-0.5">{{ v.description || "Potongan harga khusus transaksi ini" }}</p>
             </div>
             <span class="text-xs font-bold text-[#E25C38]">
               {{ selectedVoucher?.id === v.id ? "Terpasang" : "Gunakan" }}
