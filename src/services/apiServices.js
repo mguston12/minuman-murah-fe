@@ -16,9 +16,11 @@ export const authService = {
 
 // Blog API
 export const blogService = {
-  getBlogs: (params) => api.get("/blogs/filter", { params }),
+  getBlogs: () => api.get("/blogs/all"),
   getBlogBySlug: (slug) => api.get(`/blogs/slug/${slug}`),
-  getCategories: () => api.get("/category-blogs/active"),
+  getCategoryBlogs() {
+    return api.get("/category-blogs");
+  },
 };
 
 // Product API

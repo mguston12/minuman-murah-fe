@@ -45,8 +45,8 @@ const fetchBlogDetail = async (slug) => {
           })
         : "-",
       readTime: "3 menit baca",
-      featuredImage: item.cover
-        ? `http://localhost:8000/storage/${item.cover}`
+      featuredImage: item.cover_url
+        ? item.cover_url
         : "https://images.unsplash.com/photo-1514362545857-3bc16c4c7d1b?q=80&w=1200&auto=format&fit=crop",
       intro: item.short_desc || "",
       content: item.long_desc || item.short_desc || "",
@@ -85,8 +85,8 @@ const fetchRelatedArticles = async (currentSlug) => {
               year: "numeric",
             })
           : "-",
-        image: b.cover
-          ? `http://localhost:8000/storage/${b.cover}`
+        image: b.cover_url
+          ? b.cover_url
           : "https://images.unsplash.com/photo-1510812431401-41d2bd2722f3?q=80&w=300&auto=format&fit=crop",
       }));
   } catch (err) {

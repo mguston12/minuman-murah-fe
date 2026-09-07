@@ -281,12 +281,12 @@
                     }}
                   </button>
 
-                  <button
+                  <!-- <button
                     @click="handleReorder(order.items)"
                     class="px-5 py-2 bg-[#14120E] hover:bg-black text-[#D4B26F] text-xs font-bold rounded-xl shadow-sm transition-colors"
                   >
                     Beli Lagi
-                  </button>
+                  </button> -->
                 </div>
               </div>
             </div>

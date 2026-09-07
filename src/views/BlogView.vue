@@ -1,97 +1,117 @@
 <script setup>
-import { ref, watch, onMounted } from "vue";
-import api from "../api/axios";
+import { ref, computed, onMounted } from "vue";
+import { blogService } from "../services/apiServices";
 
 const loading = ref(true);
 const selectedCategory = ref("Semua");
-const categories = ref(["Semua"]);
 
-const featuredArticle = ref(null);
-const articles = ref([]);
-const pagination = ref({
-  currentPage: 1,
-  lastPage: 1,
-});
+// Data mentah dari /category-blogs (array of { id, name, slug, blogs: [...] })
+const rawCategories = ref([]);
 
-// 1. Fetch List Categories dari Backend
-const fetchCategories = async () => {
-  try {
-    const response = await api.get("/category-blogs/active");
-    const activeCategories = response.data.data.map((cat) => cat.name);
-    categories.value = ["Semua", ...activeCategories];
-  } catch (error) {
-    console.error("Gagal mengambil kategori:", error);
-  }
-};
+const PAGE_SIZE = 9;
+const currentPage = ref(1);
 
-// 2. Fetch Blog List dengan Filter Kategori & Pagination
-const fetchArticles = async (page = 1) => {
+// 1. Fetch sekali: categories + blogs sekaligus
+const fetchCategoryBlogs = async () => {
   loading.value = true;
   try {
-    const params = {
-      page: page,
-      per_page: 6,
-      status: 1,
-    };
-
-    // Filter kategori jika bukan "Semua"
-    if (selectedCategory.value !== "Semua") {
-      params.category_name = selectedCategory.value;
-    }
-
-    const response = await api.get("/blogs/filter", { params });
-
-    const resBlogs = response.data.data?.blogs || [];
-    const resPagination = response.data.data?.pagination || {};
-
-    // Map data artikel
-    const formattedData = resBlogs.map((item) => ({
-      id: item.id,
-      slug: item.slug,
-      category: item.category?.name || "UMUM",
-      title: item.title,
-      description: item.short_desc,
-      date: new Date(item.created_at).toLocaleDateString("id-ID", {
-        day: "numeric",
-        month: "short",
-        year: "numeric",
-      }),
-      readTime: "3 menit baca",
-      image: item.cover
-        ? `http://localhost:8000/storage/${item.cover}`
-        : "https://images.unsplash.com/photo-1510812431401-41d2bd2722f3?auto=format&fit=crop&q=80&w=1000",
-    }));
-
-    // Pisahkan item pertama sebagai Featured Article jika di halaman pertama
-    if (page === 1 && formattedData.length > 0) {
-      featuredArticle.value = formattedData[0];
-      articles.value = formattedData.slice(1);
-    } else {
-      featuredArticle.value = null; // Reset featured jika bukan page 1 / data kosong
-      articles.value = formattedData;
-    }
-
-    // 🔴 DAHULU: resData.current_page
-    // 🟢 UBAH MENJADI: resPagination.current_page
-    pagination.value = {
-      currentPage: resPagination.current_page || 1,
-      lastPage: resPagination.last_page || 1,
-    };
+    const response = await blogService.getCategoryBlogs();
+    rawCategories.value = response.data.data?.categories || [];
   } catch (error) {
-    console.error("Gagal mengambil daftar artikel:", error);
+    console.error("Gagal mengambil data kategori & blog:", error);
+    rawCategories.value = [];
   } finally {
     loading.value = false;
   }
 };
 
-watch(selectedCategory, () => {
-  fetchArticles(1);
+onMounted(() => {
+  fetchCategoryBlogs();
 });
 
-onMounted(() => {
-  fetchCategories();
-  fetchArticles(1);
+// 2. List nama kategori untuk tombol filter
+const categories = computed(() => [
+  "Semua",
+  ...rawCategories.value.map((cat) => cat.name),
+]);
+
+// 3. Helper: format satu item blog ke bentuk yang dipakai template
+const formatArticle = (item) => ({
+  id: item.id,
+  slug: item.slug,
+  category: item.category?.name || "UMUM",
+  title: item.title,
+  description: item.short_desc,
+  date: item.created_at
+    ? new Date(item.created_at).toLocaleDateString("id-ID", {
+        day: "numeric",
+        month: "short",
+        year: "numeric",
+      })
+    : "-",
+  readTime: "3 menit baca",
+  image:
+    item.cover_url ||
+    "https://images.unsplash.com/photo-1510812431401-41d2bd2722f3?auto=format&fit=crop&q=80&w=1000",
+  rawDate: item.created_at ? new Date(item.created_at) : new Date(0),
 });
+
+// 4. Semua blog, digabung dari semua kategori, diurut terbaru dulu
+const allArticles = computed(() => {
+  const merged = rawCategories.value.flatMap((cat) =>
+    (cat.blogs || []).map(formatArticle),
+  );
+  return merged.sort((a, b) => b.rawDate - a.rawDate);
+});
+
+// 5. Blog sesuai kategori yang dipilih (client-side filter, tanpa request ulang)
+const filteredArticles = computed(() => {
+  if (selectedCategory.value === "Semua") return allArticles.value;
+
+  const cat = rawCategories.value.find(
+    (c) => c.name === selectedCategory.value,
+  );
+  if (!cat) return [];
+
+  return (cat.blogs || [])
+    .map(formatArticle)
+    .sort((a, b) => b.rawDate - a.rawDate);
+});
+
+// Reset ke halaman 1 setiap ganti kategori
+const selectCategory = (cat) => {
+  selectedCategory.value = cat;
+  currentPage.value = 1;
+};
+
+// 6. Featured = artikel pertama (hanya di halaman 1), sisanya masuk grid
+const featuredArticle = computed(() => {
+  if (currentPage.value !== 1) return null;
+  return filteredArticles.value[0] || null;
+});
+
+const gridArticles = computed(() => {
+  const list = filteredArticles.value;
+  if (currentPage.value === 1) {
+    // halaman 1: skip item pertama (dipakai featured), lalu ambil sisanya sejumlah PAGE_SIZE
+    return list.slice(1, 1 + PAGE_SIZE);
+  }
+  // halaman berikutnya: offset memperhitungkan 1 slot yang terpakai featured di halaman 1
+  const start = 1 + (currentPage.value - 1) * PAGE_SIZE;
+  return list.slice(start, start + PAGE_SIZE);
+});
+
+const lastPage = computed(() => {
+  const total = filteredArticles.value.length;
+  if (total <= 1) return 1;
+  return Math.ceil((total - 1) / PAGE_SIZE);
+});
+
+const goToPage = (page) => {
+  if (page < 1 || page > lastPage.value) return;
+  currentPage.value = page;
+  window.scrollTo({ top: 0, behavior: "smooth" });
+};
 </script>
 
 <template>
@@ -113,7 +133,7 @@ onMounted(() => {
           <button
             v-for="cat in categories"
             :key="cat"
-            @click="selectedCategory = cat"
+            @click="selectCategory(cat)"
             :class="[
               'px-4 py-1.5 rounded-full text-xs font-bold transition-all duration-200',
               selectedCategory === cat
@@ -189,11 +209,11 @@ onMounted(() => {
 
           <!-- ARTICLES GRID -->
           <div
-            v-if="articles.length > 0"
+            v-if="gridArticles.length > 0"
             class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6"
           >
             <router-link
-              v-for="article in articles"
+              v-for="article in gridArticles"
               :key="article.id"
               :to="`/blog/${article.slug}`"
               class="bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100 flex flex-col group hover:shadow-md transition-all duration-200"
@@ -242,22 +262,22 @@ onMounted(() => {
 
           <!-- PAGINATION CONTROL -->
           <div
-            v-if="pagination.lastPage > 1"
+            v-if="lastPage > 1"
             class="flex justify-center items-center gap-2 mt-8"
           >
             <button
-              :disabled="pagination.currentPage === 1"
-              @click="fetchArticles(pagination.currentPage - 1)"
+              :disabled="currentPage === 1"
+              @click="goToPage(currentPage - 1)"
               class="px-3 py-1 bg-white border text-xs font-bold rounded-lg disabled:opacity-50"
             >
               Prev
             </button>
             <span class="text-xs text-gray-600 font-medium">
-              {{ pagination.currentPage }} / {{ pagination.lastPage }}
+              {{ currentPage }} / {{ lastPage }}
             </span>
             <button
-              :disabled="pagination.currentPage === pagination.lastPage"
-              @click="fetchArticles(pagination.currentPage + 1)"
+              :disabled="currentPage === lastPage"
+              @click="goToPage(currentPage + 1)"
               class="px-3 py-1 bg-white border text-xs font-bold rounded-lg disabled:opacity-50"
             >
               Next
