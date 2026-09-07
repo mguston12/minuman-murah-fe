@@ -131,7 +131,6 @@ export const orderService = {
   completeOrder: (orderId) => api.post(`/orders/${orderId}/complete`),
   confirmPayment: (orderId, payload) =>
     api.post(`/orders/${orderId}/confirm-payment`, payload),
-  confirmReceived: (orderId) => api.post(`/orders/${orderId}/confirm-received`),
 };
 
 // Wishlist API
@@ -154,6 +153,7 @@ export const voucherService = {
 export const reviewService = {
   getProductReviews: (productId, params) =>
     api.get(`/products/${productId}/reviews`, { params }),
-  createReview: (payload) => api.post("/reviews", payload),
+  createReview: (productId, payload) =>
+    api.post(`/products/${productId}/reviews`, payload),
   checkEligible: (productId) => api.get(`/reviews/eligible/${productId}`),
 };

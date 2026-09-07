@@ -8,9 +8,14 @@
     </div>
 
     <!-- MAIN CONTENT CONTAINER -->
-    <div v-else class="max-w-6xl mx-auto flex flex-col md:flex-row gap-6 items-start">
+    <div
+      v-else
+      class="max-w-6xl mx-auto flex flex-col md:flex-row gap-6 items-start"
+    >
       <!-- ==================== SIDEBAR USER ACCOUNT ==================== -->
-      <aside class="w-full md:w-64 bg-white rounded-2xl p-5 shadow-sm border border-gray-100 shrink-0">
+      <aside
+        class="w-full md:w-64 bg-white rounded-2xl p-5 shadow-sm border border-gray-100 shrink-0"
+      >
         <!-- USER INFO HEADER -->
         <div class="flex items-center gap-3 pb-4 border-b border-gray-100">
           <!-- <img :src="profile.avatar || 'https://via.placeholder.com/150'" :alt="profile.fullName"
@@ -25,44 +30,58 @@
 
         <!-- NAVIGATION MENU -->
         <nav class="mt-4 space-y-1">
-          <button @click="activeTab = 'profil'" :class="[
-            'w-full text-left px-3 py-2 rounded-lg text-xs font-bold transition-colors',
-            activeTab === 'profil'
-              ? 'text-[#E25C38] bg-[#FFF8F6]'
-              : 'text-gray-700 hover:bg-gray-50',
-          ]">
+          <button
+            @click="activeTab = 'profil'"
+            :class="[
+              'w-full text-left px-3 py-2 rounded-lg text-xs font-bold transition-colors',
+              activeTab === 'profil'
+                ? 'text-[#E25C38] bg-[#FFF8F6]'
+                : 'text-gray-700 hover:bg-gray-50',
+            ]"
+          >
             Profil Saya
           </button>
 
-          <button @click="activeTab = 'pesanan'" :class="[
-            'w-full text-left px-3 py-2 rounded-lg text-xs font-bold transition-colors',
-            activeTab === 'pesanan'
-              ? 'text-[#E25C38] bg-[#FFF8F6]'
-              : 'text-gray-700 hover:bg-gray-50',
-          ]">
+          <button
+            @click="activeTab = 'pesanan'"
+            :class="[
+              'w-full text-left px-3 py-2 rounded-lg text-xs font-bold transition-colors',
+              activeTab === 'pesanan'
+                ? 'text-[#E25C38] bg-[#FFF8F6]'
+                : 'text-gray-700 hover:bg-gray-50',
+            ]"
+          >
             Pesanan Saya
           </button>
 
-          <button @click="activeTab = 'alamat'" :class="[
-            'w-full text-left px-3 py-2 rounded-lg text-xs font-bold transition-colors',
-            activeTab === 'alamat'
-              ? 'text-[#E25C38] bg-[#FFF8F6]'
-              : 'text-gray-700 hover:bg-gray-50',
-          ]">
+          <button
+            @click="activeTab = 'alamat'"
+            :class="[
+              'w-full text-left px-3 py-2 rounded-lg text-xs font-bold transition-colors',
+              activeTab === 'alamat'
+                ? 'text-[#E25C38] bg-[#FFF8F6]'
+                : 'text-gray-700 hover:bg-gray-50',
+            ]"
+          >
             Alamat
           </button>
 
-          <button @click="activeTab = 'wishlist'" :class="[
-            'w-full text-left px-3 py-2 rounded-lg text-xs font-bold transition-colors',
-            activeTab === 'wishlist'
-              ? 'text-[#E25C38] bg-[#FFF8F6]'
-              : 'text-gray-700 hover:bg-gray-50',
-          ]">
+          <button
+            @click="activeTab = 'wishlist'"
+            :class="[
+              'w-full text-left px-3 py-2 rounded-lg text-xs font-bold transition-colors',
+              activeTab === 'wishlist'
+                ? 'text-[#E25C38] bg-[#FFF8F6]'
+                : 'text-gray-700 hover:bg-gray-50',
+            ]"
+          >
             Wishlist
           </button>
 
-          <button @click="handleLogout"
-            class="w-full text-left px-3 py-2 rounded-lg text-xs font-bold text-red-500 hover:bg-red-50 transition-colors pt-2">
+          <button
+            @click="handleLogout"
+            class="w-full text-left px-3 py-2 rounded-lg text-xs font-bold text-red-500 hover:bg-red-50 transition-colors pt-2"
+          >
             Keluar
           </button>
         </nav>
@@ -75,19 +94,29 @@
           <h1 class="text-xl font-extrabold text-gray-900">
             <template v-if="activeTab === 'profil'">Akun Saya</template>
             <template v-else-if="activeTab === 'alamat'">Alamat Saya</template>
-            <template v-else-if="activeTab === 'pesanan'">Pesanan Saya</template>
-            <template v-else-if="activeTab === 'wishlist'">Wishlist Saya</template>
+            <template v-else-if="activeTab === 'pesanan'"
+              >Pesanan Saya</template
+            >
+            <template v-else-if="activeTab === 'wishlist'"
+              >Wishlist Saya</template
+            >
           </h1>
 
           <!-- BUTTON TAMBAH ALAMAT -->
-          <button v-if="activeTab === 'alamat'" @click="openAddAddressModal"
-            class="px-4 py-2 bg-[#14120E] hover:bg-black text-[#D4B26F] text-xs font-bold rounded-xl shadow-sm transition-colors">
+          <button
+            v-if="activeTab === 'alamat'"
+            @click="openAddAddressModal"
+            class="px-4 py-2 bg-[#14120E] hover:bg-black text-[#D4B26F] text-xs font-bold rounded-xl shadow-sm transition-colors"
+          >
             + Tambah Alamat
           </button>
         </div>
 
         <!-- TAB 1: PROFIL SAYA -->
-        <div v-if="activeTab === 'profil'" class="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+        <div
+          v-if="activeTab === 'profil'"
+          class="bg-white rounded-2xl p-6 shadow-sm border border-gray-100"
+        >
           <h2 class="text-sm font-bold text-gray-900 mb-5">Informasi Profil</h2>
 
           <form @submit.prevent="handleSaveProfile" class="space-y-4">
@@ -96,38 +125,55 @@
                 <label class="block text-[11px] font-bold text-gray-400 mb-1">
                   Nama Lengkap
                 </label>
-                <input type="text" v-model="profile.fullName" required
-                  class="w-full bg-[#F4F4F4] border border-transparent focus:border-gray-300 focus:bg-white text-xs font-medium text-gray-800 rounded-xl px-4 py-3 focus:outline-none transition-all" />
+                <input
+                  type="text"
+                  v-model="profile.fullName"
+                  required
+                  class="w-full bg-[#F4F4F4] border border-transparent focus:border-gray-300 focus:bg-white text-xs font-medium text-gray-800 rounded-xl px-4 py-3 focus:outline-none transition-all"
+                />
               </div>
 
               <div>
                 <label class="block text-[11px] font-bold text-gray-400 mb-1">
                   Email
                 </label>
-                <input type="email" v-model="profile.email" required
-                  class="w-full bg-[#F4F4F4] border border-transparent focus:border-gray-300 focus:bg-white text-xs font-medium text-gray-800 rounded-xl px-4 py-3 focus:outline-none transition-all" />
+                <input
+                  type="email"
+                  v-model="profile.email"
+                  required
+                  class="w-full bg-[#F4F4F4] border border-transparent focus:border-gray-300 focus:bg-white text-xs font-medium text-gray-800 rounded-xl px-4 py-3 focus:outline-none transition-all"
+                />
               </div>
 
               <div>
                 <label class="block text-[11px] font-bold text-gray-400 mb-1">
                   No. Handphone
                 </label>
-                <input type="text" v-model="profile.phone"
-                  class="w-full bg-[#F4F4F4] border border-transparent focus:border-gray-300 focus:bg-white text-xs font-medium text-gray-800 rounded-xl px-4 py-3 focus:outline-none transition-all" />
+                <input
+                  type="text"
+                  v-model="profile.phone"
+                  class="w-full bg-[#F4F4F4] border border-transparent focus:border-gray-300 focus:bg-white text-xs font-medium text-gray-800 rounded-xl px-4 py-3 focus:outline-none transition-all"
+                />
               </div>
 
               <div>
                 <label class="block text-[11px] font-bold text-gray-400 mb-1">
                   Tanggal Lahir
                 </label>
-                <input type="date" v-model="profile.birthDate"
-                  class="w-full bg-[#F4F4F4] border border-transparent focus:border-gray-300 focus:bg-white text-xs font-medium text-gray-800 rounded-xl px-4 py-3 focus:outline-none transition-all" />
+                <input
+                  type="date"
+                  v-model="profile.birthDate"
+                  class="w-full bg-[#F4F4F4] border border-transparent focus:border-gray-300 focus:bg-white text-xs font-medium text-gray-800 rounded-xl px-4 py-3 focus:outline-none transition-all"
+                />
               </div>
             </div>
 
             <div class="pt-2">
-              <button type="submit" :disabled="isSaving"
-                class="px-6 py-3 bg-[#14120E] hover:bg-black text-[#D4B26F] text-xs font-bold rounded-xl shadow-sm transition-colors disabled:opacity-50">
+              <button
+                type="submit"
+                :disabled="isSaving"
+                class="px-6 py-3 bg-[#14120E] hover:bg-black text-[#D4B26F] text-xs font-bold rounded-xl shadow-sm transition-colors disabled:opacity-50"
+              >
                 {{ isSaving ? "Menyimpan..." : "Simpan Perubahan" }}
               </button>
             </div>
@@ -137,16 +183,21 @@
         <!-- TAB 2: PESANAN SAYA -->
         <div v-if="activeTab === 'pesanan'" class="space-y-4">
           <template v-if="orders.length > 0">
-            <div v-for="order in orders" :key="order.id"
-              class="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 flex flex-col justify-between">
+            <div
+              v-for="order in orders"
+              :key="order.id"
+              class="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 flex flex-col justify-between"
+            >
               <div class="flex items-center justify-between">
                 <h3 class="text-xs font-extrabold text-gray-900">
-                  Pesanan {{ order.id }}
+                  Pesanan {{ order.orderNumber }}
                 </h3>
-                <span :class="[
-                  'text-[10px] font-bold px-2.5 py-0.5 rounded-full',
-                  order.statusColor || 'bg-gray-100 text-gray-700',
-                ]">
+                <span
+                  :class="[
+                    'text-[10px] font-bold px-2.5 py-0.5 rounded-full',
+                    order.statusColor || 'bg-gray-100 text-gray-700',
+                  ]"
+                >
                   {{ order.status }}
                 </span>
               </div>
@@ -156,31 +207,95 @@
               </p>
 
               <div class="mt-3 space-y-3">
-                <div v-for="item in order.items" :key="item.id" class="flex items-center gap-3">
-                  <img :src="item.image" :alt="item.title"
-                    class="w-10 h-10 object-cover rounded-lg border border-gray-100 shrink-0" />
-                  <span class="text-xs font-bold text-gray-800">
-                    {{ item.title }} (x{{ item.quantity }})
-                  </span>
+                <div
+                  v-for="item in order.items"
+                  :key="item.id"
+                  class="flex items-center gap-3"
+                >
+                  <img
+                    :src="item.image"
+                    :alt="item.title"
+                    class="w-10 h-10 object-cover rounded-lg border border-gray-100 shrink-0"
+                  />
+                  <div class="flex-1 flex items-center justify-between gap-2">
+                    <span class="text-xs font-bold text-gray-800">
+                      {{ item.title }} (x{{ item.quantity }})
+                    </span>
+
+                    <!-- Hanya untuk pesanan COMPLETED -->
+                    <template v-if="order.status === 'COMPLETED'">
+                      <!-- SUDAH ADA ULASAN -->
+                      <div
+                        v-if="item.review"
+                        class="flex items-center gap-1.5 text-[11px] font-bold text-gray-500 bg-gray-50 px-3 py-1.5 rounded-lg shrink-0"
+                      >
+                        <span class="flex">
+                          <span
+                            v-for="star in 5"
+                            :key="star"
+                            :class="
+                              star <= item.review.rating
+                                ? 'text-[#D4B26F]'
+                                : 'text-gray-200'
+                            "
+                            >★</span
+                          >
+                        </span>
+                        <span>Sudah Diulas</span>
+                      </div>
+
+                      <!-- BELUM ADA ULASAN -->
+                      <button
+                        v-else
+                        type="button"
+                        @click="openReviewModal(item)"
+                        class="text-[11px] font-bold px-3 py-1.5 rounded-lg transition-colors shrink-0 text-[#E25C38] bg-[#FFF8F6] hover:bg-[#FFEDE6]"
+                      >
+                        Beri Ulasan
+                      </button>
+                    </template>
+                  </div>
                 </div>
               </div>
 
-              <div class="pt-4 mt-4 border-t border-gray-100 flex items-center justify-between">
+              <div
+                class="pt-4 mt-4 border-t border-gray-100 flex items-center justify-between gap-2 flex-wrap"
+              >
                 <p class="text-xs text-gray-900">
                   <span class="font-bold">
                     Total: Rp {{ order.totalPrice.toLocaleString("id-ID") }}
                   </span>
                 </p>
 
-                <button @click="handleReorder(order.items)"
-                  class="px-5 py-2 bg-[#14120E] hover:bg-black text-[#D4B26F] text-xs font-bold rounded-xl shadow-sm transition-colors">
-                  Beli Lagi
-                </button>
+                <div class="flex items-center gap-2">
+                  <button
+                    v-if="order.status === 'DELIVERED'"
+                    @click="openCompleteOrderModal(order.id)"
+                    :disabled="completingOrderId === order.id"
+                    class="px-5 py-2 bg-white border border-[#14120E] hover:bg-gray-50 text-[#14120E] text-xs font-bold rounded-xl shadow-sm transition-colors disabled:opacity-50"
+                  >
+                    {{
+                      completingOrderId === order.id
+                        ? "Memproses..."
+                        : "Konfirmasi Diterima"
+                    }}
+                  </button>
+
+                  <button
+                    @click="handleReorder(order.items)"
+                    class="px-5 py-2 bg-[#14120E] hover:bg-black text-[#D4B26F] text-xs font-bold rounded-xl shadow-sm transition-colors"
+                  >
+                    Beli Lagi
+                  </button>
+                </div>
               </div>
             </div>
           </template>
 
-          <div v-else class="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 text-center py-12">
+          <div
+            v-else
+            class="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 text-center py-12"
+          >
             <p class="text-xs text-gray-500 font-medium">
               Belum ada riwayat pesanan.
             </p>
@@ -190,14 +305,19 @@
         <!-- TAB 3: ALAMAT SAYA -->
         <div v-if="activeTab === 'alamat'" class="space-y-4">
           <template v-if="addresses.length > 0">
-            <div v-for="addr in addresses" :key="addr.id"
-              class="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 space-y-2">
+            <div
+              v-for="addr in addresses"
+              :key="addr.id"
+              class="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 space-y-2"
+            >
               <div class="flex items-center gap-2">
                 <span class="text-xs font-bold text-gray-900">
                   {{ addr.label_place || "Alamat" }}
                 </span>
-                <span v-if="addr.is_primary"
-                  class="bg-[#FFF1EB] text-[#E25C38] text-[10px] font-bold px-2 py-0.5 rounded">
+                <span
+                  v-if="addr.is_primary"
+                  class="bg-[#FFF1EB] text-[#E25C38] text-[10px] font-bold px-2 py-0.5 rounded"
+                >
                   Utama
                 </span>
               </div>
@@ -214,17 +334,26 @@
               </p>
 
               <div class="flex items-center gap-3 pt-2">
-                <button @click="openEditAddressModal(addr)" class="text-xs font-bold text-[#E25C38] hover:underline">
+                <button
+                  @click="openEditAddressModal(addr)"
+                  class="text-xs font-bold text-[#E25C38] hover:underline"
+                >
                   Ubah
                 </button>
-                <button @click="handleDeleteAddress(addr.id)" class="text-xs font-bold text-red-500 hover:underline">
+                <button
+                  @click="handleDeleteAddress(addr.id)"
+                  class="text-xs font-bold text-red-500 hover:underline"
+                >
                   Hapus
                 </button>
               </div>
             </div>
           </template>
 
-          <div v-else class="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 text-center py-12">
+          <div
+            v-else
+            class="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 text-center py-12"
+          >
             <p class="text-xs text-gray-500 font-medium">
               Belum ada alamat tersimpan.
             </p>
@@ -233,11 +362,16 @@
 
         <!-- TAB 4: WISHLIST SAYA -->
         <div v-if="activeTab === 'wishlist'">
-          <div v-if="wishlist.length > 0" class="grid grid-cols-2 sm:grid-cols-3 gap-4">
+          <div
+            v-if="wishlist.length > 0"
+            class="grid grid-cols-2 sm:grid-cols-3 gap-4"
+          >
             <div v-for="item in wishlist" :key="item.id" class="relative group">
-              <button @click.prevent="handleRemoveWishlist(item.id)"
+              <button
+                @click.prevent="handleRemoveWishlist(item.id)"
                 class="absolute top-3 right-3 z-10 w-7 h-7 bg-white/90 hover:bg-white text-gray-600 hover:text-red-500 rounded-full flex items-center justify-center text-xs shadow-md transition-colors"
-                title="Hapus dari Wishlist">
+                title="Hapus dari Wishlist"
+              >
                 ✕
               </button>
 
@@ -245,7 +379,10 @@
             </div>
           </div>
 
-          <div v-else class="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 text-center py-12">
+          <div
+            v-else
+            class="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 text-center py-12"
+          >
             <p class="text-xs text-gray-500 font-medium">
               Belum ada produk favorit di wishlist.
             </p>
@@ -255,15 +392,22 @@
     </div>
 
     <!-- ==================== MODAL TAMBAH/EDIT ALAMAT ==================== -->
-    <div v-if="isAddressModalOpen" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+    <div
+      v-if="isAddressModalOpen"
+      class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+    >
       <div
-        class="bg-white rounded-3xl max-w-xl w-full p-6 sm:p-8 shadow-xl space-y-5 max-h-[90vh] overflow-y-auto relative text-gray-900">
+        class="bg-white rounded-3xl max-w-xl w-full p-6 sm:p-8 shadow-xl space-y-5 max-h-[90vh] overflow-y-auto relative text-gray-900"
+      >
         <!-- Header & Close Button -->
         <div class="flex items-center justify-between">
           <h3 class="text-base font-extrabold">
             {{ isEditAddress ? "Ubah Alamat" : "Alamat Baru" }}
           </h3>
-          <button @click="isAddressModalOpen = false" class="text-gray-400 hover:text-gray-600 text-lg font-bold">
+          <button
+            @click="isAddressModalOpen = false"
+            class="text-gray-400 hover:text-gray-600 text-lg font-bold"
+          >
             ✕
           </button>
         </div>
@@ -273,13 +417,18 @@
           <div>
             <label class="block text-xs font-bold mb-2">Tandai Sebagai:</label>
             <div class="flex flex-wrap gap-2">
-              <button type="button" v-for="label in labelOptions" :key="label" @click="addressForm.label_place = label"
+              <button
+                type="button"
+                v-for="label in labelOptions"
+                :key="label"
+                @click="addressForm.label_place = label"
                 :class="[
                   'px-4 py-1.5 rounded-lg text-xs font-semibold border transition-all',
                   addressForm.label_place === label
                     ? 'border-gray-900 bg-gray-900 text-white'
                     : 'border-gray-300 bg-white text-gray-700 hover:border-gray-400',
-                ]">
+                ]"
+              >
                 {{ label }}
               </button>
             </div>
@@ -288,14 +437,28 @@
           <!-- Nama Penerima & No. HP -->
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label class="block text-xs font-bold mb-1">Nama Penerima *</label>
-              <input type="text" v-model="addressForm.first_name" placeholder="Masukkan nama penerima" required
-                class="w-full border border-gray-300 rounded-xl px-3.5 py-2 text-xs focus:outline-none focus:border-gray-900 transition-colors" />
+              <label class="block text-xs font-bold mb-1"
+                >Nama Penerima *</label
+              >
+              <input
+                type="text"
+                v-model="addressForm.first_name"
+                placeholder="Masukkan nama penerima"
+                required
+                class="w-full border border-gray-300 rounded-xl px-3.5 py-2 text-xs focus:outline-none focus:border-gray-900 transition-colors"
+              />
             </div>
             <div>
-              <label class="block text-xs font-bold mb-1">Nomor Hp Penerima *</label>
-              <input type="text" v-model="addressForm.phone" placeholder="Contoh: 081234567890 atau +628" required
-                class="w-full border border-gray-300 rounded-xl px-3.5 py-2 text-xs focus:outline-none focus:border-gray-900 transition-colors" />
+              <label class="block text-xs font-bold mb-1"
+                >Nomor Hp Penerima *</label
+              >
+              <input
+                type="text"
+                v-model="addressForm.phone"
+                placeholder="Contoh: 081234567890 atau +628"
+                required
+                class="w-full border border-gray-300 rounded-xl px-3.5 py-2 text-xs focus:outline-none focus:border-gray-900 transition-colors"
+              />
             </div>
           </div>
 
@@ -304,10 +467,18 @@
             <!-- Provinsi -->
             <div>
               <label class="block text-xs font-bold mb-1">Provinsi *</label>
-              <select v-model="selectedProvinceId" @change="onProvinceChange" required
-                class="w-full border border-gray-300 rounded-xl px-2.5 py-2 text-xs bg-white focus:outline-none focus:border-gray-900">
+              <select
+                v-model="selectedProvinceId"
+                @change="onProvinceChange"
+                required
+                class="w-full border border-gray-300 rounded-xl px-2.5 py-2 text-xs bg-white focus:outline-none focus:border-gray-900"
+              >
                 <option :value="null" disabled>Pilih Provinsi</option>
-                <option v-for="prov in provinces" :key="prov.id" :value="prov.id">
+                <option
+                  v-for="prov in provinces"
+                  :key="prov.id"
+                  :value="prov.id"
+                >
                   {{ prov.name }}
                 </option>
               </select>
@@ -315,16 +486,25 @@
 
             <!-- Kota / Kabupaten -->
             <div>
-              <label class="block text-xs font-bold mb-1">Kota/Kabupaten *</label>
-              <select v-model="selectedCityId" @change="onCityChange" :disabled="!selectedProvinceId || isLoadingCities"
+              <label class="block text-xs font-bold mb-1"
+                >Kota/Kabupaten *</label
+              >
+              <select
+                v-model="selectedCityId"
+                @change="onCityChange"
+                :disabled="!selectedProvinceId || isLoadingCities"
                 required
-                class="w-full border border-gray-300 rounded-xl px-2.5 py-2 text-xs bg-white focus:outline-none focus:border-gray-900 disabled:bg-gray-50 disabled:text-gray-400">
+                class="w-full border border-gray-300 rounded-xl px-2.5 py-2 text-xs bg-white focus:outline-none focus:border-gray-900 disabled:bg-gray-50 disabled:text-gray-400"
+              >
                 <option :value="null" disabled>Pilih Kota/Kab</option>
                 <option v-for="city in cities" :key="city.id" :value="city.id">
                   {{ city.name }}
                 </option>
               </select>
-              <p v-if="!selectedProvinceId" class="text-[10px] text-gray-400 mt-1">
+              <p
+                v-if="!selectedProvinceId"
+                class="text-[10px] text-gray-400 mt-1"
+              >
                 Pilih provinsi terlebih dahulu
               </p>
             </div>
@@ -332,11 +512,19 @@
             <!-- Kecamatan -->
             <div>
               <label class="block text-xs font-bold mb-1">Kecamatan *</label>
-              <select v-model="selectedDistrictId" @change="onDistrictChange"
-                :disabled="!selectedCityId || isLoadingDistricts" required
-                class="w-full border border-gray-300 rounded-xl px-2.5 py-2 text-xs bg-white focus:outline-none focus:border-gray-900 disabled:bg-gray-50 disabled:text-gray-400">
+              <select
+                v-model="selectedDistrictId"
+                @change="onDistrictChange"
+                :disabled="!selectedCityId || isLoadingDistricts"
+                required
+                class="w-full border border-gray-300 rounded-xl px-2.5 py-2 text-xs bg-white focus:outline-none focus:border-gray-900 disabled:bg-gray-50 disabled:text-gray-400"
+              >
                 <option :value="null" disabled>Pilih Kecam...</option>
-                <option v-for="dist in districts" :key="dist.id" :value="dist.id">
+                <option
+                  v-for="dist in districts"
+                  :key="dist.id"
+                  :value="dist.id"
+                >
                   {{ dist.name }}
                 </option>
               </select>
@@ -348,15 +536,26 @@
             <!-- Kelurahan / Sub-district -->
             <div>
               <label class="block text-xs font-bold mb-1">Kelurahan *</label>
-              <select v-model="selectedSubDistrictId" @change="onSubDistrictChange"
-                :disabled="!selectedDistrictId || isLoadingSubDistricts" required
-                class="w-full border border-gray-300 rounded-xl px-2.5 py-2 text-xs bg-white focus:outline-none focus:border-gray-900 disabled:bg-gray-50 disabled:text-gray-400">
+              <select
+                v-model="selectedSubDistrictId"
+                @change="onSubDistrictChange"
+                :disabled="!selectedDistrictId || isLoadingSubDistricts"
+                required
+                class="w-full border border-gray-300 rounded-xl px-2.5 py-2 text-xs bg-white focus:outline-none focus:border-gray-900 disabled:bg-gray-50 disabled:text-gray-400"
+              >
                 <option :value="null" disabled>Pilih Kelura...</option>
-                <option v-for="sub in subDistricts" :key="sub.id" :value="sub.id">
+                <option
+                  v-for="sub in subDistricts"
+                  :key="sub.id"
+                  :value="sub.id"
+                >
                   {{ sub.name }}
                 </option>
               </select>
-              <p v-if="!selectedDistrictId" class="text-[10px] text-gray-400 mt-1">
+              <p
+                v-if="!selectedDistrictId"
+                class="text-[10px] text-gray-400 mt-1"
+              >
                 Pilih kecamatan terlebih dahulu
               </p>
             </div>
@@ -365,36 +564,58 @@
           <!-- Kode Pos -->
           <div>
             <label class="block text-xs font-bold mb-1">Kode Pos *</label>
-            <input type="text" v-model="addressForm.postal_code" placeholder="Contoh: 40111" required
-              class="w-full border border-gray-300 rounded-xl px-3.5 py-2 text-xs focus:outline-none focus:border-gray-900 transition-colors" />
+            <input
+              type="text"
+              v-model="addressForm.postal_code"
+              placeholder="Contoh: 40111"
+              required
+              class="w-full border border-gray-300 rounded-xl px-3.5 py-2 text-xs focus:outline-none focus:border-gray-900 transition-colors"
+            />
           </div>
 
           <!-- Alamat Lengkap & Catatan -->
           <div>
-            <label class="block text-xs font-bold mb-1">Alamat Lengkap dan Catatan untuk Kurir</label>
-            <textarea v-model="addressForm.address" rows="3"
+            <label class="block text-xs font-bold mb-1"
+              >Alamat Lengkap dan Catatan untuk Kurir</label
+            >
+            <textarea
+              v-model="addressForm.address"
+              rows="3"
               placeholder="Masukkan nama jalan, gedung, lantai, nomor, RT/RW, dan catatan untuk kurir (contoh: warna rumah, no. apartemen)"
               required
-              class="w-full border border-gray-300 rounded-xl px-3.5 py-2 text-xs focus:outline-none focus:border-gray-900 transition-colors"></textarea>
+              class="w-full border border-gray-300 rounded-xl px-3.5 py-2 text-xs focus:outline-none focus:border-gray-900 transition-colors"
+            ></textarea>
           </div>
 
           <!-- Checkbox Utama -->
           <div class="flex items-center gap-2 pt-1">
-            <input type="checkbox" id="is_primary" v-model="addressForm.is_primary"
-              class="rounded border-gray-300 text-gray-900 focus:ring-gray-900" />
-            <label for="is_primary" class="text-xs text-gray-700 font-medium cursor-pointer">
+            <input
+              type="checkbox"
+              id="is_primary"
+              v-model="addressForm.is_primary"
+              class="rounded border-gray-300 text-gray-900 focus:ring-gray-900"
+            />
+            <label
+              for="is_primary"
+              class="text-xs text-gray-700 font-medium cursor-pointer"
+            >
               Jadikan Alamat Utama
             </label>
           </div>
 
           <!-- Actions -->
           <div class="flex justify-end gap-2 pt-2">
-            <button type="button" @click="isAddressModalOpen = false"
-              class="px-5 py-2 rounded-xl text-xs font-bold text-gray-500 hover:bg-gray-100 transition-colors">
+            <button
+              type="button"
+              @click="isAddressModalOpen = false"
+              class="px-5 py-2 rounded-xl text-xs font-bold text-gray-500 hover:bg-gray-100 transition-colors"
+            >
               Batal
             </button>
-            <button type="submit"
-              class="px-6 py-2 bg-[#14120E] text-[#D4B26F] text-xs font-bold rounded-xl hover:bg-black transition-colors">
+            <button
+              type="submit"
+              class="px-6 py-2 bg-[#14120E] text-[#D4B26F] text-xs font-bold rounded-xl hover:bg-black transition-colors"
+            >
               Simpan Alamat
             </button>
           </div>
@@ -402,8 +623,13 @@
       </div>
     </div>
     <!-- ==================== MODAL KONFIRMASI LOGOUT ==================== -->
-    <div v-if="isLogoutModalOpen" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div class="bg-white rounded-3xl max-w-sm w-full p-6 shadow-xl space-y-4 relative text-gray-900 text-center">
+    <div
+      v-if="isLogoutModalOpen"
+      class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+    >
+      <div
+        class="bg-white rounded-3xl max-w-sm w-full p-6 shadow-xl space-y-4 relative text-gray-900 text-center"
+      >
         <h3 class="text-base font-extrabold text-gray-900">
           Konfirmasi Keluar
         </h3>
@@ -412,13 +638,139 @@
         </p>
 
         <div class="flex items-center justify-center gap-2 pt-2">
-          <button type="button" @click="isLogoutModalOpen = false"
-            class="flex-1 px-4 py-2.5 rounded-xl text-xs font-bold text-gray-700 bg-gray-100 hover:bg-gray-200 transition-colors">
+          <button
+            type="button"
+            @click="isLogoutModalOpen = false"
+            class="flex-1 px-4 py-2.5 rounded-xl text-xs font-bold text-gray-700 bg-gray-100 hover:bg-gray-200 transition-colors"
+          >
             Batal
           </button>
-          <button type="button" @click="confirmLogout"
-            class="flex-1 px-4 py-2.5 bg-red-500 text-white text-xs font-bold rounded-xl hover:bg-red-600 transition-colors">
+          <button
+            type="button"
+            @click="confirmLogout"
+            class="flex-1 px-4 py-2.5 bg-red-500 text-white text-xs font-bold rounded-xl hover:bg-red-600 transition-colors"
+          >
             Ya, Keluar
+          </button>
+        </div>
+      </div>
+    </div>
+    <!-- ==================== MODAL KONFIRMASI PESANAN DITERIMA ==================== -->
+    <div
+      v-if="isCompleteOrderModalOpen"
+      class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+    >
+      <div
+        class="bg-white rounded-3xl max-w-sm w-full p-6 shadow-xl space-y-4 relative text-gray-900 text-center"
+      >
+        <h3 class="text-base font-extrabold text-gray-900">
+          Konfirmasi Pesanan Diterima
+        </h3>
+        <p class="text-xs text-gray-500">
+          Apakah kamu yakin pesanan ini sudah kamu terima? Tindakan ini tidak
+          dapat dibatalkan.
+        </p>
+
+        <div class="flex items-center justify-center gap-2 pt-2">
+          <button
+            type="button"
+            @click="isCompleteOrderModalOpen = false"
+            class="flex-1 px-4 py-2.5 rounded-xl text-xs font-bold text-gray-700 bg-gray-100 hover:bg-gray-200 transition-colors"
+          >
+            Batal
+          </button>
+          <button
+            type="button"
+            @click="confirmCompleteOrder"
+            class="flex-1 px-4 py-2.5 bg-[#14120E] text-[#D4B26F] text-xs font-bold rounded-xl hover:bg-black transition-colors"
+          >
+            Ya, Konfirmasi
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ==================== MODAL INFO (SUKSES/GAGAL) ==================== -->
+    <div
+      v-if="isInfoModalOpen"
+      class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+    >
+      <div
+        class="bg-white rounded-3xl max-w-sm w-full p-6 shadow-xl space-y-4 relative text-gray-900 text-center"
+      >
+        <h3 class="text-base font-extrabold text-gray-900">
+          {{ infoModalTitle }}
+        </h3>
+        <p class="text-xs text-gray-500">
+          {{ infoModalMessage }}
+        </p>
+
+        <button
+          type="button"
+          @click="isInfoModalOpen = false"
+          class="w-full px-4 py-2.5 bg-[#14120E] text-[#D4B26F] text-xs font-bold rounded-xl hover:bg-black transition-colors"
+        >
+          Tutup
+        </button>
+      </div>
+    </div>
+    <!-- ==================== MODAL BERI ULASAN ==================== -->
+    <div
+      v-if="isReviewModalOpen"
+      class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+    >
+      <div
+        class="bg-white rounded-3xl max-w-sm w-full p-6 shadow-xl space-y-4 relative text-gray-900"
+      >
+        <div class="flex items-center justify-between">
+          <h3 class="text-base font-extrabold">Beri Ulasan Produk</h3>
+          <button
+            @click="isReviewModalOpen = false"
+            class="text-gray-400 hover:text-gray-600 text-lg font-bold"
+          >
+            ✕
+          </button>
+        </div>
+
+        <div class="flex justify-center gap-1">
+          <button
+            v-for="star in 5"
+            :key="star"
+            type="button"
+            @click="reviewForm.rating = star"
+            class="text-2xl leading-none focus:outline-none"
+          >
+            <span
+              :class="
+                star <= reviewForm.rating ? 'text-[#D4B26F]' : 'text-gray-200'
+              "
+              >★</span
+            >
+          </button>
+        </div>
+
+        <textarea
+          v-model="reviewForm.comment"
+          rows="3"
+          placeholder="Ceritakan pengalamanmu dengan produk ini..."
+          class="w-full border border-gray-300 rounded-xl px-3.5 py-2 text-xs focus:outline-none focus:border-gray-900 transition-colors"
+        ></textarea>
+
+        <div class="flex gap-2 pt-1">
+          <button
+            type="button"
+            @click="isReviewModalOpen = false"
+            class="flex-1 px-4 py-2.5 rounded-xl text-xs font-bold text-gray-700 bg-gray-100 hover:bg-gray-200 transition-colors"
+          >
+            Batal
+          </button>
+          <button
+            type="button"
+            @click="submitReview"
+            :disabled="isSubmittingReview"
+            class="flex-1 px-4 py-2.5 bg-[#14120E] text-[#D4B26F] text-xs font-bold rounded-xl hover:bg-black transition-colors disabled:opacity-50"
+          >
+            {{ isSubmittingReview ? "Mengirim..." : "Kirim Ulasan" }}
           </button>
         </div>
       </div>
@@ -434,6 +786,7 @@ import {
   addressService,
   shippingService,
   orderService,
+  reviewService,
 } from "../services/apiServices";
 import { useAuth } from "../composables/useAuth";
 
@@ -570,22 +923,26 @@ const fetchUserData = async () => {
     const rawOrders =
       resOrders.data?.data?.orders || resOrders.data?.data || [];
     orders.value = rawOrders.map((order) => ({
-      id: order.order_number || `#${order.id}`,
+      id: order.id,
+      orderNumber: order.order_number || `#${order.id}`,
       status: order.status,
       statusColor: getOrderStatusColor(order.status),
       date: order.created_at
         ? new Date(order.created_at).toLocaleDateString("id-ID", {
-          day: "numeric",
-          month: "short",
-          year: "numeric",
-        })
+            day: "numeric",
+            month: "short",
+            year: "numeric",
+          })
         : "",
       totalPrice: order.total_amount || order.grand_total || 0,
       items: (order.order_items || order.items || []).map((item) => ({
         id: item.id,
+        productId: item.product_id,
         title: item.product_name || item.title,
         quantity: item.qty || item.quantity,
-        image: item.featured_image?.path || item.image,
+        image: item.featured_image?.path || item.product_image,
+        reviewId: item.review_id || item.review?.id || null,
+        review: item.review || null,
       })),
     }));
   } catch (error) {
@@ -603,6 +960,8 @@ onMounted(() => {
 const getOrderStatusColor = (status) => {
   switch (status) {
     case "PAID":
+    case "DELIVERED":
+      return "bg-green-100 text-green-800";
     case "COMPLETED":
       return "bg-green-100 text-green-800";
     case "PACKING":
@@ -615,6 +974,57 @@ const getOrderStatusColor = (status) => {
       return "bg-red-100 text-red-800";
     default:
       return "bg-gray-100 text-gray-800";
+  }
+};
+
+// State Modal Konfirmasi Pesanan Diterima
+const isCompleteOrderModalOpen = ref(false);
+const orderToCompleteId = ref(null);
+const completingOrderId = ref(null);
+
+// State Modal Info (pengganti alert)
+const isInfoModalOpen = ref(false);
+const infoModalMessage = ref("");
+const infoModalTitle = ref("");
+
+const openCompleteOrderModal = (orderId) => {
+  orderToCompleteId.value = orderId;
+  isCompleteOrderModalOpen.value = true;
+};
+
+const confirmCompleteOrder = async () => {
+  const orderId = orderToCompleteId.value;
+  if (!orderId) return;
+
+  isCompleteOrderModalOpen.value = false;
+  completingOrderId.value = orderId;
+
+  try {
+    await orderService.completeOrder(orderId);
+
+    orders.value = orders.value.map((order) =>
+      order.id === orderId
+        ? {
+            ...order,
+            status: "COMPLETED",
+            statusColor: getOrderStatusColor("COMPLETED"),
+          }
+        : order,
+    );
+
+    infoModalTitle.value = "Berhasil";
+    infoModalMessage.value =
+      "Terima kasih! Pesanan telah dikonfirmasi selesai.";
+    isInfoModalOpen.value = true;
+  } catch (error) {
+    console.error("Gagal menyelesaikan pesanan:", error);
+    infoModalTitle.value = "Gagal";
+    infoModalMessage.value =
+      error.response?.data?.message || "Gagal mengkonfirmasi pesanan.";
+    isInfoModalOpen.value = true;
+  } finally {
+    completingOrderId.value = null;
+    orderToCompleteId.value = null;
   }
 };
 
@@ -871,5 +1281,63 @@ const confirmLogout = async () => {
     router.push("/login");
   }
 };
+
+// State Modal Review
+const isReviewModalOpen = ref(false);
+const isSubmittingReview = ref(false);
+const reviewForm = reactive({
+  orderItemId: null,
+  productId: null,
+  rating: 0,
+  comment: "",
+});
+
+const openReviewModal = (item) => {
+  reviewForm.orderItemId = item.id;
+  reviewForm.productId = item.productId;
+  reviewForm.rating = 0;
+  reviewForm.comment = "";
+  isReviewModalOpen.value = true;
+};
+
+const submitReview = async () => {
+  if (!reviewForm.rating) {
+    alert("Silakan pilih rating bintang terlebih dahulu.");
+    return;
+  }
+  if (!reviewForm.productId) {
+    alert("Data produk tidak ditemukan, coba muat ulang halaman.");
+    return;
+  }
+
+  isSubmittingReview.value = true;
+  try {
+    const res = await reviewService.createReview(reviewForm.productId, {
+      order_item_id: reviewForm.orderItemId,
+      rating: reviewForm.rating,
+      comment: reviewForm.comment || null,
+    });
+
+    const newReviewId = res.data?.data?.id || res.data?.id || true;
+
+    orders.value = orders.value.map((order) => ({
+      ...order,
+      items: order.items.map((it) =>
+        it.id === reviewForm.orderItemId
+          ? { ...it, review_id: newReviewId, hasReview: true }
+          : it,
+      ),
+    }));
+
+    isReviewModalOpen.value = false;
+    infoModalTitle.value = "Berhasil";
+    infoModalMessage.value = "Terima kasih! Ulasan kamu berhasil dikirim.";
+    isInfoModalOpen.value = true;
+  } catch (error) {
+    console.error("Gagal mengirim ulasan:", error);
+    alert(error.response?.data?.message || "Gagal mengirim ulasan.");
+  } finally {
+    isSubmittingReview.value = false;
+  }
+};
 </script>
-s

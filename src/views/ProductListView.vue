@@ -22,6 +22,22 @@ const filterSections = ref([
   { id: "harga", name: "Harga", open: true, options: [] },
 ]);
 
+/* ============================================================
+ * FILTER DARI URL (query param)
+ * Disimpan terpisah dari checkbox sidebar karena id/slug yang
+ * datang dari Home (kategori pilihan, product group, brand)
+ * belum tentu match dengan opsi yang sudah ter-load di sidebar.
+ * Tetap harus dikirim ke API meski tidak ada checkbox yang
+ * kebetulan cocok.
+ *
+ * brand_ids adalah cara utama sekarang (Home mengirim brand_ids).
+ * brand_slugs tetap didukung untuk backward compatibility kalau
+ * ada link lama yang masih memakainya.
+ * ============================================================ */
+const urlCategoryIds = ref([]);
+const urlBrandIds = ref([]);
+const urlBrandSlugs = ref([]);
+
 const activeFiltersList = computed(() => {
   const list = [];
 
@@ -104,24 +120,41 @@ const fetchProducts = async (page = 1) => {
       sort_direction: sortDir,
     };
 
-    const selectedCategories = filterSections.value
-      .find((s) => s.id === "kategori")
-      ?.options.filter((o) => o.checked)
-      .map((o) => o.id);
+    // Gabungkan category_ids dari checkbox sidebar + dari URL (union, dedupe)
+    const checkedCategoryIds =
+      filterSections.value
+        .find((s) => s.id === "kategori")
+        ?.options.filter((o) => o.checked)
+        .map((o) => o.id) || [];
 
-    if (selectedCategories?.length) {
-      params.category_ids = selectedCategories.join(",");
+    const selectedCategories = new Set([
+      ...checkedCategoryIds,
+      ...urlCategoryIds.value,
+    ]);
+
+    if (selectedCategories.size) {
+      params.category_ids = Array.from(selectedCategories).join(",");
     }
 
-    const selectedBrands = filterSections.value
-      .find((s) => s.id === "brand")
-      ?.options.filter((o) => o.checked)
-      .map((o) => o.slug);
+    // Gabungkan brand_ids dari checkbox sidebar + dari URL (union, dedupe)
+    const checkedBrandIds =
+      filterSections.value
+        .find((s) => s.id === "brand")
+        ?.options.filter((o) => o.checked)
+        .map((o) => o.id) || [];
 
-    if (selectedBrands?.length) {
-      params.brand_slugs = selectedBrands.join(",");
-    } else {
-      params.brand_slugs = "";
+    const selectedBrandIds = new Set([
+      ...checkedBrandIds,
+      ...urlBrandIds.value,
+    ]);
+
+    if (selectedBrandIds.size) {
+      params.brand_ids = Array.from(selectedBrandIds).join(",");
+    }
+
+    // brand_slugs tetap dikirim kalau ada (backward compatibility)
+    if (urlBrandSlugs.value.length) {
+      params.brand_slugs = urlBrandSlugs.value.join(",");
     }
 
     const selectedSizes = filterSections.value
@@ -163,31 +196,49 @@ const fetchProducts = async (page = 1) => {
 };
 
 const syncFiltersFromUrl = () => {
-  const urlCategoryIds = route.query.category_ids
+  urlCategoryIds.value = route.query.category_ids
     ? route.query.category_ids
         .toString()
         .split(",")
+        .filter(Boolean)
         .map((id) => Number(id.trim()))
     : [];
 
-  const urlBrandSlugs = route.query.brand_slugs
+  urlBrandIds.value = route.query.brand_ids
+    ? route.query.brand_ids
+        .toString()
+        .split(",")
+        .filter(Boolean)
+        .map((id) => Number(id.trim()))
+    : [];
+
+  urlBrandSlugs.value = route.query.brand_slugs
     ? route.query.brand_slugs
         .toString()
         .split(",")
+        .filter(Boolean)
         .map((s) => s.trim())
     : [];
 
+  // Centang checkbox sidebar kalau id/slug dari URL kebetulan match
+  // dengan opsi yang sudah ter-load. Kalau tidak match (mis. id dari
+  // product group yang bukan bagian dari taxonomy type=2), filter
+  // tetap dikirim ke API lewat urlCategoryIds/urlBrandIds/urlBrandSlugs
+  // di atas — hanya representasi visual checkbox-nya saja yang tidak
+  // tercentang.
   const categorySection = filterSections.value.find((s) => s.id === "kategori");
   if (categorySection && categorySection.options.length) {
     categorySection.options.forEach((opt) => {
-      opt.checked = urlCategoryIds.includes(opt.id);
+      opt.checked = urlCategoryIds.value.includes(opt.id);
     });
   }
 
   const brandSection = filterSections.value.find((s) => s.id === "brand");
   if (brandSection && brandSection.options.length) {
     brandSection.options.forEach((opt) => {
-      opt.checked = urlBrandSlugs.includes(opt.slug);
+      opt.checked =
+        urlBrandIds.value.includes(opt.id) ||
+        urlBrandSlugs.value.includes(opt.slug);
     });
   }
 };
@@ -339,17 +390,45 @@ const removeActiveFilter = (item) => {
       const option = section.options.find((o) => o.id === item.id);
       if (option) option.checked = false;
     }
+
+    // Kalau filter yang dihapus ini juga berasal dari URL (mis. dari
+    // Home), hapus juga dari state urlCategoryIds/urlBrandIds/urlBrandSlugs
+    // supaya tidak "nempel" lagi walaupun checkbox sudah di-uncheck.
+    if (item.type === "kategori") {
+      urlCategoryIds.value = urlCategoryIds.value.filter(
+        (id) => id !== item.id,
+      );
+    }
+    if (item.type === "brand") {
+      urlBrandIds.value = urlBrandIds.value.filter((id) => id !== item.id);
+
+      const brandSection = filterSections.value.find((s) => s.id === "brand");
+      const removedSlug = brandSection?.options.find(
+        (o) => o.id === item.id,
+      )?.slug;
+      if (removedSlug) {
+        urlBrandSlugs.value = urlBrandSlugs.value.filter(
+          (s) => s !== removedSlug,
+        );
+      }
+    }
   }
+
+  fetchProducts(1);
 };
 
 const clearAllFilters = () => {
   priceMin.value = null;
   priceMax.value = null;
+  urlCategoryIds.value = [];
+  urlBrandIds.value = [];
+  urlBrandSlugs.value = [];
   filterSections.value.forEach((section) => {
     section.options?.forEach((opt) => {
       opt.checked = false;
     });
   });
+  fetchProducts(1);
 };
 </script>
 
@@ -513,7 +592,7 @@ const clearAllFilters = () => {
           </div>
         </div>
 
-        <!-- ACTIVE FILTERS BADGES (NEW) -->
+        <!-- ACTIVE FILTERS BADGES -->
         <div
           v-if="activeFiltersList.length"
           class="flex flex-wrap items-center gap-2 bg-white p-3 rounded-2xl shadow-sm border border-gray-100"
