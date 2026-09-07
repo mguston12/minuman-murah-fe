@@ -439,7 +439,6 @@ const saveSelectedAddress = () => {
 };
 
 // --- MIDTRANS SDK LOADER ---
-// --- MIDTRANS SDK LOADER (SANDBOX) ---
 const loadSnapScript = (clientKey = "Mid-client-5LwdNZy4xj2fsl_X") => {
   return new Promise((resolve, reject) => {
     if (window.snap) {
@@ -688,7 +687,7 @@ onMounted(() => {
                     <label for="protection" class="cursor-pointer">
                       <span class="text-sm font-bold text-gray-900 block">Proteksi Produk</span>
                       <span class="text-xs text-gray-500 block mt-1">
-                        {{ protectionConfig.description }}
+                        {{ protectionConfig?.description }} ({{ protectionConfig?.fee }} %)
                       </span>
                     </label>
                   </div>
