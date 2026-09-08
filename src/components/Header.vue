@@ -107,7 +107,7 @@ const handleSearch = () => {
   if (searchQuery.value.trim()) {
     router.push({
       path: "/products",
-      query: { q: searchQuery.value.trim() },
+      query: { search: searchQuery.value.trim() },
     });
   }
 };

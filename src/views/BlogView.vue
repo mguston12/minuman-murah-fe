@@ -158,13 +158,16 @@ const goToPage = (page) => {
             class="bg-white rounded-3xl overflow-hidden shadow-sm border border-gray-100 grid grid-cols-1 md:grid-cols-12 group hover:shadow-md transition-shadow duration-300"
           >
             <!-- IMAGE LEFT -->
-            <div class="md:col-span-5 h-64 md:h-auto overflow-hidden relative">
+            <router-link
+              :to="`/blog/${featuredArticle.slug}`"
+              class="md:col-span-5 h-64 md:h-auto overflow-hidden relative block"
+            >
               <img
                 :src="featuredArticle.image"
                 :alt="featuredArticle.title"
                 class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
               />
-            </div>
+            </router-link>
 
             <!-- CONTENT RIGHT -->
             <div
@@ -175,11 +178,15 @@ const goToPage = (page) => {
               >
                 {{ featuredArticle.category }}
               </span>
-              <h2
-                class="text-xl sm:text-2xl font-extrabold text-gray-900 leading-snug group-hover:text-[#E25C38] transition-colors"
-              >
-                {{ featuredArticle.title }}
-              </h2>
+
+              <router-link :to="`/blog/${featuredArticle.slug}`">
+                <h2
+                  class="text-xl sm:text-2xl font-extrabold text-gray-900 leading-snug group-hover:text-[#E25C38] transition-colors"
+                >
+                  {{ featuredArticle.title }}
+                </h2>
+              </router-link>
+
               <p class="text-xs sm:text-sm text-gray-500 mt-3 leading-relaxed">
                 {{ featuredArticle.description }}
               </p>

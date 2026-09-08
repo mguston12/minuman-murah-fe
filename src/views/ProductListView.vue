@@ -30,6 +30,7 @@ const groupsError = ref(null);
 const urlCategoryIds = ref([]);
 const urlBrandIds = ref([]);
 const urlBrandSlugs = ref([]);
+const urlSearchQuery = ref("");
 
 const groupsData = ref([]);
 
@@ -122,7 +123,10 @@ const isLoadingAttributes = ref(false);
 const attributeError = ref(null);
 const urlGroupId = ref(null);
 
+let latestRequestId = 0;
+
 const fetchProducts = async (page = 1) => {
+  const requestId = ++latestRequestId;
   isLoadingProducts.value = true;
   productError.value = null;
 
@@ -141,9 +145,11 @@ const fetchProducts = async (page = 1) => {
       const mergedProductsMap = new Map();
       matchedGroups.forEach((g) => {
         (g.products || []).forEach((p) => {
-          mergedProductsMap.set(p.id, p); 
+          mergedProductsMap.set(p.id, p);
         });
       });
+
+      if (requestId !== latestRequestId) return; // <- guard juga di sini
 
       products.value = Array.from(mergedProductsMap.values());
       pagination.value = {
@@ -154,7 +160,7 @@ const fetchProducts = async (page = 1) => {
       };
       currentPage.value = 1;
       isLoadingProducts.value = false;
-      return; 
+      return;
     }
 
     let sortByParam = "created_at";
@@ -174,6 +180,10 @@ const fetchProducts = async (page = 1) => {
       sort_by: sortByParam,
       sort_direction: sortDir,
     };
+
+    if (urlSearchQuery.value) {
+      params.search = urlSearchQuery.value;
+    }
 
     const checkedCategoryIds =
       filterSections.value
@@ -226,6 +236,9 @@ const fetchProducts = async (page = 1) => {
     }
 
     const response = await productService.getProducts(params);
+
+    if (requestId !== latestRequestId) return; // <- guard utama, di sini
+
     const resData = response?.data?.data || response?.data || response;
 
     if (resData && Array.isArray(resData.products)) {
@@ -240,14 +253,23 @@ const fetchProducts = async (page = 1) => {
       products.value = [];
     }
   } catch (err) {
-    console.error("Gagal mengambil data produk:", err);
-    productError.value = "Gagal memuat produk.";
+    if (requestId === latestRequestId) {
+      console.error("Gagal mengambil data produk:", err);
+      productError.value = "Gagal memuat produk.";
+    }
   } finally {
-    isLoadingProducts.value = false;
+    if (requestId === latestRequestId) {
+      isLoadingProducts.value = false;
+    }
   }
 };
+
 const syncFiltersFromUrl = () => {
   urlGroupId.value = route.query.group_id ? Number(route.query.group_id) : null;
+
+  urlSearchQuery.value = route.query.search
+    ? route.query.search.toString().trim()
+    : "";
 
   urlCategoryIds.value = route.query.category_ids
     ? route.query.category_ids
