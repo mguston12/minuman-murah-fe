@@ -117,6 +117,17 @@ const goToPage = (page) => {
 <template>
   <div class="min-h-screen bg-[#FAF6F0] font-sans text-gray-900 pt-8 pb-16">
     <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+      <!-- BREADCRUMBS -->
+      <nav
+        class="flex items-center gap-2 text-xs text-gray-400 mb-6 font-medium"
+      >
+        <router-link to="/" class="hover:text-gray-700 transition-colors"
+          >Beranda</router-link
+        >
+        <span>&rsaquo;</span>
+        <span class="text-gray-500">Blog</span>
+      </nav>
+
       <!-- 1. HEADER SECTION -->
       <section class="mb-6">
         <h1

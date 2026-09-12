@@ -395,9 +395,9 @@ const filteredReviews = computed(() => {
         <nav class="text-xs text-gray-500 flex items-center gap-2">
           <router-link to="/" class="hover:text-black">Beranda</router-link>
           <span>&rsaquo;</span>
-          <span class="hover:text-black cursor-pointer">{{
-            activeCategoryName
-          }}</span>
+          <router-link to="/oroducts" class="hover:text-black cursor-pointer"
+            >Produk</router-link
+          >
           <span>&rsaquo;</span>
           <span class="text-gray-900 font-medium truncate max-w-xs sm:max-w-md">
             {{ product.name }}

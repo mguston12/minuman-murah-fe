@@ -501,267 +501,290 @@ const clearAllFilters = () => {
   });
   fetchProducts(1);
 };
+
+// Label breadcrumb terakhir: pakai kata kunci pencarian jika ada, kalau tidak "Produk"
+const breadcrumbLabel = computed(() => {
+  if (urlSearchQuery.value) {
+    return `Hasil pencarian: "${urlSearchQuery.value}"`;
+  }
+  return "Produk";
+});
 </script>
 
 <template>
   <div
     class="min-h-screen bg-[#FAF6F0] py-6 px-4 sm:px-6 lg:px-8 font-sans text-gray-900"
   >
-    <div class="max-w-7xl mx-auto flex flex-col lg:flex-row gap-6 items-start">
-      <!-- ==================== SIDEBAR FILTER ==================== -->
-      <aside
-        class="w-full lg:w-64 bg-white rounded-2xl p-4 shadow-sm border border-gray-100 shrink-0"
+    <div class="max-w-7xl mx-auto">
+      <!-- BREADCRUMBS -->
+      <nav
+        class="flex items-center gap-2 text-xs text-gray-400 mb-4 font-medium"
       >
-        <div
-          class="flex items-center justify-between pb-3 border-b border-gray-100 mb-3"
+        <router-link to="/" class="hover:text-gray-700 transition-colors"
+          >Beranda</router-link
         >
-          <h2
-            class="text-xs font-extrabold text-gray-900 tracking-wide uppercase"
-          >
-            Filter
-          </h2>
-          <button
-            @click="clearAllFilters"
-            class="text-[11px] text-[#E25C38] font-bold hover:underline"
-          >
-            Reset
-          </button>
-        </div>
+        <span>&rsaquo;</span>
+        <span class="text-gray-500 truncate max-w-[200px] sm:max-w-none">{{
+          breadcrumbLabel
+        }}</span>
+      </nav>
 
-        <div class="space-y-3">
+      <div class="flex flex-col lg:flex-row gap-6 items-start">
+        <!-- ==================== SIDEBAR FILTER ==================== -->
+        <aside
+          class="w-full lg:w-64 bg-white rounded-2xl p-4 shadow-sm border border-gray-100 shrink-0"
+        >
           <div
-            v-for="section in filterSections"
-            :key="section.id"
-            class="border-b border-gray-50 pb-3 last:border-none last:pb-0"
+            class="flex items-center justify-between pb-3 border-b border-gray-100 mb-3"
           >
-            <button
-              @click="section.open = !section.open"
-              class="w-full flex items-center justify-between py-1 text-left"
+            <h2
+              class="text-xs font-extrabold text-gray-900 tracking-wide uppercase"
             >
-              <span class="text-xs font-bold text-gray-800">{{
-                section.name
-              }}</span>
-              <svg
-                class="w-3.5 h-3.5 text-gray-400 transition-transform duration-200"
-                :class="section.open ? 'rotate-180' : ''"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M19 9l-7 7-7-7"
-                />
-              </svg>
+              Filter
+            </h2>
+            <button
+              @click="clearAllFilters"
+              class="text-[11px] text-[#E25C38] font-bold hover:underline"
+            >
+              Reset
             </button>
+          </div>
 
-            <div v-if="section.open" class="mt-2.5 pl-0.5">
-              <!-- HARGA INPUT -->
-              <div
-                v-if="section.id === 'harga'"
-                class="flex items-center gap-2"
+          <div class="space-y-3">
+            <div
+              v-for="section in filterSections"
+              :key="section.id"
+              class="border-b border-gray-50 pb-3 last:border-none last:pb-0"
+            >
+              <button
+                @click="section.open = !section.open"
+                class="w-full flex items-center justify-between py-1 text-left"
               >
-                <input
-                  type="number"
-                  v-model="priceMin"
-                  placeholder="Min"
-                  class="w-1/2 px-3 py-1.5 border border-gray-200 rounded-lg text-xs focus:outline-none focus:border-[#E25C38]"
-                />
-                <input
-                  type="number"
-                  v-model="priceMax"
-                  placeholder="Max"
-                  class="w-1/2 px-3 py-1.5 border border-gray-200 rounded-lg text-xs focus:outline-none focus:border-[#E25C38]"
-                />
-              </div>
+                <span class="text-xs font-bold text-gray-800">{{
+                  section.name
+                }}</span>
+                <svg
+                  class="w-3.5 h-3.5 text-gray-400 transition-transform duration-200"
+                  :class="section.open ? 'rotate-180' : ''"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M19 9l-7 7-7-7"
+                  />
+                </svg>
+              </button>
 
-              <!-- LOADERS -->
-              <div
-                v-else-if="section.id === 'kategori' && isLoadingCategories"
-                class="text-[11px] text-gray-400 py-1"
-              >
-                Memuat kategori...
-              </div>
-              <div
-                v-else-if="section.id === 'kategori' && categoryError"
-                class="text-[11px] text-red-500 py-1"
-              >
-                {{ categoryError }}
-              </div>
-
-              <div
-                v-else-if="section.id === 'brand' && isLoadingBrands"
-                class="text-[11px] text-gray-400 py-1"
-              >
-                Memuat brand...
-              </div>
-              <div
-                v-else-if="section.id === 'brand' && brandError"
-                class="text-[11px] text-red-500 py-1"
-              >
-                {{ brandError }}
-              </div>
-
-              <div
-                v-else-if="section.id === 'ukuran' && isLoadingAttributes"
-                class="text-[11px] text-gray-400 py-1"
-              >
-                Memuat ukuran...
-              </div>
-              <div
-                v-else-if="section.id === 'ukuran' && attributeError"
-                class="text-[11px] text-red-500 py-1"
-              >
-                {{ attributeError }}
-              </div>
-
-              <!-- CHECKBOX -->
-              <div v-else class="space-y-2 max-h-48 overflow-y-auto pr-1">
-                <label
-                  v-for="opt in section.options"
-                  :key="opt.id"
-                  class="flex items-center gap-2.5 cursor-pointer text-xs text-gray-600 hover:text-gray-900"
+              <div v-if="section.open" class="mt-2.5 pl-0.5">
+                <!-- HARGA INPUT -->
+                <div
+                  v-if="section.id === 'harga'"
+                  class="flex items-center gap-2"
                 >
                   <input
-                    type="checkbox"
-                    v-model="opt.checked"
-                    class="w-3.5 h-3.5 rounded border-gray-300 text-[#E25C38] focus:ring-0 cursor-pointer"
+                    type="number"
+                    v-model="priceMin"
+                    placeholder="Min"
+                    class="w-1/2 px-3 py-1.5 border border-gray-200 rounded-lg text-xs focus:outline-none focus:border-[#E25C38]"
                   />
-                  <span>{{ opt.label }}</span>
-                </label>
+                  <input
+                    type="number"
+                    v-model="priceMax"
+                    placeholder="Max"
+                    class="w-1/2 px-3 py-1.5 border border-gray-200 rounded-lg text-xs focus:outline-none focus:border-[#E25C38]"
+                  />
+                </div>
+
+                <!-- LOADERS -->
+                <div
+                  v-else-if="section.id === 'kategori' && isLoadingCategories"
+                  class="text-[11px] text-gray-400 py-1"
+                >
+                  Memuat kategori...
+                </div>
+                <div
+                  v-else-if="section.id === 'kategori' && categoryError"
+                  class="text-[11px] text-red-500 py-1"
+                >
+                  {{ categoryError }}
+                </div>
+
+                <div
+                  v-else-if="section.id === 'brand' && isLoadingBrands"
+                  class="text-[11px] text-gray-400 py-1"
+                >
+                  Memuat brand...
+                </div>
+                <div
+                  v-else-if="section.id === 'brand' && brandError"
+                  class="text-[11px] text-red-500 py-1"
+                >
+                  {{ brandError }}
+                </div>
+
+                <div
+                  v-else-if="section.id === 'ukuran' && isLoadingAttributes"
+                  class="text-[11px] text-gray-400 py-1"
+                >
+                  Memuat ukuran...
+                </div>
+                <div
+                  v-else-if="section.id === 'ukuran' && attributeError"
+                  class="text-[11px] text-red-500 py-1"
+                >
+                  {{ attributeError }}
+                </div>
+
+                <!-- CHECKBOX -->
+                <div v-else class="space-y-2 max-h-48 overflow-y-auto pr-1">
+                  <label
+                    v-for="opt in section.options"
+                    :key="opt.id"
+                    class="flex items-center gap-2.5 cursor-pointer text-xs text-gray-600 hover:text-gray-900"
+                  >
+                    <input
+                      type="checkbox"
+                      v-model="opt.checked"
+                      class="w-3.5 h-3.5 rounded border-gray-300 text-[#E25C38] focus:ring-0 cursor-pointer"
+                    />
+                    <span>{{ opt.label }}</span>
+                  </label>
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      </aside>
+        </aside>
 
-      <main class="flex-1 w-full space-y-4">
-        <!-- TOP INFO & SORTING -->
-        <div
-          class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-3.5 rounded-2xl shadow-sm border border-gray-100"
-        >
-          <p class="text-xs text-gray-500 font-medium">
-            Menampilkan
-            <span class="font-bold text-gray-800">{{
-              pagination.total || products.length
-            }}</span>
-            produk
-          </p>
-
-          <div class="flex items-center gap-2 shrink-0">
-            <span class="text-xs text-gray-500">Urutkan:</span>
-            <select
-              v-model="sortBy"
-              class="text-xs font-bold bg-white border border-gray-200 rounded-lg px-3 py-1.5 focus:outline-none focus:border-[#E25C38] cursor-pointer"
-            >
-              <option value="Paling Sesuai">Paling Sesuai</option>
-              <option value="Harga Terendah">Harga Terendah</option>
-              <option value="Harga Tertinggi">Harga Tertinggi</option>
-            </select>
-          </div>
-        </div>
-
-        <!-- ACTIVE FILTERS BADGES -->
-        <div
-          v-if="activeFiltersList.length"
-          class="flex flex-wrap items-center gap-2 bg-white p-3 rounded-2xl shadow-sm border border-gray-100"
-        >
-          <span class="text-xs font-bold text-gray-400 mr-1"
-            >Filter Aktif:</span
-          >
-
+        <main class="flex-1 w-full space-y-4">
+          <!-- TOP INFO & SORTING -->
           <div
-            v-for="item in activeFiltersList"
-            :key="item.type + '-' + item.id"
-            class="inline-flex items-center gap-1.5 bg-orange-50 text-[#E25C38] border border-orange-200 px-2.5 py-1 rounded-lg text-xs font-semibold"
+            class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-3.5 rounded-2xl shadow-sm border border-gray-100"
           >
-            <span>{{ item.label }}</span>
-            <button
-              @click="removeActiveFilter(item)"
-              class="hover:text-red-600 font-bold ml-0.5 focus:outline-none"
+            <p class="text-xs text-gray-500 font-medium">
+              Menampilkan
+              <span class="font-bold text-gray-800">{{
+                pagination.total || products.length
+              }}</span>
+              produk
+            </p>
+
+            <div class="flex items-center gap-2 shrink-0">
+              <span class="text-xs text-gray-500">Urutkan:</span>
+              <select
+                v-model="sortBy"
+                class="text-xs font-bold bg-white border border-gray-200 rounded-lg px-3 py-1.5 focus:outline-none focus:border-[#E25C38] cursor-pointer"
+              >
+                <option value="Paling Sesuai">Paling Sesuai</option>
+                <option value="Harga Terendah">Harga Terendah</option>
+                <option value="Harga Tertinggi">Harga Tertinggi</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- ACTIVE FILTERS BADGES -->
+          <div
+            v-if="activeFiltersList.length"
+            class="flex flex-wrap items-center gap-2 bg-white p-3 rounded-2xl shadow-sm border border-gray-100"
+          >
+            <span class="text-xs font-bold text-gray-400 mr-1"
+              >Filter Aktif:</span
             >
-              ✕
+
+            <div
+              v-for="item in activeFiltersList"
+              :key="item.type + '-' + item.id"
+              class="inline-flex items-center gap-1.5 bg-orange-50 text-[#E25C38] border border-orange-200 px-2.5 py-1 rounded-lg text-xs font-semibold"
+            >
+              <span>{{ item.label }}</span>
+              <button
+                @click="removeActiveFilter(item)"
+                class="hover:text-red-600 font-bold ml-0.5 focus:outline-none"
+              >
+                ✕
+              </button>
+            </div>
+
+            <button
+              @click="clearAllFilters"
+              class="text-xs text-gray-500 hover:text-red-500 font-bold underline ml-auto"
+            >
+              Hapus Semua
             </button>
           </div>
 
-          <button
-            @click="clearAllFilters"
-            class="text-xs text-gray-500 hover:text-red-500 font-bold underline ml-auto"
+          <!-- STATE LOADING / ERROR / EMPTY -->
+          <div
+            v-if="isLoadingProducts"
+            class="bg-white rounded-2xl p-12 text-center text-xs text-gray-400 shadow-sm"
           >
-            Hapus Semua
-          </button>
-        </div>
-
-        <!-- STATE LOADING / ERROR / EMPTY -->
-        <div
-          v-if="isLoadingProducts"
-          class="bg-white rounded-2xl p-12 text-center text-xs text-gray-400 shadow-sm"
-        >
-          Memuat produk...
-        </div>
-        <div
-          v-else-if="productError"
-          class="bg-white rounded-2xl p-12 text-center text-xs text-red-500 shadow-sm"
-        >
-          {{ productError }}
-        </div>
-        <div
-          v-else-if="!products.length"
-          class="bg-white rounded-2xl p-12 text-center text-xs text-gray-500 shadow-sm"
-        >
-          Tidak ada produk ditemukan.
-        </div>
-
-        <!-- PRODUCT GRID -->
-        <div
-          v-else
-          class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4"
-        >
-          <ProductCard
-            v-for="product in products"
-            :key="product.id"
-            :product="product"
-          />
-        </div>
-
-        <!-- PAGINATION -->
-        <div
-          v-if="pagination.last_page > 1"
-          class="flex items-center justify-center gap-2 pt-6"
-        >
-          <button
-            @click="changePage(currentPage - 1)"
-            :disabled="currentPage === 1"
-            class="px-3 h-8 bg-white text-gray-600 disabled:opacity-40 hover:bg-gray-100 border border-gray-200 rounded-lg text-xs font-bold transition-all cursor-pointer"
+            Memuat produk...
+          </div>
+          <div
+            v-else-if="productError"
+            class="bg-white rounded-2xl p-12 text-center text-xs text-red-500 shadow-sm"
           >
-            ‹ Sebelumnya
-          </button>
-
-          <button
-            v-for="p in pagination.last_page"
-            :key="p"
-            @click="changePage(p)"
-            :class="[
-              'w-8 h-8 rounded-lg text-xs font-bold transition-all cursor-pointer',
-              currentPage === p
-                ? 'bg-black text-white'
-                : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-200',
-            ]"
+            {{ productError }}
+          </div>
+          <div
+            v-else-if="!products.length"
+            class="bg-white rounded-2xl p-12 text-center text-xs text-gray-500 shadow-sm"
           >
-            {{ p }}
-          </button>
+            Tidak ada produk ditemukan.
+          </div>
 
-          <button
-            @click="changePage(currentPage + 1)"
-            :disabled="currentPage === pagination.last_page"
-            class="px-3 h-8 bg-white text-gray-600 disabled:opacity-40 hover:bg-gray-100 border border-gray-200 rounded-lg text-xs font-bold transition-all cursor-pointer"
+          <!-- PRODUCT GRID -->
+          <div
+            v-else
+            class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4"
           >
-            Berikutnya ›
-          </button>
-        </div>
-      </main>
+            <ProductCard
+              v-for="product in products"
+              :key="product.id"
+              :product="product"
+            />
+          </div>
+
+          <!-- PAGINATION -->
+          <div
+            v-if="pagination.last_page > 1"
+            class="flex items-center justify-center gap-2 pt-6"
+          >
+            <button
+              @click="changePage(currentPage - 1)"
+              :disabled="currentPage === 1"
+              class="px-3 h-8 bg-white text-gray-600 disabled:opacity-40 hover:bg-gray-100 border border-gray-200 rounded-lg text-xs font-bold transition-all cursor-pointer"
+            >
+              ‹ Sebelumnya
+            </button>
+
+            <button
+              v-for="p in pagination.last_page"
+              :key="p"
+              @click="changePage(p)"
+              :class="[
+                'w-8 h-8 rounded-lg text-xs font-bold transition-all cursor-pointer',
+                currentPage === p
+                  ? 'bg-black text-white'
+                  : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-200',
+              ]"
+            >
+              {{ p }}
+            </button>
+
+            <button
+              @click="changePage(currentPage + 1)"
+              :disabled="currentPage === pagination.last_page"
+              class="px-3 h-8 bg-white text-gray-600 disabled:opacity-40 hover:bg-gray-100 border border-gray-200 rounded-lg text-xs font-bold transition-all cursor-pointer"
+            >
+              Berikutnya ›
+            </button>
+          </div>
+        </main>
+      </div>
     </div>
   </div>
 </template>

@@ -110,7 +110,7 @@ watch(
   <div
     class="min-h-screen bg-[#FAF8F5] text-[#1A1A1A] font-sans py-8 px-4 sm:px-6 lg:px-8"
   >
-    <div class="max-w-3xl mx-auto">
+    <div class="max-w-6xl mx-auto">
       <!-- 1. BREADCRUMBS -->
       <nav
         class="flex items-center gap-2 text-xs text-gray-400 mb-6 font-medium"
@@ -138,7 +138,7 @@ watch(
       <!-- ERROR / NOT FOUND STATE -->
       <div
         v-else-if="error || !article"
-        class="bg-white rounded-2xl p-8 text-center border border-gray-100 my-8 shadow-sm"
+        class="bg-white rounded-2xl p-8 text-center border border-gray-100 my-8 shadow-sm max-w-3xl mx-auto"
       >
         <h2 class="text-lg font-bold text-gray-800">Artikel Tidak Ditemukan</h2>
         <p class="text-xs text-gray-500 mt-1">
@@ -152,84 +152,87 @@ watch(
         </router-link>
       </div>
 
-      <!-- MAIN ARTICLE CONTENT -->
-      <template v-else>
-        <!-- 2. ARTICLE HEADER -->
-        <header class="mb-6">
-          <span
-            class="text-[11px] font-extrabold text-[#E25C38] tracking-wider uppercase block mb-2"
-          >
-            {{ article.category }}
-          </span>
+      <!-- MAIN GRID: ARTIKEL (KIRI) + SIDEBAR (KANAN) -->
+      <div v-else class="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
+        <!-- KOLOM KIRI: ARTIKEL UTAMA -->
+        <div class="lg:col-span-2 max-w-3xl">
+          <!-- 2. ARTICLE HEADER -->
+          <header class="mb-6">
+            <span
+              class="text-[11px] font-extrabold text-[#E25C38] tracking-wider uppercase block mb-2"
+            >
+              {{ article.category }}
+            </span>
 
-          <h1
-            class="text-2xl sm:text-3xl md:text-4xl font-extrabold text-[#1C1A17] leading-tight mb-4"
-          >
-            {{ article.title }}
-          </h1>
+            <h1
+              class="text-2xl sm:text-3xl md:text-4xl font-extrabold text-[#1C1A17] leading-tight mb-4"
+            >
+              {{ article.title }}
+            </h1>
 
-          <div
-            class="flex items-center gap-2 text-xs text-gray-400 font-medium"
-          >
-            <span>Oleh {{ article.author }}</span>
-            <span>&bull;</span>
-            <span>{{ article.date }}</span>
-            <span>&bull;</span>
-            <span>{{ article.readTime }}</span>
+            <div
+              class="flex items-center gap-2 text-xs text-gray-400 font-medium"
+            >
+              <span>Oleh {{ article.author }}</span>
+              <span>&bull;</span>
+              <span>{{ article.date }}</span>
+              <span>&bull;</span>
+              <span>{{ article.readTime }}</span>
+            </div>
+          </header>
+
+          <!-- 3. FEATURED IMAGE -->
+          <div class="mb-8 rounded-2xl overflow-hidden shadow-sm bg-gray-100">
+            <img
+              :src="article.featuredImage"
+              :alt="article.title"
+              class="w-full h-[280px] sm:h-[380px] object-cover"
+            />
           </div>
-        </header>
 
-        <!-- 3. FEATURED IMAGE -->
-        <div class="mb-8 rounded-2xl overflow-hidden shadow-sm bg-gray-100">
-          <img
-            :src="article.featuredImage"
-            :alt="article.title"
-            class="w-full h-[280px] sm:h-[380px] object-cover"
-          />
+          <!-- 4. ARTICLE CONTENT (Render HTML dari WYSIWYG) -->
+          <article
+            class="prose prose-stone max-w-none text-sm sm:text-base text-gray-700 leading-relaxed space-y-4 [&_p]:mb-4 [&_h2]:text-lg [&_h2]:font-bold [&_h2]:text-[#1C1A17] [&_h2]:mt-6 [&_h2]:mb-2 [&_ul]:list-disc [&_ul]:pl-5"
+          >
+            <div v-html="article.content"></div>
+          </article>
+
+          <!-- 5. SHARE SECTION -->
+          <!-- <div class="mt-12 pt-6 border-t border-gray-200/60">
+            <p class="text-xs font-bold text-gray-800 mb-2">
+              Bagikan artikel ini
+            </p>
+            <div
+              class="flex items-center gap-4 text-xs font-semibold text-[#E25C38]"
+            >
+              <a href="#" class="hover:underline">Instagram</a>
+              <a href="#" class="hover:underline">TikTok</a>
+              <a href="#" class="hover:underline">Facebook</a>
+              <a href="#" class="hover:underline">X</a>
+            </div>
+          </div> -->
         </div>
 
-        <!-- 4. ARTICLE CONTENT (Render HTML dari WYSIWYG) -->
-        <article
-          class="prose prose-stone max-w-none text-sm sm:text-base text-gray-700 leading-relaxed space-y-4 [&_p]:mb-4 [&_h2]:text-lg [&_h2]:font-bold [&_h2]:text-[#1C1A17] [&_h2]:mt-6 [&_h2]:mb-2 [&_ul]:list-disc [&_ul]:pl-5"
-        >
-          <div v-html="article.content"></div>
-        </article>
-
-        <!-- 5. SHARE SECTION -->
-        <div class="mt-12 pt-6 border-t border-gray-200/60">
-          <p class="text-xs font-bold text-gray-800 mb-2">
-            Bagikan artikel ini
-          </p>
-          <div
-            class="flex items-center gap-4 text-xs font-semibold text-[#E25C38]"
-          >
-            <a href="#" class="hover:underline">Instagram</a>
-            <a href="#" class="hover:underline">TikTok</a>
-            <a href="#" class="hover:underline">Facebook</a>
-            <a href="#" class="hover:underline">X</a>
-          </div>
-        </div>
-
-        <!-- 6. RELATED ARTICLES SECTION -->
-        <section
+        <!-- KOLOM KANAN: ARTIKEL LAINNYA (SIDEBAR) -->
+        <aside
           v-if="relatedArticles.length > 0"
-          class="mt-12 pt-8 border-t border-gray-200/60"
+          class="lg:col-span-1 lg:sticky lg:top-8"
         >
           <h2 class="text-lg font-extrabold text-[#1C1A17] mb-6">
             Artikel Lainnya
           </h2>
 
-          <div class="space-y-3">
+          <div class="flex flex-col gap-3">
             <router-link
               v-for="item in relatedArticles"
               :key="item.id"
               :to="`/blog/${item.slug}`"
-              class="flex items-center gap-4 bg-white p-3 rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-all group"
+              class="flex items-center gap-3 bg-white p-3 rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-all group"
             >
               <img
                 :src="item.image"
                 :alt="item.title"
-                class="w-20 h-16 sm:w-24 sm:h-20 object-cover rounded-xl bg-gray-100 flex-shrink-0"
+                class="w-20 h-16 object-cover rounded-xl bg-gray-100 flex-shrink-0"
               />
 
               <div class="flex-1 min-w-0">
@@ -237,19 +240,21 @@ watch(
                   <span class="text-gray-400 uppercase tracking-wider">{{
                     item.category
                   }}</span>
-                  <span class="text-gray-300">&bull;</span>
-                  <span class="text-gray-400 font-normal">{{ item.date }}</span>
                 </div>
                 <h3
-                  class="text-xs sm:text-sm font-bold text-gray-800 group-hover:text-[#E25C38] transition-colors truncate"
+                  class="text-xs sm:text-sm font-bold text-gray-800 group-hover:text-[#E25C38] transition-colors line-clamp-2"
                 >
                   {{ item.title }}
                 </h3>
+                <span
+                  class="text-[10px] text-gray-400 font-normal mt-1 block"
+                  >{{ item.date }}</span
+                >
               </div>
             </router-link>
           </div>
-        </section>
-      </template>
+        </aside>
+      </div>
     </div>
   </div>
 </template>

@@ -18,8 +18,6 @@
       >
         <!-- USER INFO HEADER -->
         <div class="flex items-center gap-3 pb-4 border-b border-gray-100">
-          <!-- <img :src="profile.avatar || 'https://via.placeholder.com/150'" :alt="profile.fullName"
-            class="w-12 h-12 rounded-full object-cover border border-gray-200" /> -->
           <div class="overflow-hidden">
             <h3 class="text-sm font-bold text-gray-900 truncate">
               {{ profile.fullName || "User" }}
@@ -184,7 +182,7 @@
         <div v-if="activeTab === 'pesanan'" class="space-y-4">
           <template v-if="orders.length > 0">
             <div
-              v-for="order in orders"
+              v-for="order in paginatedOrders"
               :key="order.id"
               class="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 flex flex-col justify-between"
             >
@@ -261,11 +259,25 @@
               <div
                 class="pt-4 mt-4 border-t border-gray-100 flex items-center justify-between gap-2 flex-wrap"
               >
-                <p class="text-xs text-gray-900">
-                  <span class="font-bold">
-                    Total: Rp {{ order.totalPrice.toLocaleString("id-ID") }}
+                <div class="flex items-center gap-2 flex-wrap">
+                  <p class="text-xs text-gray-900">
+                    <span class="font-bold">
+                      Total: Rp {{ order.totalPrice.toLocaleString("id-ID") }}
+                    </span>
+                  </p>
+
+                  <!-- NOMOR RESI -->
+                  <span
+                    v-if="order.resiNumber"
+                    class="text-[11px] text-gray-500 font-medium flex items-center gap-1"
+                  >
+                    <span class="text-gray-300">&bull;</span>
+                    No. Resi:
+                    <span class="font-bold text-gray-700">{{
+                      order.resiNumber
+                    }}</span>
                   </span>
-                </p>
+                </div>
 
                 <div class="flex items-center gap-2">
                   <button
@@ -280,15 +292,44 @@
                         : "Konfirmasi Diterima"
                     }}
                   </button>
-
-                  <!-- <button
-                    @click="handleReorder(order.items)"
-                    class="px-5 py-2 bg-[#14120E] hover:bg-black text-[#D4B26F] text-xs font-bold rounded-xl shadow-sm transition-colors"
-                  >
-                    Beli Lagi
-                  </button> -->
                 </div>
               </div>
+            </div>
+
+            <!-- PAGINATION PESANAN -->
+            <div
+              v-if="orderLastPage > 1"
+              class="flex items-center justify-center gap-2 pt-4"
+            >
+              <button
+                @click="changeOrderPage(currentOrderPage - 1)"
+                :disabled="currentOrderPage === 1"
+                class="px-3 h-8 bg-white text-gray-600 disabled:opacity-40 hover:bg-gray-100 border border-gray-200 rounded-lg text-xs font-bold transition-all cursor-pointer"
+              >
+                ‹ Sebelumnya
+              </button>
+
+              <button
+                v-for="p in orderLastPage"
+                :key="p"
+                @click="changeOrderPage(p)"
+                :class="[
+                  'w-8 h-8 rounded-lg text-xs font-bold transition-all cursor-pointer',
+                  currentOrderPage === p
+                    ? 'bg-black text-white'
+                    : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-200',
+                ]"
+              >
+                {{ p }}
+              </button>
+
+              <button
+                @click="changeOrderPage(currentOrderPage + 1)"
+                :disabled="currentOrderPage === orderLastPage"
+                class="px-3 h-8 bg-white text-gray-600 disabled:opacity-40 hover:bg-gray-100 border border-gray-200 rounded-lg text-xs font-bold transition-all cursor-pointer"
+              >
+                Berikutnya ›
+              </button>
             </div>
           </template>
 
@@ -399,7 +440,6 @@
       <div
         class="bg-white rounded-3xl max-w-xl w-full p-6 sm:p-8 shadow-xl space-y-5 max-h-[90vh] overflow-y-auto relative text-gray-900"
       >
-        <!-- Header & Close Button -->
         <div class="flex items-center justify-between">
           <h3 class="text-base font-extrabold">
             {{ isEditAddress ? "Ubah Alamat" : "Alamat Baru" }}
@@ -413,7 +453,6 @@
         </div>
 
         <form @submit.prevent="handleSaveAddress" class="space-y-4">
-          <!-- Tandai Sebagai -->
           <div>
             <label class="block text-xs font-bold mb-2">Tandai Sebagai:</label>
             <div class="flex flex-wrap gap-2">
@@ -434,7 +473,6 @@
             </div>
           </div>
 
-          <!-- Nama Penerima & No. HP -->
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label class="block text-xs font-bold mb-1"
@@ -462,9 +500,7 @@
             </div>
           </div>
 
-          <!-- Cascade Select Region (4 Kolom) -->
           <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-            <!-- Provinsi -->
             <div>
               <label class="block text-xs font-bold mb-1">Provinsi *</label>
               <select
@@ -484,7 +520,6 @@
               </select>
             </div>
 
-            <!-- Kota / Kabupaten -->
             <div>
               <label class="block text-xs font-bold mb-1"
                 >Kota/Kabupaten *</label
@@ -509,7 +544,6 @@
               </p>
             </div>
 
-            <!-- Kecamatan -->
             <div>
               <label class="block text-xs font-bold mb-1">Kecamatan *</label>
               <select
@@ -533,7 +567,6 @@
               </p>
             </div>
 
-            <!-- Kelurahan / Sub-district -->
             <div>
               <label class="block text-xs font-bold mb-1">Kelurahan *</label>
               <select
@@ -561,7 +594,6 @@
             </div>
           </div>
 
-          <!-- Kode Pos -->
           <div>
             <label class="block text-xs font-bold mb-1">Kode Pos *</label>
             <input
@@ -573,7 +605,6 @@
             />
           </div>
 
-          <!-- Alamat Lengkap & Catatan -->
           <div>
             <label class="block text-xs font-bold mb-1"
               >Alamat Lengkap dan Catatan untuk Kurir</label
@@ -587,7 +618,6 @@
             ></textarea>
           </div>
 
-          <!-- Checkbox Utama -->
           <div class="flex items-center gap-2 pt-1">
             <input
               type="checkbox"
@@ -603,7 +633,6 @@
             </label>
           </div>
 
-          <!-- Actions -->
           <div class="flex justify-end gap-2 pt-2">
             <button
               type="button"
@@ -622,6 +651,7 @@
         </form>
       </div>
     </div>
+
     <!-- ==================== MODAL KONFIRMASI LOGOUT ==================== -->
     <div
       v-if="isLogoutModalOpen"
@@ -655,6 +685,7 @@
         </div>
       </div>
     </div>
+
     <!-- ==================== MODAL KONFIRMASI PESANAN DITERIMA ==================== -->
     <div
       v-if="isCompleteOrderModalOpen"
@@ -714,6 +745,7 @@
         </button>
       </div>
     </div>
+
     <!-- ==================== MODAL BERI ULASAN ==================== -->
     <div
       v-if="isReviewModalOpen"
@@ -825,6 +857,25 @@ const profile = reactive({
 const orders = ref([]);
 const addresses = ref([]);
 
+// State Pagination Pesanan (5 per halaman)
+const ORDER_PAGE_SIZE = 5;
+const currentOrderPage = ref(1);
+
+const orderLastPage = computed(() => {
+  if (!orders.value.length) return 1;
+  return Math.ceil(orders.value.length / ORDER_PAGE_SIZE);
+});
+
+const paginatedOrders = computed(() => {
+  const start = (currentOrderPage.value - 1) * ORDER_PAGE_SIZE;
+  return orders.value.slice(start, start + ORDER_PAGE_SIZE);
+});
+
+const changeOrderPage = (page) => {
+  if (page < 1 || page > orderLastPage.value) return;
+  currentOrderPage.value = page;
+};
+
 // State Modal Alamat
 const isAddressModalOpen = ref(false);
 const isEditAddress = ref(false);
@@ -859,7 +910,6 @@ const addressForm = reactive({
   postal_code: "",
   is_primary: false,
 
-  // Text labels & IDs payload
   province: "",
   province_id: null,
   province_label: "",
@@ -935,6 +985,7 @@ const fetchUserData = async () => {
           })
         : "",
       totalPrice: order.total_amount || order.grand_total || 0,
+      resiNumber: order.courier?.resi_number || null,
       items: (order.order_items || order.items || []).map((item) => ({
         id: item.id,
         productId: item.product_id,
@@ -945,6 +996,9 @@ const fetchUserData = async () => {
         review: item.review || null,
       })),
     }));
+
+    // Reset ke halaman 1 setiap kali data pesanan dimuat ulang
+    currentOrderPage.value = 1;
   } catch (error) {
     console.error("Gagal mengambil data pesanan:", error);
   } finally {
