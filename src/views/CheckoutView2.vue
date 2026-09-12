@@ -761,13 +761,6 @@ const loadSnapScript = (clientKey = "Mid-client-5LwdNZy4xj2fsl_X") => {
   });
 };
 
-/* ============================================================
- * ALGORITMA: PEMBAYARAN — SATU ORDER GABUNGAN UNTUK SEMUA TOKO
- * Sesuai konfirmasi: /checkout/create menerima produk dari
- * beberapa toko sekaligus dalam SATU order dengan SATU ongkir
- * gabungan (bukan order terpisah per toko), dan pembayaran
- * hanya lewat Midtrans (orderService.payOrderMidtrans).
- * ============================================================ */
 const payWithMidtrans = async (orderId, onDone) => {
   await loadSnapScript();
 
@@ -797,7 +790,7 @@ const payWithMidtrans = async (orderId, onDone) => {
         "Terima kasih, pesanan kamu sedang diproses.",
       );
       await onDone();
-      setTimeout(() => router.push("/profile"), 1200);
+      setTimeout(() => router.push("/account/orders"), 1200);
     },
     onPending: async () => {
       showToast(
@@ -806,7 +799,7 @@ const payWithMidtrans = async (orderId, onDone) => {
         "Selesaikan pembayaran sesuai instruksi yang diberikan.",
       );
       await onDone();
-      setTimeout(() => router.push("/profile"), 1200);
+      setTimeout(() => router.push("/account/orders"), 1200);
     },
     onError: () => {
       showToast(

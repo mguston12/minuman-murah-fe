@@ -25,9 +25,31 @@ const routes = [
   },
   {
     path: "/account",
-    name: "account",
-    component: () => import("../views/UserAccountView.vue"),
-    meta: { requiresAuth: true }, // Butuh login
+    component: () => import("../layouts/AccountLayout.vue"),
+    meta: { requiresAuth: true },
+    children: [
+      { path: "", redirect: "/account/profile" },
+      {
+        path: "profile",
+        name: "account-profile",
+        component: () => import("../views/account/ProfileView.vue"),
+      },
+      {
+        path: "orders",
+        name: "account-orders",
+        component: () => import("../views/account/OrdersView.vue"),
+      },
+      {
+        path: "address",
+        name: "account-address",
+        component: () => import("../views/account/AddressView.vue"),
+      },
+      {
+        path: "wishlist",
+        name: "account-wishlist",
+        component: () => import("../views/account/WishlistView.vue"),
+      },
+    ],
   },
   // --- AUTHENTICATION ROUTES ---
   {
