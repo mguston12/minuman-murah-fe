@@ -778,29 +778,19 @@ const selectVoucherFromList = async (voucher) => {
   if (ok) showVoucherModal.value = false;
 };
 
-/* ============================================================
- * ALGORITMA: ONGKIR PER TOKO
- * Menghitung ongkir untuk tiap toko berdasarkan berat & kota
- * tujuan (alamat terpilih) serta kota asal masing-masing toko.
- *
- * GRATIS ONGKIR:
- * - Kalau SEMUA item di toko itu gratis ongkir (group.allFreeShipping),
- *   ongkir toko langsung diset 0 tanpa perlu fetch API.
- * - Kalau HANYA SEBAGIAN item gratis, berat yang dikirim ke API
- *   memakai group.billableWeight (berat item yang tidak gratis saja),
- *   sehingga item gratis ongkir tidak menambah biaya kirim.
- * ============================================================ */
 const fetchShippingCostPerStore = async () => {
   if (!selectedAddress.value || groupedByStore.value.length === 0) return;
 
   const destinationCityId = String(selectedAddress.value.city_id || 136);
 
-  // Skip re-fetch jika semua toko sudah punya opsi ongkir yang valid
-  // (toko yang seluruh itemnya gratis ongkir otomatis dianggap valid).
   const allValid = groupedByStore.value.every((group) => {
-    if (group.allFreeShipping) return true;
     const c = shippingPerStore.value[group.store_key];
-    return c && c.options?.length > 0 && c.agent;
+
+    if (group.allFreeShipping) {
+      return c?.isFreeShipping === true && c?.cost === 0;
+    }
+
+    return c && c.options?.length > 0 && c.agent && c.isFreeShipping !== true;
   });
   if (allValid) return;
 
@@ -810,8 +800,11 @@ const fetchShippingCostPerStore = async () => {
   const next = { ...shippingPerStore.value };
 
   for (const group of groupedByStore.value) {
-    // Semua item di toko ini gratis ongkir -> ongkir toko = 0
+    const c = shippingPerStore.value[group.store_key];
+
     if (group.allFreeShipping) {
+      if (c?.isFreeShipping === true && c?.cost === 0) continue;
+
       next[group.store_key] = {
         agent: "gratis",
         service: "Gratis Ongkir",
@@ -824,8 +817,10 @@ const fetchShippingCostPerStore = async () => {
       continue;
     }
 
-    // Berat yang dipakai untuk hitung ongkir mengecualikan item
-    // yang gratis ongkir (billableWeight), bukan totalWeight.
+    if (c && c.options?.length > 0 && c.agent && c.isFreeShipping !== true) {
+      continue;
+    }
+
     const weight = Math.max(Math.ceil(group.billableWeight), 1000);
     const originCityId = group.store_city_id || undefined;
 
