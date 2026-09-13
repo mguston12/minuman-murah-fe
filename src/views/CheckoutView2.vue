@@ -59,6 +59,17 @@ const clearCartData = async () => {
 };
 
 /* ============================================================
+ * FITUR: GRATIS ONGKIR PER ITEM
+ *
+ * Aturan (dikonfirmasi): independen per item. Kalau sebuah item
+ * punya is_freeshiping === "ACTIVE", berat item tersebut TIDAK
+ * ikut dihitung ke berat pengiriman toko (sehingga tidak menambah
+ * ongkir). Item lain di toko yang sama yang TIDAK gratis ongkir
+ * tetap dihitung berat & ongkirnya seperti biasa.
+ * ============================================================ */
+const isItemFreeShipping = (item) => item.is_freeshiping === "ACTIVE";
+
+/* ============================================================
  * FITUR: STOK PER VARIANT+TOKO UNTUK ITEM DI CART
  *
  * GET /cart tidak mengembalikan info stok per item (lihat
@@ -226,10 +237,17 @@ const subtotal = computed(() => {
 });
 
 /* ============================================================
- * ALGORITMA (dari Code 2): PENGELOMPOKAN PRODUK PER TOKO
+ * ALGORITMA: PENGELOMPOKAN PRODUK PER TOKO
  * Setiap toko punya subtotal, total berat, dan ongkir sendiri.
- * Sesuaikan field item.store_id / item.store_name / item.store_city_id
- * dengan struktur respons API cart Anda.
+ *
+ * GRATIS ONGKIR PER ITEM:
+ * - totalWeight  : berat SEMUA item di toko (dipakai untuk info umum).
+ * - billableWeight: berat item yang TIDAK gratis ongkir saja — ini yang
+ *                   dipakai untuk menghitung ongkos kirim ke API.
+ * - allFreeShipping     : true kalau SEMUA item di toko ini gratis ongkir
+ *                         (maka ongkir toko = 0, tidak perlu fetch API).
+ * - hasFreeShippingItem : true kalau ADA setidaknya 1 item gratis ongkir
+ *                         di toko ini (dipakai untuk info/badge di UI).
  * ============================================================ */
 const groupedByStore = computed(() => {
   const groups = new Map();
@@ -249,6 +267,7 @@ const groupedByStore = computed(() => {
         store_city_id: storeCityId,
         items: [],
         totalWeight: 0,
+        billableWeight: 0,
         subtotal: 0,
       });
     }
@@ -257,14 +276,35 @@ const groupedByStore = computed(() => {
     const qty = item.qty || item.quantity || 1;
     const price =
       item.purchase_price || item.discount_price || item.actual_price || 0;
+    const weight = (item.weight || 1000) * qty;
 
     group.items.push(item);
-    group.totalWeight += (item.weight || 1000) * qty;
+    group.totalWeight += weight;
     group.subtotal += price * qty;
+
+    // Item gratis ongkir tidak menyumbang berat yang dihitung untuk ongkir
+    if (!isItemFreeShipping(item)) {
+      group.billableWeight += weight;
+    }
+  }
+
+  for (const group of groups.values()) {
+    group.allFreeShipping =
+      group.items.length > 0 && group.items.every(isItemFreeShipping);
+    group.hasFreeShippingItem = group.items.some(isItemFreeShipping);
   }
 
   return Array.from(groups.values());
 });
+
+// Ringkasan gratis ongkir untuk ditampilkan di UI per toko
+const freeShippingSummary = (group) => {
+  const freeCount = group.items.filter(isItemFreeShipping).length;
+  const totalCount = group.items.length;
+  if (freeCount === 0) return null;
+  if (freeCount === totalCount) return "Semua produk gratis ongkir";
+  return `${freeCount} dari ${totalCount} produk gratis ongkir`;
+};
 
 /* ============================================================
  * STATE: USER & ADDRESS
@@ -322,7 +362,7 @@ const addressForm = reactive({
 });
 
 /* ============================================================
- * ALGORITMA (dari Code 2): ONGKIR PER TOKO
+ * ALGORITMA: ONGKIR PER TOKO
  * shippingPerStore disimpan per store_key, masing-masing punya
  * agent/service/cost/etd + daftar opsi kurir (options) untuk modal.
  * ============================================================ */
@@ -342,13 +382,13 @@ const protectionConfig = ref({
 });
 
 /* ============================================================
- * ALGORITMA (dari Code 2): PROTEKSI PER ITEM
+ * ALGORITMA: PROTEKSI PER ITEM
  * Diganti dari satu checkbox global menjadi per variant_id.
  * ============================================================ */
 const protectionPerItem = ref({});
 
 /* ============================================================
- * ALGORITMA (dari Code 2): CATATAN PER ITEM
+ * ALGORITMA: CATATAN PER ITEM
  * ============================================================ */
 const notePerItem = ref({});
 const showNoteModal = ref(false);
@@ -356,7 +396,7 @@ const currentNoteVariantId = ref(null);
 const noteDraft = ref("");
 
 /* ============================================================
- * VOUCHER — sekarang memakai composable useVoucher()
+ * VOUCHER — memakai composable useVoucher()
  * useVoucher menghandle: daftar voucher yang applicable
  * (fetchApplicableVouchers), validasi kode voucher manual
  * (validateVoucherCode), dan penghapusan voucher (removeVoucher).
@@ -497,7 +537,7 @@ const currentStoreShippingOptions = computed(() => {
 });
 
 /* ============================================================
- * API FETCHERS WILAYAH (sama seperti Code 1)
+ * API FETCHERS WILAYAH
  * ============================================================ */
 const fetchProvinces = async () => {
   try {
@@ -597,7 +637,7 @@ const onSubDistrictChange = () => {
 };
 
 /* ============================================================
- * API FETCHERS (USER & ADDRESS) — sama seperti Code 1
+ * API FETCHERS (USER & ADDRESS)
  * ============================================================ */
 const fetchUserProfile = async () => {
   isLoadingUser.value = true;
@@ -739,9 +779,16 @@ const selectVoucherFromList = async (voucher) => {
 };
 
 /* ============================================================
- * ALGORITMA (dari Code 2): ONGKIR PER TOKO
+ * ALGORITMA: ONGKIR PER TOKO
  * Menghitung ongkir untuk tiap toko berdasarkan berat & kota
  * tujuan (alamat terpilih) serta kota asal masing-masing toko.
+ *
+ * GRATIS ONGKIR:
+ * - Kalau SEMUA item di toko itu gratis ongkir (group.allFreeShipping),
+ *   ongkir toko langsung diset 0 tanpa perlu fetch API.
+ * - Kalau HANYA SEBAGIAN item gratis, berat yang dikirim ke API
+ *   memakai group.billableWeight (berat item yang tidak gratis saja),
+ *   sehingga item gratis ongkir tidak menambah biaya kirim.
  * ============================================================ */
 const fetchShippingCostPerStore = async () => {
   if (!selectedAddress.value || groupedByStore.value.length === 0) return;
@@ -749,7 +796,9 @@ const fetchShippingCostPerStore = async () => {
   const destinationCityId = String(selectedAddress.value.city_id || 136);
 
   // Skip re-fetch jika semua toko sudah punya opsi ongkir yang valid
+  // (toko yang seluruh itemnya gratis ongkir otomatis dianggap valid).
   const allValid = groupedByStore.value.every((group) => {
+    if (group.allFreeShipping) return true;
     const c = shippingPerStore.value[group.store_key];
     return c && c.options?.length > 0 && c.agent;
   });
@@ -761,7 +810,23 @@ const fetchShippingCostPerStore = async () => {
   const next = { ...shippingPerStore.value };
 
   for (const group of groupedByStore.value) {
-    const weight = Math.max(Math.ceil(group.totalWeight), 1000);
+    // Semua item di toko ini gratis ongkir -> ongkir toko = 0
+    if (group.allFreeShipping) {
+      next[group.store_key] = {
+        agent: "gratis",
+        service: "Gratis Ongkir",
+        service_desc: "Semua produk di toko ini gratis ongkir",
+        etd: "-",
+        cost: 0,
+        options: [],
+        isFreeShipping: true,
+      };
+      continue;
+    }
+
+    // Berat yang dipakai untuk hitung ongkir mengecualikan item
+    // yang gratis ongkir (billableWeight), bukan totalWeight.
+    const weight = Math.max(Math.ceil(group.billableWeight), 1000);
     const originCityId = group.store_city_id || undefined;
 
     const payload = {
@@ -792,6 +857,7 @@ const fetchShippingCostPerStore = async () => {
           etd: cheapest.etd || "-",
           cost: cheapest.cost || cheapest.price || 0,
           options,
+          isFreeShipping: false,
         };
       } else {
         next[group.store_key] = { options: [] };
@@ -819,6 +885,7 @@ const selectCourierOptionForStore = (option, storeKey) => {
       service_desc: option.description || option.service_desc || "",
       etd: option.etd || "-",
       cost: option.cost || option.price || 0,
+      isFreeShipping: false,
     },
   };
 };
@@ -844,7 +911,7 @@ watch(showShippingModal, (open) => {
 });
 
 /* ============================================================
- * ALGORITMA (dari Code 2): PROTEKSI & CATATAN PER ITEM
+ * ALGORITMA: PROTEKSI & CATATAN PER ITEM
  * ============================================================ */
 const toggleProtectionForItem = (variantId) => {
   protectionPerItem.value = {
@@ -885,7 +952,7 @@ const saveSelectedAddress = () => {
 };
 
 /* ============================================================
- * MIDTRANS SDK LOADER (sama seperti Code 1)
+ * MIDTRANS SDK LOADER
  * ============================================================ */
 const loadSnapScript = (clientKey = "Mid-client-5LwdNZy4xj2fsl_X") => {
   return new Promise((resolve, reject) => {
@@ -979,6 +1046,8 @@ const canSubmit = computed(() => {
   if (!selectedAddress.value) return false;
 
   for (const group of groupedByStore.value) {
+    // Toko yang seluruh itemnya gratis ongkir tidak butuh kurir dipilih
+    if (group.allFreeShipping) continue;
     const c = shippingPerStore.value[group.store_key];
     if (!c?.agent) return false;
   }
@@ -996,6 +1065,17 @@ const buildCombinedCourier = () => {
   if (groups.length === 1) {
     const key = groups[0].store_key;
     const c = shippingPerStore.value[key];
+
+    if (groups[0].allFreeShipping) {
+      return {
+        agent: "gratis",
+        cost: 0,
+        etd: "-",
+        service: "Gratis Ongkir",
+        service_desc: "Semua produk gratis ongkir",
+      };
+    }
+
     return {
       agent: c?.agent || "pos",
       cost: totalCost,
@@ -1008,6 +1088,9 @@ const buildCombinedCourier = () => {
   // Lebih dari satu toko: gabungkan jadi satu deskripsi ongkir gabungan
   const perStoreDesc = groups
     .map((group) => {
+      if (group.allFreeShipping) {
+        return `${group.store_name}: Gratis Ongkir`;
+      }
       const c = shippingPerStore.value[group.store_key];
       if (!c?.agent) return null;
       return `${group.store_name}: ${c.agent.toUpperCase()} ${c.service} (${formatPrice(
@@ -1040,6 +1123,7 @@ const handleCheckout = async () => {
   }
 
   for (const group of groupedByStore.value) {
+    if (group.allFreeShipping) continue;
     const c = shippingPerStore.value[group.store_key];
     if (!c?.agent) {
       alert(`Silakan pilih opsi kurir untuk toko: ${group.store_name}`);
@@ -1316,7 +1400,9 @@ onMounted(async () => {
                     <h3 class="text-sm font-bold text-gray-800 truncate">
                       {{ item.product_name }}
                     </h3>
-                    <p class="text-xs text-gray-400 mt-0.5">
+                    <p
+                      class="text-xs text-gray-400 mt-0.5 flex items-center gap-1.5 flex-wrap"
+                    >
                       Rp
                       {{
                         (
@@ -1327,6 +1413,14 @@ onMounted(async () => {
                         ).toLocaleString("id-ID")
                       }}
                       / item
+
+                      <!-- Badge gratis ongkir per item -->
+                      <span
+                        v-if="isItemFreeShipping(item)"
+                        class="text-[10px] font-bold text-green-700 bg-green-50 px-1.5 py-0.5 rounded"
+                      >
+                        Gratis Ongkir
+                      </span>
                     </p>
 
                     <!-- Kontrol Tambah / Kurang Quantity -->
@@ -1453,8 +1547,23 @@ onMounted(async () => {
                 <p class="text-xs text-gray-500 mb-0.5">
                   Ongkos kirim ({{ group.items.length }} produk)
                 </p>
+
+                <!-- Info campuran gratis ongkir per item -->
                 <p
-                  v-if="shippingPerStore[group.store_key]?.agent"
+                  v-if="freeShippingSummary(group)"
+                  class="text-[11px] text-green-600 font-medium mb-0.5"
+                >
+                  🎉 {{ freeShippingSummary(group) }}
+                </p>
+
+                <p
+                  v-if="group.allFreeShipping"
+                  class="text-sm font-semibold text-green-600"
+                >
+                  Gratis Ongkir
+                </p>
+                <p
+                  v-else-if="shippingPerStore[group.store_key]?.agent"
                   class="text-sm font-semibold text-gray-900"
                 >
                   {{ shippingPerStore[group.store_key].agent?.toUpperCase() }}
@@ -1469,7 +1578,10 @@ onMounted(async () => {
                   }}
                 </p>
               </div>
+
+              <!-- Tombol pilih kurir disembunyikan kalau seluruh item toko gratis ongkir -->
               <button
+                v-if="!group.allFreeShipping"
                 type="button"
                 @click="openShippingModalForStore(group.store_key)"
                 class="text-sm font-bold text-[#E25C38] hover:underline cursor-pointer"
@@ -1588,7 +1700,9 @@ onMounted(async () => {
               <div class="flex justify-between text-gray-600">
                 <span>Ongkos Kirim ({{ groupedByStore.length }} toko)</span>
                 <span class="font-bold text-gray-800">{{
-                  formatPrice(totalShippingCost)
+                  totalShippingCost > 0
+                    ? formatPrice(totalShippingCost)
+                    : "Gratis"
                 }}</span>
               </div>
               <div

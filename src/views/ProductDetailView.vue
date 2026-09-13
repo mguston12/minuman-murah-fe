@@ -421,9 +421,16 @@ const maxStock = computed(() => {
   return product.value?.total_stock || 0;
 });
 
-// Sisa stok yang BENAR-BENAR masih bisa ditambahkan ke keranjang,
-// yaitu stok toko dikurangi qty yang sudah ada di keranjang customer
-// untuk variant + toko yang sama. Ini yang dipakai untuk membatasi input qty.
+const isFreeShipping = computed(() => {
+  const check = (val) => val === "ACTIVE" || val === true || val === 1;
+
+  return (
+    check(selectedStore.value?.is_freeshiping) ||
+    check(selectedVariant.value?.is_freeshiping) ||
+    check(product.value?.is_freeshiping)
+  );
+});
+
 const remainingStock = computed(() => {
   return Math.max(maxStock.value - cartQtyForSelection.value, 0);
 });
@@ -619,7 +626,7 @@ const filteredReviews = computed(() => {
             </div>
 
             <!-- Price -->
-            <div class="flex items-baseline gap-2.5 pt-1">
+            <div class="flex items-center gap-2.5 pt-1 flex-wrap">
               <span class="text-2xl sm:text-3xl font-extrabold text-[#E25C38]">
                 Rp {{ activePrice.toLocaleString("id-ID") }}
               </span>
@@ -628,6 +635,13 @@ const filteredReviews = computed(() => {
                 class="text-xs sm:text-sm text-gray-400 line-through"
               >
                 Rp {{ activeStrikePrice.toLocaleString("id-ID") }}
+              </span>
+
+              <span
+                v-if="isFreeShipping"
+                class="text-[10px] font-bold text-green-700 bg-green-50 border border-green-200 px-2 py-0.5 rounded-full flex items-center gap-1"
+              >
+                🚚 Gratis Ongkir
               </span>
             </div>
 
