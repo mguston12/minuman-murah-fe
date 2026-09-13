@@ -112,6 +112,13 @@
             </div>
 
             <div class="flex items-center gap-2">
+              <router-link
+                :to="`/account/orders/${order.id}`"
+                class="px-5 py-2 bg-[#14120E] text-[#D4B26F] text-xs font-bold rounded-xl shadow-sm hover:bg-black transition-colors"
+              >
+                Detail Pesanan
+              </router-link>
+
               <button
                 v-if="order.status === 'DELIVERED'"
                 @click="openCompleteOrderModal(order.id)"

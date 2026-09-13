@@ -91,7 +91,7 @@ export const cartService = {
   updateCartItem: (cartItemId, payload) =>
     api.put(`/cart/items/${cartItemId}`, payload),
   removeCartItem: (cartItemId) => api.delete(`/cart/items/${cartItemId}`),
-  clearCart: () => api.delete("/cart/clear"),
+  clearCart: () => api.delete("/cart"),
 };
 
 // Address API

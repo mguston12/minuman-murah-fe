@@ -49,6 +49,11 @@ const routes = [
         name: "account-wishlist",
         component: () => import("../views/account/WishlistView.vue"),
       },
+      {
+        path: "/account/orders/:id",
+        name: "order-detail",
+        component: () => import("../views/account/OrderDetailView.vue"),
+      },
     ],
   },
   // --- AUTHENTICATION ROUTES ---
