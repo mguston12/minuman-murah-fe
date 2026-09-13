@@ -1,29 +1,37 @@
 <script setup>
-import { ref } from "vue";
+import { ref, onMounted } from "vue";
+import { brandService } from "../services/apiServices";
 
-const featuredBrands = ref([
-  {
-    id: 1,
-    name: "Johnnie Walker",
-    category: "Whisky",
-    image:
-      "https://images.unsplash.com/photo-1527281400683-1aae777175f8?auto=format&fit=crop&q=80&w=200",
-  },
-  {
-    id: 2,
-    name: "Hennessy",
-    category: "Cognac",
-    image:
-      "https://images.unsplash.com/photo-1569529465841-dfecdab7503b?auto=format&fit=crop&q=80&w=200",
-  },
-  {
-    id: 3,
-    name: "Moët & Chandon",
-    category: "Champagne",
-    image:
-      "https://images.unsplash.com/photo-1584225064785-c62a8b43d148?auto=format&fit=crop&q=80&w=200",
-  },
-]);
+// --- STATE BRAND DARI API ---
+const featuredBrands = ref([]);
+const isLoadingBrands = ref(false);
+const brandsError = ref(null);
+
+const fetchFeaturedBrands = async () => {
+  isLoadingBrands.value = true;
+  brandsError.value = null;
+  try {
+    const response = await brandService.getActiveBrands();
+    const resData = response?.data?.data;
+    const rawBrands = resData?.brands || resData || [];
+
+    featuredBrands.value = rawBrands.map((brand) => ({
+      id: brand.id,
+      name: brand.name,
+      category: brand.category || brand.taxonomy_name || "",
+      image: brand.logo || brand.image,
+    }));
+  } catch (err) {
+    console.error("Gagal mengambil data brand:", err);
+    brandsError.value = "Gagal memuat brand pilihan.";
+  } finally {
+    isLoadingBrands.value = false;
+  }
+};
+
+onMounted(() => {
+  fetchFeaturedBrands();
+});
 </script>
 
 <template>
@@ -49,14 +57,14 @@ const featuredBrands = ref([
       <h1
         class="text-2xl sm:text-3xl md:text-4xl font-extrabold text-gray-900 mt-2 tracking-tight"
       >
-        Menghadirkan Minuman Berkualitas untuk Setiap Momen
+        Minuman Murah
       </h1>
       <p
         class="text-xs sm:text-sm text-gray-500 max-w-2xl mx-auto mt-4 leading-relaxed"
       >
-        Sejak 2020, Minuman Murah berkomitmen menghadirkan ribuan pilihan
-        minuman favorit dengan kualitas terjamin dan harga termurah, didukung
-        pengiriman cepat ke seluruh Indonesia.
+        To become the leader of the wine and spirits distributor in nation that
+        excels in services, product ranges and competitive pricing and to
+        educate the community to become attentive for wine and spirit culture
       </p>
     </section>
 
@@ -76,23 +84,23 @@ const featuredBrands = ref([
         <div class="space-y-6 md:pl-4">
           <div>
             <h2 class="text-base sm:text-lg font-bold text-gray-900 mb-1.5">
-              Visi Kami
+              Our Vision
             </h2>
             <p class="text-xs sm:text-sm text-gray-500 leading-relaxed">
-              Menjadi platform minuman online terpercaya nomor satu di
-              Indonesia, tempat semua orang bisa mendapatkan minuman berkualitas
-              dengan harga paling terjangkau setiap hari.
+              To redefine wine and spirit culture and to become the most
+              preferred distributor in Indonesia
             </p>
           </div>
 
           <div>
             <h2 class="text-base sm:text-lg font-bold text-gray-900 mb-1.5">
-              Misi Kami
+              Mission
             </h2>
             <p class="text-xs sm:text-sm text-gray-500 leading-relaxed">
-              Menyediakan pilihan terlengkap, menjaga kualitas setiap produk,
-              memangkas rantai distribusi demi harga termurah, dan mengantar
-              pesanan secepat mungkin ke pelanggan.
+              To become the leader of the wine and spirits distributor in nation
+              that excels in services, product ranges and competitive pricing
+              and to educate the community to become attentive for wine and
+              spirit culture
             </p>
           </div>
         </div>
@@ -115,8 +123,29 @@ const featuredBrands = ref([
         Kami menghadirkan brand pilihan untuk setiap kategori minuman favoritmu.
       </p>
 
+      <!-- LOADING STATE -->
+      <div v-if="isLoadingBrands" class="text-xs text-gray-400 py-4">
+        Memuat brand...
+      </div>
+
+      <!-- ERROR STATE -->
+      <div v-else-if="brandsError" class="text-xs text-red-500 py-4">
+        {{ brandsError }}
+      </div>
+
+      <!-- EMPTY STATE -->
+      <div
+        v-else-if="!featuredBrands.length"
+        class="text-xs text-gray-400 py-4"
+      >
+        Belum ada brand yang tersedia.
+      </div>
+
       <!-- BRAND CARDS GRID -->
-      <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 max-w-4xl mx-auto">
+      <div
+        v-else
+        class="grid grid-cols-1 sm:grid-cols-3 gap-4 max-w-4xl mx-auto"
+      >
         <div
           v-for="brand in featuredBrands"
           :key="brand.id"
@@ -133,7 +162,10 @@ const featuredBrands = ref([
             <h3 class="text-xs sm:text-sm font-bold text-gray-900">
               {{ brand.name }}
             </h3>
-            <p class="text-[10px] sm:text-xs text-gray-400 font-medium mt-0.5">
+            <p
+              v-if="brand.category"
+              class="text-[10px] sm:text-xs text-gray-400 font-medium mt-0.5"
+            >
               {{ brand.category }}
             </p>
           </div>
