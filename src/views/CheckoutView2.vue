@@ -8,6 +8,7 @@ import {
   orderService,
   publicConfigService,
   cartService,
+  productService,
 } from "../services/apiServices";
 import { useVoucher } from "../composables/useVoucher";
 
@@ -54,6 +55,161 @@ const clearCartData = async () => {
     window.dispatchEvent(new Event("cart-updated"));
   } catch (err) {
     console.error("Gagal mengosongkan keranjang:", err);
+  }
+};
+
+/* ============================================================
+ * FITUR: STOK PER VARIANT+TOKO UNTUK ITEM DI CART
+ *
+ * GET /cart tidak mengembalikan info stok per item (lihat
+ * routes/api.php: CartController::index tidak punya field itu).
+ * Satu-satunya endpoint publik yang punya data stok toko adalah
+ * GET /products/{slug} (ProductController::show) — endpoint yang
+ * sama dipakai di ProductDetail.vue lewat productService.getProductBySlug.
+ *
+ * Jadi di sini kita fetch produk untuk setiap product_slug UNIK
+ * yang ada di cart (dedup, supaya tidak fetch berkali-kali untuk
+ * produk yang sama), lalu simpan sisa stok bersih per kombinasi
+ * variant_id + store_id ke dalam sebuah map.
+ * ============================================================ */
+const stockMap = ref({}); // key: `${variant_id}_${store_id}` -> sisa stok bersih toko
+const isLoadingStock = ref(false);
+
+const getAvailableQty = (storeRelation) => {
+  if (!storeRelation) return 0;
+  const available =
+    (storeRelation.qty || 0) - (storeRelation.reserved_qty || 0);
+  return available > 0 ? available : 0;
+};
+
+const stockKey = (variantId, storeId) => `${variantId}_${storeId ?? "null"}`;
+
+const fetchStockForCartItems = async () => {
+  const uniqueSlugs = [
+    ...new Set(
+      cartItems.value.map((item) => item.product_slug).filter(Boolean),
+    ),
+  ];
+
+  if (uniqueSlugs.length === 0) {
+    stockMap.value = {};
+    return;
+  }
+
+  isLoadingStock.value = true;
+  const nextMap = {};
+
+  try {
+    await Promise.all(
+      uniqueSlugs.map(async (slug) => {
+        try {
+          const res = await productService.getProductBySlug(slug);
+          const data = res.data;
+          if (!data?.success) return;
+
+          const productData = data.data.product;
+          const variants = productData?.variants || [];
+
+          for (const variant of variants) {
+            const relations = variant.stock_relations || [];
+            for (const relation of relations) {
+              const storeId = relation.store_id ?? relation.store?.id ?? null;
+              nextMap[stockKey(variant.id, storeId)] =
+                getAvailableQty(relation);
+            }
+          }
+        } catch (err) {
+          console.error(`Gagal mengambil stok untuk produk ${slug}:`, err);
+        }
+      }),
+    );
+  } finally {
+    stockMap.value = nextMap;
+    isLoadingStock.value = false;
+  }
+};
+
+// Sisa stok bersih toko untuk item cart tertentu.
+// null berarti data stoknya belum/tidak berhasil dimuat (fail-open agar
+// tidak mengunci tombol kalau memang datanya belum tersedia); jika sudah
+// dimuat, batas ini dipakai untuk membatasi tombol tambah qty.
+const remainingStockForItem = (item) => {
+  const storeId = item.store_id ?? item.store?.id ?? null;
+  const key = stockKey(item.variant_id, storeId);
+  return key in stockMap.value ? stockMap.value[key] : null;
+};
+
+/* ============================================================
+ * FITUR: TAMBAH / KURANG QUANTITY & HAPUS ITEM DARI CHECKOUT
+ * Menggunakan cartService.updateCartItem / removeCartItem yang
+ * sama seperti di CartDrawer.vue. Setelah berhasil, cart di-refetch
+ * agar subtotal, ongkir per toko, proteksi, dan voucher (yang semua
+ * reaktif terhadap cartItems / groupedByStore) ikut ter-update.
+ * ============================================================ */
+const updatingQtyVariantId = ref(null);
+
+const changeItemQuantity = async (item, delta) => {
+  const currentQty = item.qty || item.quantity || 1;
+  const newQty = currentQty + delta;
+
+  if (newQty < 1) return;
+  if (updatingQtyVariantId.value !== null) return;
+
+  // Guard di frontend: cegah nambah melebihi sisa stok bersih toko,
+  // kalau data stoknya sudah berhasil dimuat.
+  if (delta > 0) {
+    const remaining = remainingStockForItem(item);
+    if (remaining !== null && newQty > remaining) {
+      showToast(
+        "warning",
+        "Stok Tidak Mencukupi",
+        `Sisa stok untuk produk ini hanya ${remaining}.`,
+      );
+      return;
+    }
+  }
+
+  updatingQtyVariantId.value = item.variant_id;
+
+  try {
+    await cartService.updateCartItem(item.variant_id, { qty: newQty });
+    await fetchCartData();
+    await fetchStockForCartItems();
+    window.dispatchEvent(new Event("cart-updated"));
+  } catch (err) {
+    console.error("Gagal memperbarui jumlah produk:", err);
+    const message =
+      err.response?.data?.message ||
+      "Jumlah melebihi stok yang tersedia atau terjadi kesalahan.";
+    showToast("error", "Gagal Memperbarui Jumlah", message);
+    // Sinkronkan ulang data cart & stok agar tampilan sesuai kondisi terbaru di server
+    await fetchCartData();
+    await fetchStockForCartItems();
+  } finally {
+    updatingQtyVariantId.value = null;
+  }
+};
+
+const handleRemoveCartItem = async (item) => {
+  if (updatingQtyVariantId.value !== null) return;
+
+  updatingQtyVariantId.value = item.variant_id;
+
+  try {
+    await cartService.removeCartItem(item.variant_id);
+    await fetchCartData();
+    await fetchStockForCartItems();
+    window.dispatchEvent(new Event("cart-updated"));
+    showToast("info", "Produk Dihapus", "Produk telah dihapus dari keranjang.");
+  } catch (err) {
+    console.error("Gagal menghapus produk:", err);
+    showToast(
+      "error",
+      "Gagal Menghapus",
+      err.response?.data?.message || "Terjadi kesalahan saat menghapus produk.",
+    );
+  } finally {
+    updatingQtyVariantId.value = null;
   }
 };
 
@@ -1014,6 +1170,7 @@ onMounted(async () => {
   fetchProtectionConfig();
   loadSnapScript();
   await fetchCartData();
+  await fetchStockForCartItems();
 });
 </script>
 
@@ -1148,19 +1305,19 @@ onMounted(async () => {
               :key="item.id || item.variant_id"
               class="pb-4 border-b border-gray-100 last:border-0 last:pb-0"
             >
-              <div class="flex items-center justify-between mb-3">
-                <div class="flex items-center gap-4">
+              <div class="flex items-start justify-between mb-3 gap-3">
+                <div class="flex items-start gap-4 min-w-0">
                   <img
                     :src="item.image"
                     :alt="item.title"
-                    class="w-14 h-14 rounded-lg object-cover bg-gray-100"
+                    class="w-14 h-14 rounded-lg object-cover bg-gray-100 shrink-0"
                   />
-                  <div>
-                    <h3 class="text-sm font-bold text-gray-800">
+                  <div class="min-w-0">
+                    <h3 class="text-sm font-bold text-gray-800 truncate">
                       {{ item.product_name }}
                     </h3>
-                    <p class="text-xs text-gray-500 mt-1">
-                      {{ item.quantity || item.qty }} × Rp
+                    <p class="text-xs text-gray-400 mt-0.5">
+                      Rp
                       {{
                         (
                           item.purchase_price ||
@@ -1169,11 +1326,61 @@ onMounted(async () => {
                           0
                         ).toLocaleString("id-ID")
                       }}
+                      / item
                     </p>
+
+                    <!-- Kontrol Tambah / Kurang Quantity -->
+                    <div class="flex items-center gap-3 mt-2 flex-wrap">
+                      <div
+                        class="flex items-center border border-gray-200 rounded-lg bg-gray-50"
+                      >
+                        <button
+                          type="button"
+                          @click="changeItemQuantity(item, -1)"
+                          :disabled="
+                            (item.qty || item.quantity || 1) <= 1 ||
+                            updatingQtyVariantId !== null
+                          "
+                          class="w-7 h-7 flex items-center justify-center text-sm font-bold text-gray-600 hover:bg-gray-200 disabled:opacity-40 disabled:hover:bg-transparent rounded-l-lg transition-colors cursor-pointer disabled:cursor-not-allowed"
+                        >
+                          -
+                        </button>
+                        <span
+                          class="w-9 text-center text-xs font-bold text-gray-800"
+                        >
+                          <span
+                            v-if="updatingQtyVariantId === item.variant_id"
+                            class="inline-block animate-pulse text-gray-400"
+                            >...</span
+                          >
+                          <span v-else>{{
+                            item.qty || item.quantity || 1
+                          }}</span>
+                        </span>
+                        <button
+                          type="button"
+                          @click="changeItemQuantity(item, 1)"
+                          :disabled="updatingQtyVariantId !== null"
+                          class="w-7 h-7 flex items-center justify-center text-sm font-bold text-[#E25C38] hover:bg-gray-200 disabled:opacity-40 disabled:hover:bg-transparent rounded-r-lg transition-colors cursor-pointer disabled:cursor-not-allowed"
+                        >
+                          +
+                        </button>
+                      </div>
+
+                      <button
+                        type="button"
+                        @click="handleRemoveCartItem(item)"
+                        :disabled="updatingQtyVariantId !== null"
+                        class="text-xs text-gray-400 hover:text-red-500 font-semibold transition-colors disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                      >
+                        Hapus
+                      </button>
+                    </div>
+
                     <button
                       type="button"
                       @click="openNoteModal(item)"
-                      class="text-xs text-[#E25C38] hover:underline mt-1 cursor-pointer"
+                      class="text-xs text-[#E25C38] hover:underline mt-2 cursor-pointer block"
                     >
                       {{
                         notePerItem[item.variant_id]
@@ -1189,7 +1396,9 @@ onMounted(async () => {
                     </p>
                   </div>
                 </div>
-                <span class="text-sm font-bold text-gray-900">
+                <span
+                  class="text-sm font-bold text-gray-900 shrink-0 whitespace-nowrap"
+                >
                   Rp
                   {{
                     (
@@ -1295,9 +1504,9 @@ onMounted(async () => {
               </button>
             </div>
 
-            <div v-if="voucherError" class="text-xs text-red-600">
+            <!-- <div v-if="voucherError" class="text-xs text-red-600">
               {{ voucherError }}
-            </div>
+            </div> -->
 
             <div class="flex gap-2">
               <input
@@ -1411,7 +1620,12 @@ onMounted(async () => {
 
             <button
               @click="handleCheckout"
-              :disabled="!cartItems.length || isProcessingPayment || !canSubmit"
+              :disabled="
+                !cartItems.length ||
+                isProcessingPayment ||
+                !canSubmit ||
+                updatingQtyVariantId !== null
+              "
               class="w-full py-3.5 bg-[#14120E] hover:bg-black disabled:bg-gray-200 disabled:text-gray-400 text-[#D4B26F] font-bold text-sm rounded-xl transition-all shadow-sm cursor-pointer disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
               <span v-if="isProcessingPayment" class="animate-spin text-base"

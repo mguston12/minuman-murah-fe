@@ -32,12 +32,49 @@ const flyingStyle = ref({});
 // --- Data Ulasan Pembeli ---
 const reviews = ref([]);
 
+// --- State Qty yang sudah ada di keranjang untuk variant+store terpilih ---
+const cartQtyForSelection = ref(0);
+const loadingCartQty = ref(false);
+
 // --- Helper Stok Bersih ---
 const getAvailableQty = (storeRelation) => {
   if (!storeRelation) return 0;
   const available =
     (storeRelation.qty || 0) - (storeRelation.reserved_qty || 0);
   return available > 0 ? available : 0;
+};
+
+// --- Ambil qty variant+store ini yang sudah ada di keranjang user ---
+const fetchCartQtyForSelection = async () => {
+  if (!isLoggedIn.value || !selectedVariant.value) {
+    cartQtyForSelection.value = 0;
+    return;
+  }
+
+  loadingCartQty.value = true;
+  try {
+    const response = await cartService.getCart();
+    const resData = response?.data?.data || response?.data || {};
+    const items = resData.cart || [];
+
+    const storeId = selectedStore.value
+      ? selectedStore.value.store_id || selectedStore.value.id
+      : null;
+
+    const existing = items.find((item) => {
+      const sameVariant = item.variant_id === selectedVariant.value.id;
+      if (!storeId) return sameVariant;
+      const itemStoreId = item.store_id || item.store?.id;
+      return sameVariant && itemStoreId === storeId;
+    });
+
+    cartQtyForSelection.value = existing?.qty || 0;
+  } catch (err) {
+    console.error("Gagal memuat qty keranjang untuk varian ini:", err);
+    cartQtyForSelection.value = 0;
+  } finally {
+    loadingCartQty.value = false;
+  }
 };
 
 // --- Fetch Data Produk Utama ---
@@ -86,6 +123,9 @@ const fetchProductDetail = async () => {
       // 3. Ambil Ulasan (jika ada)
       reviews.value = product.value.reviews || [];
 
+      // 4. Ambil qty yang sudah ada di cart untuk selection saat ini
+      await fetchCartQtyForSelection();
+
       fetchRelatedProducts();
     } else {
       error.value = "Gagal memuat detail produk.";
@@ -99,7 +139,7 @@ const fetchProductDetail = async () => {
 };
 
 // Auto-select toko pertama yang ada stok bersih saat ganti varian & reset quantity
-watch(selectedVariant, (newVariant) => {
+watch(selectedVariant, async (newVariant) => {
   if (newVariant?.stock_relations && newVariant.stock_relations.length > 0) {
     const availableStore =
       newVariant.stock_relations.find((s) => getAvailableQty(s) > 0) ||
@@ -109,6 +149,13 @@ watch(selectedVariant, (newVariant) => {
     selectedStore.value = null;
   }
   quantity.value = 1;
+  await fetchCartQtyForSelection();
+});
+
+// Setiap ganti toko, qty di cart untuk kombinasi variant+store bisa berbeda
+watch(selectedStore, async () => {
+  quantity.value = 1;
+  await fetchCartQtyForSelection();
 });
 
 // --- Fetch Related Products ---
@@ -152,7 +199,7 @@ const selectVariant = (variant) => {
 };
 
 const incrementQty = () => {
-  if (quantity.value < maxStock.value) {
+  if (quantity.value < remainingStock.value) {
     quantity.value++;
   }
 };
@@ -193,7 +240,25 @@ const handleAddToCart = async (event) => {
     return;
   }
 
-  if (!product.value || isAnimating.value || maxStock.value <= 0) return;
+  if (!product.value || isAnimating.value) return;
+
+  // Guard terakhir sebelum hit API: cegah nambah melebihi sisa stok bersih
+  if (remainingStock.value <= 0) {
+    alert(
+      cartQtyForSelection.value > 0
+        ? `Stok sudah habis. Kamu sudah memiliki ${cartQtyForSelection.value} item ini di keranjang.`
+        : "Stok produk ini sedang habis.",
+    );
+    return;
+  }
+
+  if (quantity.value > remainingStock.value) {
+    alert(
+      `Jumlah melebihi sisa stok. Sisa stok yang bisa ditambahkan: ${remainingStock.value}.`,
+    );
+    quantity.value = remainingStock.value;
+    return;
+  }
 
   const buttonRect = event.currentTarget.getBoundingClientRect();
   const cartIcon = document.getElementById("cart-icon");
@@ -223,6 +288,10 @@ const handleAddToCart = async (event) => {
         selectedStore.value,
       );
     }
+
+    // Refresh qty cart untuk selection ini & reset quantity input
+    await fetchCartQtyForSelection();
+    quantity.value = 1;
 
     if (cartIcon) {
       const cartRect = cartIcon.getBoundingClientRect();
@@ -258,6 +327,8 @@ const handleAddToCart = async (event) => {
       err.response?.data?.message ||
         "Terjadi kesalahan saat menambahkan ke keranjang.",
     );
+    // Sinkronkan ulang, kalau-kalau state stok sudah berubah di server
+    await fetchCartQtyForSelection();
   }
 };
 
@@ -267,7 +338,24 @@ const handleBuyNow = async () => {
     return;
   }
 
-  if (!product.value || maxStock.value <= 0) return;
+  if (!product.value) return;
+
+  if (remainingStock.value <= 0) {
+    alert(
+      cartQtyForSelection.value > 0
+        ? `Stok sudah habis. Kamu sudah memiliki ${cartQtyForSelection.value} item ini di keranjang.`
+        : "Stok produk ini sedang habis.",
+    );
+    return;
+  }
+
+  if (quantity.value > remainingStock.value) {
+    alert(
+      `Jumlah melebihi sisa stok. Sisa stok yang bisa ditambahkan: ${remainingStock.value}.`,
+    );
+    quantity.value = remainingStock.value;
+    return;
+  }
 
   try {
     const payload = {
@@ -297,6 +385,7 @@ const handleBuyNow = async () => {
   } catch (err) {
     console.error("Gagal proses beli sekarang:", err);
     alert(err.response?.data?.message || "Terjadi kesalahan.");
+    await fetchCartQtyForSelection();
   }
 };
 
@@ -321,7 +410,7 @@ const activeCategoryName = computed(() => {
   return product.value?.categories?.[0]?.category_name || "PRODUK";
 });
 
-// Hitung max stock berdasarkan stok bersih toko terpilih
+// Hitung max stock berdasarkan stok bersih toko terpilih (stok fisik di toko)
 const maxStock = computed(() => {
   if (selectedStore.value) {
     return getAvailableQty(selectedStore.value);
@@ -330,6 +419,13 @@ const maxStock = computed(() => {
     return selectedVariant.value.stock;
   }
   return product.value?.total_stock || 0;
+});
+
+// Sisa stok yang BENAR-BENAR masih bisa ditambahkan ke keranjang,
+// yaitu stok toko dikurangi qty yang sudah ada di keranjang customer
+// untuk variant + toko yang sama. Ini yang dipakai untuk membatasi input qty.
+const remainingStock = computed(() => {
+  return Math.max(maxStock.value - cartQtyForSelection.value, 0);
 });
 
 // --- Review Computations ---
@@ -631,10 +727,10 @@ const filteredReviews = computed(() => {
                 </span>
                 <button
                   @click="incrementQty"
-                  :disabled="quantity >= maxStock"
+                  :disabled="quantity >= remainingStock"
                   :class="[
                     'w-7 h-7 flex items-center justify-center font-bold text-sm',
-                    quantity >= maxStock
+                    quantity >= remainingStock
                       ? 'text-gray-300 cursor-not-allowed'
                       : 'text-[#E25C38]',
                   ]"
@@ -642,20 +738,27 @@ const filteredReviews = computed(() => {
                   +
                 </button>
               </div>
+              <p
+                v-if="cartQtyForSelection > 0"
+                class="text-[10px] text-gray-400"
+              >
+                Kamu sudah punya {{ cartQtyForSelection }} item ini di
+                keranjang.
+              </p>
             </div>
 
             <!-- Action Buttons -->
             <div class="grid grid-cols-2 gap-3 pt-2">
               <button
                 @click="handleAddToCart($event)"
-                :disabled="maxStock <= 0"
+                :disabled="remainingStock <= 0"
                 class="py-2.5 px-4 border border-gray-800 rounded-xl font-bold text-xs text-gray-900 bg-white hover:bg-gray-50 transition-all active:scale-95 flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 + Keranjang
               </button>
               <button
                 @click="handleBuyNow"
-                :disabled="maxStock <= 0"
+                :disabled="remainingStock <= 0"
                 class="py-2.5 px-4 bg-[#14120E] hover:bg-black text-[#D4B26F] rounded-xl font-bold text-xs transition-colors active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Beli Sekarang
@@ -665,15 +768,20 @@ const filteredReviews = computed(() => {
             <!-- Stock Status -->
             <p
               class="text-[11px] font-medium flex items-center gap-1.5 pt-1"
-              :class="maxStock > 0 ? 'text-emerald-600' : 'text-rose-600'"
+              :class="remainingStock > 0 ? 'text-emerald-600' : 'text-rose-600'"
             >
               <span
                 class="w-1.5 h-1.5 rounded-full inline-block"
-                :class="maxStock > 0 ? 'bg-emerald-500' : 'bg-rose-500'"
+                :class="remainingStock > 0 ? 'bg-emerald-500' : 'bg-rose-500'"
               ></span>
-              <span v-if="maxStock > 0">
-                Stok tersedia (Sisa {{ maxStock }} di toko
-                {{ selectedStore?.store?.name }}) &bull; Estimasi tiba hari ini
+              <span v-if="remainingStock > 0">
+                Stok tersedia (Sisa {{ remainingStock }} bisa ditambahkan di
+                toko {{ selectedStore?.store?.name }}) &bull; Estimasi tiba hari
+                ini
+              </span>
+              <span v-else-if="cartQtyForSelection > 0">
+                Stok habis &bull; kamu sudah memiliki
+                {{ cartQtyForSelection }} item ini di keranjang
               </span>
               <span v-else>Stok habis</span>
             </p>
