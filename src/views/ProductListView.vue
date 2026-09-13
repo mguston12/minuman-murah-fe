@@ -27,12 +27,19 @@ const filterSections = ref([
 const isLoadingGroups = ref(false);
 const groupsError = ref(null);
 
+// urlXxx dipakai HANYA untuk sinkronisasi awal (deep link / navigasi dari Header).
+// Setelah sinkron, checkbox di filterSections menjadi satu-satunya sumber kebenaran.
 const urlCategoryIds = ref([]);
 const urlBrandIds = ref([]);
 const urlBrandSlugs = ref([]);
+const urlGroupId = ref(null);
 const urlSearchQuery = ref("");
 
 const groupsData = ref([]);
+
+// Flag untuk mencegah watcher `filterSections` (deep) memicu fetch berulang
+// saat data filter masih diisi / disinkronkan dari URL.
+const isReady = ref(false);
 
 const fetchGroupTaxonomy = async () => {
   isLoadingGroups.value = true;
@@ -121,7 +128,6 @@ const isLoadingBrands = ref(false);
 const brandError = ref(null);
 const isLoadingAttributes = ref(false);
 const attributeError = ref(null);
-const urlGroupId = ref(null);
 
 let latestRequestId = 0;
 
@@ -137,6 +143,10 @@ const fetchProducts = async (page = 1) => {
         ?.options.filter((o) => o.checked)
         .map((o) => o.id) || [];
 
+    // === MODE 1: Ada grup produk yang dicentang ===
+    // Produk grup sudah tersedia lokal (dari getSubGroups), jadi kombinasi
+    // filter lain (search, kategori, brand, harga, sort) diterapkan di client
+    // supaya filter grup tetap bisa dipakai bersamaan dengan filter lainnya.
     if (checkedGroupIds.length) {
       const matchedGroups = groupsData.value.filter((g) =>
         checkedGroupIds.includes(g.id),
@@ -149,20 +159,80 @@ const fetchProducts = async (page = 1) => {
         });
       });
 
-      if (requestId !== latestRequestId) return; // <- guard juga di sini
+      let merged = Array.from(mergedProductsMap.values());
 
-      products.value = Array.from(mergedProductsMap.values());
+      // Search
+      if (urlSearchQuery.value) {
+        const q = urlSearchQuery.value.toLowerCase();
+        merged = merged.filter((p) =>
+          (p.name || p.title || "").toLowerCase().includes(q),
+        );
+      }
+
+      // Brand (asumsi produk punya brand_id atau brand.id — sesuaikan bila beda)
+      const checkedBrandIdsForGroup =
+        filterSections.value
+          .find((s) => s.id === "brand")
+          ?.options.filter((o) => o.checked)
+          .map((o) => o.id) || [];
+      if (checkedBrandIdsForGroup.length) {
+        merged = merged.filter((p) =>
+          checkedBrandIdsForGroup.includes(p.brand_id ?? p.brand?.id),
+        );
+      }
+
+      // Kategori (asumsi produk punya category_id atau taxonomy_id — sesuaikan bila beda)
+      const checkedCategoryIdsForGroup =
+        filterSections.value
+          .find((s) => s.id === "kategori")
+          ?.options.filter((o) => o.checked)
+          .map((o) => o.id) || [];
+      if (checkedCategoryIdsForGroup.length) {
+        merged = merged.filter((p) =>
+          checkedCategoryIdsForGroup.includes(p.category_id ?? p.taxonomy_id),
+        );
+      }
+
+      // Harga
+      if (priceMin.value !== null && priceMin.value !== "") {
+        merged = merged.filter(
+          (p) => Number(p.price) >= Number(priceMin.value),
+        );
+      }
+      if (priceMax.value !== null && priceMax.value !== "") {
+        merged = merged.filter(
+          (p) => Number(p.price) <= Number(priceMax.value),
+        );
+      }
+
+      // Sort
+      if (sortBy.value === "Harga Terendah") {
+        merged = [...merged].sort((a, b) => (a.price ?? 0) - (b.price ?? 0));
+      } else if (sortBy.value === "Harga Tertinggi") {
+        merged = [...merged].sort((a, b) => (b.price ?? 0) - (a.price ?? 0));
+      }
+
+      // Pagination client-side
+      const total = merged.length;
+      const lastPage = Math.max(1, Math.ceil(total / perPage.value));
+      const safePage = Math.min(Math.max(1, page), lastPage);
+      const start = (safePage - 1) * perPage.value;
+
+      if (requestId !== latestRequestId) return;
+
+      products.value = merged.slice(start, start + perPage.value);
       pagination.value = {
-        current_page: 1,
-        last_page: 1,
-        total: products.value.length,
-        per_page: products.value.length || perPage.value,
+        current_page: safePage,
+        last_page: lastPage,
+        total,
+        per_page: perPage.value,
       };
-      currentPage.value = 1;
+      currentPage.value = safePage;
       isLoadingProducts.value = false;
       return;
     }
 
+    // === MODE 2: Filter normal lewat API ===
     let sortByParam = "created_at";
     let sortDir = "desc";
 
@@ -185,19 +255,15 @@ const fetchProducts = async (page = 1) => {
       params.search = urlSearchQuery.value;
     }
 
+    // Sumber kebenaran filter = checkbox di filterSections (bukan gabungan dgn urlXxx lagi)
     const checkedCategoryIds =
       filterSections.value
         .find((s) => s.id === "kategori")
         ?.options.filter((o) => o.checked)
         .map((o) => o.id) || [];
 
-    const selectedCategories = new Set([
-      ...checkedCategoryIds,
-      ...urlCategoryIds.value,
-    ]);
-
-    if (selectedCategories.size) {
-      params.category_ids = Array.from(selectedCategories).join(",");
+    if (checkedCategoryIds.length) {
+      params.category_ids = checkedCategoryIds.join(",");
     }
 
     const checkedBrandIds =
@@ -206,17 +272,8 @@ const fetchProducts = async (page = 1) => {
         ?.options.filter((o) => o.checked)
         .map((o) => o.id) || [];
 
-    const selectedBrandIds = new Set([
-      ...checkedBrandIds,
-      ...urlBrandIds.value,
-    ]);
-
-    if (selectedBrandIds.size) {
-      params.brand_ids = Array.from(selectedBrandIds).join(",");
-    }
-
-    if (urlBrandSlugs.value.length) {
-      params.brand_slugs = urlBrandSlugs.value.join(",");
+    if (checkedBrandIds.length) {
+      params.brand_ids = checkedBrandIds.join(",");
     }
 
     const selectedSizes = filterSections.value
@@ -237,7 +294,7 @@ const fetchProducts = async (page = 1) => {
 
     const response = await productService.getProducts(params);
 
-    if (requestId !== latestRequestId) return; // <- guard utama, di sini
+    if (requestId !== latestRequestId) return;
 
     const resData = response?.data?.data || response?.data || response;
 
@@ -264,6 +321,8 @@ const fetchProducts = async (page = 1) => {
   }
 };
 
+// Sinkronkan state checkbox & search dari query URL.
+// Dipanggil saat mount pertama dan setiap kali route.query berubah (mis. dari Header).
 const syncFiltersFromUrl = () => {
   urlGroupId.value = route.query.group_id ? Number(route.query.group_id) : null;
 
@@ -299,6 +358,14 @@ const syncFiltersFromUrl = () => {
   if (groupSection && groupSection.options.length) {
     groupSection.options.forEach((opt) => {
       opt.checked = urlGroupId.value === opt.id;
+    });
+  }
+
+  // FIX: kategori sebelumnya tidak pernah disinkronkan dari URL
+  const categorySection = filterSections.value.find((s) => s.id === "kategori");
+  if (categorySection && categorySection.options.length) {
+    categorySection.options.forEach((opt) => {
+      opt.checked = urlCategoryIds.value.includes(opt.id);
     });
   }
 
@@ -412,33 +479,43 @@ onMounted(async () => {
   ]);
 
   syncFiltersFromUrl();
+  await fetchProducts(1);
 
-  fetchProducts(1);
+  // Baru sekarang watcher deep di bawah boleh aktif merespons interaksi user.
+  isReady.value = true;
 });
 
+// Saat query URL berubah (mis. klik kategori/brand/search dari Header saat sudah
+// berada di halaman ini), sync ulang checkbox lalu fetch — watcher deep
+// dinonaktifkan sementara supaya tidak fetch dobel.
 watch(
   () => route.query,
-  () => {
+  async () => {
+    isReady.value = false;
     syncFiltersFromUrl();
-    fetchProducts(1);
+    await fetchProducts(1);
+    isReady.value = true;
   },
 );
 
 watch(sortBy, () => {
-  fetchProducts(1);
+  if (isReady.value) fetchProducts(1);
 });
 
 let priceTimeout = null;
 watch([priceMin, priceMax], () => {
   clearTimeout(priceTimeout);
   priceTimeout = setTimeout(() => {
-    fetchProducts(1);
+    if (isReady.value) fetchProducts(1);
   }, 400);
 });
 
+// Hanya bereaksi pada perubahan checkbox oleh user, bukan saat data filter
+// awal sedang diisi/disinkronkan (lihat isReady di atas).
 watch(
   filterSections,
   () => {
+    if (!isReady.value) return;
     fetchProducts(1);
   },
   { deep: true },
@@ -454,33 +531,32 @@ const removeActiveFilter = (item) => {
   if (item.type === "harga") {
     priceMin.value = null;
     priceMax.value = null;
-  } else if (item.type === "group") {
-    urlGroupId.value = null;
-    const groupSection = filterSections.value.find((s) => s.id === "grup");
-    groupSection?.options.forEach((o) => (o.checked = false));
-  } else {
-    const section = filterSections.value.find((s) => s.id === item.type);
-    if (section) {
-      const option = section.options.find((o) => o.id === item.id);
-      if (option) option.checked = false;
-    }
+    return;
+  }
 
-    if (item.type === "kategori") {
-      urlCategoryIds.value = urlCategoryIds.value.filter(
-        (id) => id !== item.id,
+  // FIX: id section grup adalah "grup", bukan "group" — sebelumnya cabang ini tidak pernah kena
+  const section = filterSections.value.find((s) => s.id === item.type);
+  if (section) {
+    const option = section.options.find((o) => o.id === item.id);
+    if (option) option.checked = false;
+  }
+
+  if (item.type === "grup") {
+    urlGroupId.value = null;
+  }
+  if (item.type === "kategori") {
+    urlCategoryIds.value = urlCategoryIds.value.filter((id) => id !== item.id);
+  }
+  if (item.type === "brand") {
+    urlBrandIds.value = urlBrandIds.value.filter((id) => id !== item.id);
+    const brandSection = filterSections.value.find((s) => s.id === "brand");
+    const removedSlug = brandSection?.options.find(
+      (o) => o.id === item.id,
+    )?.slug;
+    if (removedSlug) {
+      urlBrandSlugs.value = urlBrandSlugs.value.filter(
+        (s) => s !== removedSlug,
       );
-    }
-    if (item.type === "brand") {
-      urlBrandIds.value = urlBrandIds.value.filter((id) => id !== item.id);
-      const brandSection = filterSections.value.find((s) => s.id === "brand");
-      const removedSlug = brandSection?.options.find(
-        (o) => o.id === item.id,
-      )?.slug;
-      if (removedSlug) {
-        urlBrandSlugs.value = urlBrandSlugs.value.filter(
-          (s) => s !== removedSlug,
-        );
-      }
     }
   }
 
@@ -508,6 +584,22 @@ const breadcrumbLabel = computed(() => {
     return `Hasil pencarian: "${urlSearchQuery.value}"`;
   }
   return "Produk";
+});
+
+// Windowing nomor halaman supaya tidak merender ratusan tombol saat last_page besar
+const visiblePages = computed(() => {
+  const total = pagination.value.last_page || 1;
+  const current = currentPage.value;
+  const delta = 2;
+  const pages = [];
+  for (
+    let i = Math.max(1, current - delta);
+    i <= Math.min(total, current + delta);
+    i++
+  ) {
+    pages.push(i);
+  }
+  return pages;
 });
 </script>
 
@@ -614,6 +706,19 @@ const breadcrumbLabel = computed(() => {
                 </div>
 
                 <div
+                  v-else-if="section.id === 'grup' && isLoadingGroups"
+                  class="text-[11px] text-gray-400 py-1"
+                >
+                  Memuat grup produk...
+                </div>
+                <div
+                  v-else-if="section.id === 'grup' && groupsError"
+                  class="text-[11px] text-red-500 py-1"
+                >
+                  {{ groupsError }}
+                </div>
+
+                <div
                   v-else-if="section.id === 'brand' && isLoadingBrands"
                   class="text-[11px] text-gray-400 py-1"
                 >
@@ -637,6 +742,13 @@ const breadcrumbLabel = computed(() => {
                   class="text-[11px] text-red-500 py-1"
                 >
                   {{ attributeError }}
+                </div>
+
+                <div
+                  v-else-if="!section.options.length"
+                  class="text-[11px] text-gray-400 py-1"
+                >
+                  Tidak ada opsi.
                 </div>
 
                 <!-- CHECKBOX -->
@@ -751,7 +863,7 @@ const breadcrumbLabel = computed(() => {
           <!-- PAGINATION -->
           <div
             v-if="pagination.last_page > 1"
-            class="flex items-center justify-center gap-2 pt-6"
+            class="flex items-center justify-center gap-2 pt-6 flex-wrap"
           >
             <button
               @click="changePage(currentPage - 1)"
@@ -762,7 +874,18 @@ const breadcrumbLabel = computed(() => {
             </button>
 
             <button
-              v-for="p in pagination.last_page"
+              v-if="visiblePages[0] > 1"
+              @click="changePage(1)"
+              class="w-8 h-8 rounded-lg text-xs font-bold bg-white text-gray-600 hover:bg-gray-100 border border-gray-200 transition-all cursor-pointer"
+            >
+              1
+            </button>
+            <span v-if="visiblePages[0] > 2" class="text-xs text-gray-400 px-1"
+              >…</span
+            >
+
+            <button
+              v-for="p in visiblePages"
               :key="p"
               @click="changePage(p)"
               :class="[
@@ -773,6 +896,23 @@ const breadcrumbLabel = computed(() => {
               ]"
             >
               {{ p }}
+            </button>
+
+            <span
+              v-if="
+                visiblePages[visiblePages.length - 1] < pagination.last_page - 1
+              "
+              class="text-xs text-gray-400 px-1"
+              >…</span
+            >
+            <button
+              v-if="
+                visiblePages[visiblePages.length - 1] < pagination.last_page
+              "
+              @click="changePage(pagination.last_page)"
+              class="w-8 h-8 rounded-lg text-xs font-bold bg-white text-gray-600 hover:bg-gray-100 border border-gray-200 transition-all cursor-pointer"
+            >
+              {{ pagination.last_page }}
             </button>
 
             <button
