@@ -14,7 +14,7 @@
     <div v-else class="space-y-4 mt-4">
       <template v-if="orders.length > 0">
         <div
-          v-for="order in paginatedOrders"
+          v-for="order in orders"
           :key="order.id"
           class="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 flex flex-col justify-between"
         >
@@ -313,23 +313,14 @@ import { orderService, reviewService } from "../../services/apiServices";
 const isLoading = ref(true);
 const orders = ref([]);
 
-// State Pagination Pesanan (5 per halaman)
-const ORDER_PAGE_SIZE = 5;
 const currentOrderPage = ref(1);
-
-const orderLastPage = computed(() => {
-  if (!orders.value.length) return 1;
-  return Math.ceil(orders.value.length / ORDER_PAGE_SIZE);
-});
-
-const paginatedOrders = computed(() => {
-  const start = (currentOrderPage.value - 1) * ORDER_PAGE_SIZE;
-  return orders.value.slice(start, start + ORDER_PAGE_SIZE);
-});
+const orderLastPage = ref(1);
+const ORDER_PER_PAGE = 5;
 
 const changeOrderPage = (page) => {
-  if (page < 1 || page > orderLastPage.value) return;
-  currentOrderPage.value = page;
+  if (page < 1 || page > orderLastPage.value || page === currentOrderPage.value)
+    return;
+  fetchOrders(page);
 };
 
 const getOrderStatusColor = (status) => {
@@ -352,11 +343,17 @@ const getOrderStatusColor = (status) => {
   }
 };
 
-const fetchOrders = async () => {
+const fetchOrders = async (page = 1) => {
   isLoading.value = true;
   try {
-    const res = await orderService.getOrders();
-    const rawOrders = res.data?.data?.orders || res.data?.data || [];
+    const res = await orderService.getOrders({
+      page,
+      per_page: ORDER_PER_PAGE,
+    });
+
+    const rawOrders = res.data?.data?.orders || [];
+    const pagination = res.data?.data?.pagination || {};
+
     orders.value = rawOrders.map((order) => ({
       id: order.id,
       orderNumber: order.order_number || `#${order.id}`,
@@ -382,7 +379,8 @@ const fetchOrders = async () => {
       })),
     }));
 
-    currentOrderPage.value = 1;
+    currentOrderPage.value = pagination.current_page || page;
+    orderLastPage.value = pagination.last_page || 1;
   } catch (error) {
     console.error("Gagal mengambil data pesanan:", error);
   } finally {
@@ -390,7 +388,7 @@ const fetchOrders = async () => {
   }
 };
 
-onMounted(fetchOrders);
+onMounted(() => fetchOrders(1));
 
 // State Modal Konfirmasi Pesanan Diterima
 const isCompleteOrderModalOpen = ref(false);
