@@ -123,23 +123,20 @@ const fetchTopBannerConfig = async () => {
 };
 
 // --- GAMBAR FALLBACK PER NAMA KATEGORI ---
-const categoryImageFallbacks = {
-  Wine: "https://images.unsplash.com/photo-1510812431401-41d2bd2722f3?w=300",
-  Champagne:
-    "https://images.unsplash.com/photo-1513558161293-cdaf765ed2fd?w=300",
-  Whisky: "https://images.unsplash.com/photo-1527281400683-1aae777175f8?w=300",
-  Vodka: "https://images.unsplash.com/photo-1563227812-0ea4c22e6cc8?w=300",
-  Gin: "https://images.unsplash.com/photo-1551538827-9c037cb4f32a?w=300",
-  Rum: "https://images.unsplash.com/photo-1614313511387-1436a4480ebb?w=300",
-  Tequila: "https://images.unsplash.com/photo-1514362545857-3bc16c4c7d1b?w=300",
-  Beer: "https://images.unsplash.com/photo-1608270586620-248524c67de9?w=300",
-};
-const defaultCategoryImage = categoryImageFallbacks.Wine;
+const defaultCategoryImage =
+  "https://images.unsplash.com/photo-1510812431401-41d2bd2722f3?w=300";
 
 // --- STATE KATEGORI DARI API ---
 const categories = ref([]);
 const isLoadingCategories = ref(false);
 const categoriesError = ref(null);
+
+const resolveImageUrl = (path) => {
+  if (!path) return null;
+  if (/^https?:\/\//i.test(path)) return path; // sudah full URL
+  const STORAGE_BASE_URL = "https://api.minumanmurah.com/storage/";
+  return STORAGE_BASE_URL + path.replace(/^\/+/, "");
+};
 
 const fetchCategories = async () => {
   isLoadingCategories.value = true;
@@ -148,18 +145,14 @@ const fetchCategories = async () => {
     const response = await taxonomyService.getTaxoByType(2);
     const raw = response?.data?.data?.taxo_lists || response?.data?.data || [];
 
-    categories.value = (Array.isArray(raw) ? raw : []).map((item) => {
-      const name = item.taxonomy_name || item.name;
-      return {
-        id: item.id,
-        name,
-        image:
-          item.image ||
-          item.icon ||
-          categoryImageFallbacks[name] ||
-          defaultCategoryImage,
-      };
-    });
+    categories.value = (Array.isArray(raw) ? raw : []).map((item) => ({
+      id: item.id,
+      name: item.taxonomy_name || item.name,
+      image:
+        item.taxonomy_image_url ||
+        resolveImageUrl(item.taxonomy_image) ||
+        defaultCategoryImage,
+    }));
   } catch (err) {
     console.error("Gagal mengambil kategori:", err);
     categoriesError.value = "Gagal memuat kategori.";
