@@ -65,6 +65,7 @@ export const brandService = {
 
 export const attributeService = {
   getActiveAttributes: () => api.get("/attributes/active"),
+  getPublicActiveAttributes: () => api.get("/public/attributes/active"),
 };
 
 // Banner API

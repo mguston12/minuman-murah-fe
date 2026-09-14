@@ -16,11 +16,13 @@ const priceMin = ref(null);
 const priceMax = ref(null);
 const sortBy = ref("Paling Sesuai");
 
+// Section "ukuran" statis dihapus — sekarang setiap attribute (Taste, Ukuran
+// Botol, dll) dari API /public/attributes/active akan jadi section-nya
+// sendiri, disisipkan otomatis di bawah "brand" saat fetchAttributes selesai.
 const filterSections = ref([
   { id: "kategori", name: "Kategori", open: true, options: [] },
   { id: "grup", name: "Grup Produk", open: true, options: [] },
   { id: "brand", name: "Brand", open: true, options: [] },
-  { id: "ukuran", name: "Ukuran", open: true, options: [] },
   { id: "harga", name: "Harga", open: true, options: [] },
 ]);
 
@@ -276,13 +278,14 @@ const fetchProducts = async (page = 1) => {
       params.brand_ids = checkedBrandIds.join(",");
     }
 
-    const selectedSizes = filterSections.value
-      .find((s) => s.id === "ukuran")
-      ?.options.filter((o) => o.checked)
-      .map((o) => o.id);
+    // Kumpulkan attribute_value_ids dari SEMUA section attribute dinamis
+    // (Taste, Ukuran Botol, dll — bukan cuma satu section "ukuran" lagi)
+    const selectedAttributeValueIds = filterSections.value
+      .filter((s) => s.isAttribute)
+      .flatMap((s) => s.options.filter((o) => o.checked).map((o) => o.id));
 
-    if (selectedSizes?.length) {
-      params.attribute_value_ids = selectedSizes.join(",");
+    if (selectedAttributeValueIds.length) {
+      params.attribute_value_ids = selectedAttributeValueIds.join(",");
     }
 
     if (priceMin.value !== null && priceMin.value !== "") {
@@ -332,26 +335,26 @@ const syncFiltersFromUrl = () => {
 
   urlCategoryIds.value = route.query.category_ids
     ? route.query.category_ids
-        .toString()
-        .split(",")
-        .filter(Boolean)
-        .map((id) => Number(id.trim()))
+      .toString()
+      .split(",")
+      .filter(Boolean)
+      .map((id) => Number(id.trim()))
     : [];
 
   urlBrandIds.value = route.query.brand_ids
     ? route.query.brand_ids
-        .toString()
-        .split(",")
-        .filter(Boolean)
-        .map((id) => Number(id.trim()))
+      .toString()
+      .split(",")
+      .filter(Boolean)
+      .map((id) => Number(id.trim()))
     : [];
 
   urlBrandSlugs.value = route.query.brand_slugs
     ? route.query.brand_slugs
-        .toString()
-        .split(",")
-        .filter(Boolean)
-        .map((s) => s.trim())
+      .toString()
+      .split(",")
+      .filter(Boolean)
+      .map((s) => s.trim())
     : [];
 
   const groupSection = filterSections.value.find((s) => s.id === "grup");
@@ -432,39 +435,49 @@ const fetchBrands = async () => {
   }
 };
 
+// Ambil SEMUA attribute aktif (Taste, Ukuran Botol, dst) dari endpoint public
+// /public/attributes/active, lalu bikin satu section filter per attribute,
+// disisipkan otomatis tepat di bawah section "brand".
 const fetchAttributes = async () => {
   isLoadingAttributes.value = true;
   attributeError.value = null;
   try {
-    const response = await attributeService.getActiveAttributes();
-    const rawAttributes =
-      response?.data?.data?.attributes || response?.data?.data || [];
+    const response = await attributeService.getPublicActiveAttributes();
+    const rawAttributes = response?.data?.data || response?.data || [];
+    const attributes = Array.isArray(rawAttributes) ? rawAttributes : [];
 
-    const sizeAttr = Array.isArray(rawAttributes)
-      ? rawAttributes.find(
-          (attr) =>
-            attr.slug === "ukuran-botol" ||
-            attr.name?.toLowerCase().includes("ukuran") ||
-            attr.slug?.includes("ukuran"),
-        )
-      : null;
-
-    const ukuranSection = filterSections.value.find((s) => s.id === "ukuran");
-    const values = sizeAttr?.attribute_values || sizeAttr?.values || [];
-
-    if (ukuranSection && values.length) {
-      ukuranSection.options = values.map((val) => ({
-        id: val.id,
-        label: val.value || val.name,
-        slug: val.slug,
-        checked: false,
+    const attributeSections = attributes
+      .filter((attr) => (attr.attribute_values || []).length > 0)
+      .sort((a, b) => (a.sort ?? 0) - (b.sort ?? 0))
+      .map((attr) => ({
+        id: `attribute-${attr.id}`,
+        name: attr.name,
+        open: true,
+        isAttribute: true,
+        options: (attr.attribute_values || [])
+          .filter((val) => val.status === "ACTIVE" || !val.status)
+          .sort((a, b) => (a.sort ?? 0) - (b.sort ?? 0))
+          .map((val) => ({
+            id: val.id,
+            label: val.value || val.name,
+            slug: val.slug,
+            checked: false,
+          })),
       }));
-    } else if (ukuranSection) {
-      ukuranSection.options = [];
-    }
+
+    // Buang section attribute lama (kalau fetchAttributes pernah jalan
+    // sebelumnya) lalu sisipkan yang baru tepat setelah section "brand"
+    const withoutOldAttributeSections = filterSections.value.filter(
+      (s) => !s.isAttribute,
+    );
+    const insertAt =
+      withoutOldAttributeSections.findIndex((s) => s.id === "brand") + 1;
+
+    withoutOldAttributeSections.splice(insertAt, 0, ...attributeSections);
+    filterSections.value = withoutOldAttributeSections;
   } catch (err) {
     console.error("Error attributes:", err);
-    attributeError.value = "Gagal memuat ukuran.";
+    attributeError.value = "Gagal memuat atribut produk.";
   } finally {
     isLoadingAttributes.value = false;
   }
@@ -604,17 +617,11 @@ const visiblePages = computed(() => {
 </script>
 
 <template>
-  <div
-    class="min-h-screen bg-[#FAF6F0] py-6 px-4 sm:px-6 lg:px-8 font-sans text-gray-900"
-  >
+  <div class="min-h-screen bg-[#FAF6F0] py-6 px-4 sm:px-6 lg:px-8 font-sans text-gray-900">
     <div class="max-w-7xl mx-auto">
       <!-- BREADCRUMBS -->
-      <nav
-        class="flex items-center gap-2 text-xs text-gray-400 mb-4 font-medium"
-      >
-        <router-link to="/" class="hover:text-gray-700 transition-colors"
-          >Beranda</router-link
-        >
+      <nav class="flex items-center gap-2 text-xs text-gray-400 mb-4 font-medium">
+        <router-link to="/" class="hover:text-gray-700 transition-colors">Beranda</router-link>
         <span>&rsaquo;</span>
         <span class="text-gray-500 truncate max-w-[200px] sm:max-w-none">{{
           breadcrumbLabel
@@ -623,146 +630,80 @@ const visiblePages = computed(() => {
 
       <div class="flex flex-col lg:flex-row gap-6 items-start">
         <!-- ==================== SIDEBAR FILTER ==================== -->
-        <aside
-          class="w-full lg:w-64 bg-white rounded-2xl p-4 shadow-sm border border-gray-100 shrink-0"
-        >
-          <div
-            class="flex items-center justify-between pb-3 border-b border-gray-100 mb-3"
-          >
-            <h2
-              class="text-xs font-extrabold text-gray-900 tracking-wide uppercase"
-            >
+        <aside class="w-full lg:w-64 bg-white rounded-2xl p-4 shadow-sm border border-gray-100 shrink-0">
+          <div class="flex items-center justify-between pb-3 border-b border-gray-100 mb-3">
+            <h2 class="text-xs font-extrabold text-gray-900 tracking-wide uppercase">
               Filter
             </h2>
-            <button
-              @click="clearAllFilters"
-              class="text-[11px] text-[#E25C38] font-bold hover:underline"
-            >
+            <button @click="clearAllFilters" class="text-[11px] text-[#E25C38] font-bold hover:underline">
               Reset
             </button>
           </div>
 
           <div class="space-y-3">
-            <div
-              v-for="section in filterSections"
-              :key="section.id"
-              class="border-b border-gray-50 pb-3 last:border-none last:pb-0"
-            >
-              <button
-                @click="section.open = !section.open"
-                class="w-full flex items-center justify-between py-1 text-left"
-              >
+            <div v-for="section in filterSections" :key="section.id"
+              class="border-b border-gray-50 pb-3 last:border-none last:pb-0">
+              <button @click="section.open = !section.open"
+                class="w-full flex items-center justify-between py-1 text-left">
                 <span class="text-xs font-bold text-gray-800">{{
                   section.name
                 }}</span>
-                <svg
-                  class="w-3.5 h-3.5 text-gray-400 transition-transform duration-200"
-                  :class="section.open ? 'rotate-180' : ''"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    stroke-width="2"
-                    d="M19 9l-7 7-7-7"
-                  />
+                <svg class="w-3.5 h-3.5 text-gray-400 transition-transform duration-200"
+                  :class="section.open ? 'rotate-180' : ''" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
                 </svg>
               </button>
 
               <div v-if="section.open" class="mt-2.5 pl-0.5">
                 <!-- HARGA INPUT -->
-                <div
-                  v-if="section.id === 'harga'"
-                  class="flex items-center gap-2"
-                >
-                  <input
-                    type="number"
-                    v-model="priceMin"
-                    placeholder="Min"
-                    class="w-1/2 px-3 py-1.5 border border-gray-200 rounded-lg text-xs focus:outline-none focus:border-[#E25C38]"
-                  />
-                  <input
-                    type="number"
-                    v-model="priceMax"
-                    placeholder="Max"
-                    class="w-1/2 px-3 py-1.5 border border-gray-200 rounded-lg text-xs focus:outline-none focus:border-[#E25C38]"
-                  />
+                <div v-if="section.id === 'harga'" class="flex items-center gap-2">
+                  <input type="number" v-model="priceMin" placeholder="Min"
+                    class="w-1/2 px-3 py-1.5 border border-gray-200 rounded-lg text-xs focus:outline-none focus:border-[#E25C38]" />
+                  <input type="number" v-model="priceMax" placeholder="Max"
+                    class="w-1/2 px-3 py-1.5 border border-gray-200 rounded-lg text-xs focus:outline-none focus:border-[#E25C38]" />
                 </div>
 
                 <!-- LOADERS -->
-                <div
-                  v-else-if="section.id === 'kategori' && isLoadingCategories"
-                  class="text-[11px] text-gray-400 py-1"
-                >
+                <div v-else-if="section.id === 'kategori' && isLoadingCategories"
+                  class="text-[11px] text-gray-400 py-1">
                   Memuat kategori...
                 </div>
-                <div
-                  v-else-if="section.id === 'kategori' && categoryError"
-                  class="text-[11px] text-red-500 py-1"
-                >
+                <div v-else-if="section.id === 'kategori' && categoryError" class="text-[11px] text-red-500 py-1">
                   {{ categoryError }}
                 </div>
 
-                <div
-                  v-else-if="section.id === 'grup' && isLoadingGroups"
-                  class="text-[11px] text-gray-400 py-1"
-                >
+                <div v-else-if="section.id === 'grup' && isLoadingGroups" class="text-[11px] text-gray-400 py-1">
                   Memuat grup produk...
                 </div>
-                <div
-                  v-else-if="section.id === 'grup' && groupsError"
-                  class="text-[11px] text-red-500 py-1"
-                >
+                <div v-else-if="section.id === 'grup' && groupsError" class="text-[11px] text-red-500 py-1">
                   {{ groupsError }}
                 </div>
 
-                <div
-                  v-else-if="section.id === 'brand' && isLoadingBrands"
-                  class="text-[11px] text-gray-400 py-1"
-                >
+                <div v-else-if="section.id === 'brand' && isLoadingBrands" class="text-[11px] text-gray-400 py-1">
                   Memuat brand...
                 </div>
-                <div
-                  v-else-if="section.id === 'brand' && brandError"
-                  class="text-[11px] text-red-500 py-1"
-                >
+                <div v-else-if="section.id === 'brand' && brandError" class="text-[11px] text-red-500 py-1">
                   {{ brandError }}
                 </div>
 
-                <div
-                  v-else-if="section.id === 'ukuran' && isLoadingAttributes"
-                  class="text-[11px] text-gray-400 py-1"
-                >
-                  Memuat ukuran...
+                <!-- Section attribute dinamis (Taste, Ukuran Botol, dll) -->
+                <div v-else-if="section.isAttribute && isLoadingAttributes" class="text-[11px] text-gray-400 py-1">
+                  Memuat {{ section.name.toLowerCase() }}...
                 </div>
-                <div
-                  v-else-if="section.id === 'ukuran' && attributeError"
-                  class="text-[11px] text-red-500 py-1"
-                >
+                <div v-else-if="section.isAttribute && attributeError" class="text-[11px] text-red-500 py-1">
                   {{ attributeError }}
                 </div>
 
-                <div
-                  v-else-if="!section.options.length"
-                  class="text-[11px] text-gray-400 py-1"
-                >
+                <div v-else-if="!section.options.length" class="text-[11px] text-gray-400 py-1">
                   Tidak ada opsi.
                 </div>
 
                 <!-- CHECKBOX -->
                 <div v-else class="space-y-2 max-h-48 overflow-y-auto pr-1">
-                  <label
-                    v-for="opt in section.options"
-                    :key="opt.id"
-                    class="flex items-center gap-2.5 cursor-pointer text-xs text-gray-600 hover:text-gray-900"
-                  >
-                    <input
-                      type="checkbox"
-                      v-model="opt.checked"
-                      class="w-3.5 h-3.5 rounded border-gray-300 text-[#E25C38] focus:ring-0 cursor-pointer"
-                    />
+                  <label v-for="opt in section.options" :key="opt.id"
+                    class="flex items-center gap-2.5 cursor-pointer text-xs text-gray-600 hover:text-gray-900">
+                    <input type="checkbox" v-model="opt.checked"
+                      class="w-3.5 h-3.5 rounded border-gray-300 text-[#E25C38] focus:ring-0 cursor-pointer" />
                     <span>{{ opt.label }}</span>
                   </label>
                 </div>
@@ -774,8 +715,7 @@ const visiblePages = computed(() => {
         <main class="flex-1 w-full space-y-4">
           <!-- TOP INFO & SORTING -->
           <div
-            class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-3.5 rounded-2xl shadow-sm border border-gray-100"
-          >
+            class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-3.5 rounded-2xl shadow-sm border border-gray-100">
             <p class="text-xs text-gray-500 font-medium">
               Menampilkan
               <span class="font-bold text-gray-800">{{
@@ -786,10 +726,8 @@ const visiblePages = computed(() => {
 
             <div class="flex items-center gap-2 shrink-0">
               <span class="text-xs text-gray-500">Urutkan:</span>
-              <select
-                v-model="sortBy"
-                class="text-xs font-bold bg-white border border-gray-200 rounded-lg px-3 py-1.5 focus:outline-none focus:border-[#E25C38] cursor-pointer"
-              >
+              <select v-model="sortBy"
+                class="text-xs font-bold bg-white border border-gray-200 rounded-lg px-3 py-1.5 focus:outline-none focus:border-[#E25C38] cursor-pointer">
                 <option value="Paling Sesuai">Paling Sesuai</option>
                 <option value="Harga Terendah">Harga Terendah</option>
                 <option value="Harga Tertinggi">Harga Tertinggi</option>
@@ -798,128 +736,75 @@ const visiblePages = computed(() => {
           </div>
 
           <!-- ACTIVE FILTERS BADGES -->
-          <div
-            v-if="activeFiltersList.length"
-            class="flex flex-wrap items-center gap-2 bg-white p-3 rounded-2xl shadow-sm border border-gray-100"
-          >
-            <span class="text-xs font-bold text-gray-400 mr-1"
-              >Filter Aktif:</span
-            >
+          <div v-if="activeFiltersList.length"
+            class="flex flex-wrap items-center gap-2 bg-white p-3 rounded-2xl shadow-sm border border-gray-100">
+            <span class="text-xs font-bold text-gray-400 mr-1">Filter Aktif:</span>
 
-            <div
-              v-for="item in activeFiltersList"
-              :key="item.type + '-' + item.id"
-              class="inline-flex items-center gap-1.5 bg-orange-50 text-[#E25C38] border border-orange-200 px-2.5 py-1 rounded-lg text-xs font-semibold"
-            >
+            <div v-for="item in activeFiltersList" :key="item.type + '-' + item.id"
+              class="inline-flex items-center gap-1.5 bg-orange-50 text-[#E25C38] border border-orange-200 px-2.5 py-1 rounded-lg text-xs font-semibold">
               <span>{{ item.label }}</span>
-              <button
-                @click="removeActiveFilter(item)"
-                class="hover:text-red-600 font-bold ml-0.5 focus:outline-none"
-              >
+              <button @click="removeActiveFilter(item)" class="hover:text-red-600 font-bold ml-0.5 focus:outline-none">
                 ✕
               </button>
             </div>
 
-            <button
-              @click="clearAllFilters"
-              class="text-xs text-gray-500 hover:text-red-500 font-bold underline ml-auto"
-            >
+            <button @click="clearAllFilters"
+              class="text-xs text-gray-500 hover:text-red-500 font-bold underline ml-auto">
               Hapus Semua
             </button>
           </div>
 
           <!-- STATE LOADING / ERROR / EMPTY -->
-          <div
-            v-if="isLoadingProducts"
-            class="bg-white rounded-2xl p-12 text-center text-xs text-gray-400 shadow-sm"
-          >
+          <div v-if="isLoadingProducts" class="bg-white rounded-2xl p-12 text-center text-xs text-gray-400 shadow-sm">
             Memuat produk...
           </div>
-          <div
-            v-else-if="productError"
-            class="bg-white rounded-2xl p-12 text-center text-xs text-red-500 shadow-sm"
-          >
+          <div v-else-if="productError" class="bg-white rounded-2xl p-12 text-center text-xs text-red-500 shadow-sm">
             {{ productError }}
           </div>
-          <div
-            v-else-if="!products.length"
-            class="bg-white rounded-2xl p-12 text-center text-xs text-gray-500 shadow-sm"
-          >
+          <div v-else-if="!products.length"
+            class="bg-white rounded-2xl p-12 text-center text-xs text-gray-500 shadow-sm">
             Tidak ada produk ditemukan.
           </div>
 
           <!-- PRODUCT GRID -->
-          <div
-            v-else
-            class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4"
-          >
-            <ProductCard
-              v-for="product in products"
-              :key="product.id"
-              :product="product"
-            />
+          <div v-else class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+            <ProductCard v-for="product in products" :key="product.id" :product="product" />
           </div>
 
           <!-- PAGINATION -->
-          <div
-            v-if="pagination.last_page > 1"
-            class="flex items-center justify-center gap-2 pt-6 flex-wrap"
-          >
-            <button
-              @click="changePage(currentPage - 1)"
-              :disabled="currentPage === 1"
-              class="px-3 h-8 bg-white text-gray-600 disabled:opacity-40 hover:bg-gray-100 border border-gray-200 rounded-lg text-xs font-bold transition-all cursor-pointer"
-            >
+          <div v-if="pagination.last_page > 1" class="flex items-center justify-center gap-2 pt-6 flex-wrap">
+            <button @click="changePage(currentPage - 1)" :disabled="currentPage === 1"
+              class="px-3 h-8 bg-white text-gray-600 disabled:opacity-40 hover:bg-gray-100 border border-gray-200 rounded-lg text-xs font-bold transition-all cursor-pointer">
               ‹ Sebelumnya
             </button>
 
-            <button
-              v-if="visiblePages[0] > 1"
-              @click="changePage(1)"
-              class="w-8 h-8 rounded-lg text-xs font-bold bg-white text-gray-600 hover:bg-gray-100 border border-gray-200 transition-all cursor-pointer"
-            >
+            <button v-if="visiblePages[0] > 1" @click="changePage(1)"
+              class="w-8 h-8 rounded-lg text-xs font-bold bg-white text-gray-600 hover:bg-gray-100 border border-gray-200 transition-all cursor-pointer">
               1
             </button>
-            <span v-if="visiblePages[0] > 2" class="text-xs text-gray-400 px-1"
-              >…</span
-            >
+            <span v-if="visiblePages[0] > 2" class="text-xs text-gray-400 px-1">…</span>
 
-            <button
-              v-for="p in visiblePages"
-              :key="p"
-              @click="changePage(p)"
-              :class="[
-                'w-8 h-8 rounded-lg text-xs font-bold transition-all cursor-pointer',
-                currentPage === p
-                  ? 'bg-black text-white'
-                  : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-200',
-              ]"
-            >
+            <button v-for="p in visiblePages" :key="p" @click="changePage(p)" :class="[
+              'w-8 h-8 rounded-lg text-xs font-bold transition-all cursor-pointer',
+              currentPage === p
+                ? 'bg-black text-white'
+                : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-200',
+            ]">
               {{ p }}
             </button>
 
-            <span
-              v-if="
-                visiblePages[visiblePages.length - 1] < pagination.last_page - 1
-              "
-              class="text-xs text-gray-400 px-1"
-              >…</span
-            >
-            <button
-              v-if="
-                visiblePages[visiblePages.length - 1] < pagination.last_page
-              "
-              @click="changePage(pagination.last_page)"
-              class="w-8 h-8 rounded-lg text-xs font-bold bg-white text-gray-600 hover:bg-gray-100 border border-gray-200 transition-all cursor-pointer"
-            >
+            <span v-if="
+              visiblePages[visiblePages.length - 1] < pagination.last_page - 1
+            " class="text-xs text-gray-400 px-1">…</span>
+            <button v-if="
+              visiblePages[visiblePages.length - 1] < pagination.last_page
+            " @click="changePage(pagination.last_page)"
+              class="w-8 h-8 rounded-lg text-xs font-bold bg-white text-gray-600 hover:bg-gray-100 border border-gray-200 transition-all cursor-pointer">
               {{ pagination.last_page }}
             </button>
 
-            <button
-              @click="changePage(currentPage + 1)"
-              :disabled="currentPage === pagination.last_page"
-              class="px-3 h-8 bg-white text-gray-600 disabled:opacity-40 hover:bg-gray-100 border border-gray-200 rounded-lg text-xs font-bold transition-all cursor-pointer"
-            >
+            <button @click="changePage(currentPage + 1)" :disabled="currentPage === pagination.last_page"
+              class="px-3 h-8 bg-white text-gray-600 disabled:opacity-40 hover:bg-gray-100 border border-gray-200 rounded-lg text-xs font-bold transition-all cursor-pointer">
               Berikutnya ›
             </button>
           </div>
