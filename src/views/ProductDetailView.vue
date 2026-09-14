@@ -66,7 +66,7 @@ const whatsappUrl = computed(() => {
 
 const fetchPhoneNumber = async () => {
   try {
-    const response = await publicConfigService.getConfigByKey("store_phone");
+    const response = await publicConfigService.getConfigByKey("social_whatsapp");
     const rawPhone =
       response?.data?.data?.casted_value || response?.data?.data?.value;
     if (rawPhone) {
