@@ -44,7 +44,7 @@ const fetchFooterConfigs = async () => {
       publicConfigService.getConfigByKey("social_instagram"),
       publicConfigService.getConfigByKey("social_tiktok"),
       publicConfigService.getConfigByKey("social_facebook"),
-      publicConfigService.getConfigByKey("store_phone"),
+      publicConfigService.getConfigByKey("social_whatsapp"),
     ]);
 
     if (igRes.status === "fulfilled") {
