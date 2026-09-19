@@ -66,7 +66,8 @@ const whatsappUrl = computed(() => {
 
 const fetchPhoneNumber = async () => {
   try {
-    const response = await publicConfigService.getConfigByKey("social_whatsapp");
+    const response =
+      await publicConfigService.getConfigByKey("social_whatsapp");
     const rawPhone =
       response?.data?.data?.casted_value || response?.data?.data?.value;
     if (rawPhone) {
@@ -367,7 +368,7 @@ const handleAddToCart = async (event) => {
     console.error("Gagal menambahkan ke keranjang:", err);
     alert(
       err.response?.data?.message ||
-      "Terjadi kesalahan saat menambahkan ke keranjang.",
+        "Terjadi kesalahan saat menambahkan ke keranjang.",
     );
     // Sinkronkan ulang, kalau-kalau state stok sudah berubah di server
     await fetchCartQtyForSelection();
@@ -514,16 +515,22 @@ const filteredReviews = computed(() => {
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-12">
       <!-- Loading State -->
       <div v-if="loading" class="py-20 text-center space-y-4">
-        <div class="inline-block w-8 h-8 border-4 border-[#E25C38] border-t-transparent rounded-full animate-spin">
-        </div>
+        <div
+          class="inline-block w-8 h-8 border-4 border-[#E25C38] border-t-transparent rounded-full animate-spin"
+        ></div>
         <p class="text-sm text-gray-500 font-medium">Memuat detail produk...</p>
       </div>
 
       <!-- Error State -->
-      <div v-else-if="error" class="bg-red-50 border border-red-200 text-red-700 p-6 rounded-2xl text-center space-y-3">
+      <div
+        v-else-if="error"
+        class="bg-red-50 border border-red-200 text-red-700 p-6 rounded-2xl text-center space-y-3"
+      >
         <p class="font-bold text-base">{{ error }}</p>
-        <button @click="fetchProductDetail"
-          class="px-4 py-2 bg-red-600 text-white text-xs font-bold rounded-xl hover:bg-red-700 transition-colors">
+        <button
+          @click="fetchProductDetail"
+          class="px-4 py-2 bg-red-600 text-white text-xs font-bold rounded-xl hover:bg-red-700 transition-colors"
+        >
           Coba Lagi
         </button>
       </div>
@@ -534,7 +541,9 @@ const filteredReviews = computed(() => {
         <nav class="text-xs text-gray-500 flex items-center gap-2">
           <router-link to="/" class="hover:text-black">Beranda</router-link>
           <span>&rsaquo;</span>
-          <router-link to="/oroducts" class="hover:text-black cursor-pointer">Produk</router-link>
+          <router-link to="/oroducts" class="hover:text-black cursor-pointer"
+            >Produk</router-link
+          >
           <span>&rsaquo;</span>
           <span class="text-gray-900 font-medium truncate max-w-xs sm:max-w-md">
             {{ product.name }}
@@ -547,27 +556,45 @@ const filteredReviews = computed(() => {
           <div class="space-y-6">
             <div class="flex gap-3 items-start">
               <!-- Side Thumbnails -->
-              <div v-if="product.images && product.images.length > 0"
-                class="flex flex-col gap-2 max-h-[480px] overflow-y-auto pr-1 no-scrollbar w-16 sm:w-20 shrink-0">
-                <button v-for="img in product.images" :key="img.id" @click="selectedImage = img.path" :class="[
-                  'w-full aspect-[3/4] rounded-lg overflow-hidden border-2 transition-all shrink-0',
-                  selectedImage === img.path
-                    ? 'border-[#E25C38]'
-                    : 'border-transparent opacity-70 hover:opacity-100',
-                ]">
-                  <img :src="img.path" :alt="product.name" class="w-full h-full object-cover" />
+              <div
+                v-if="product.images && product.images.length > 0"
+                class="flex flex-col gap-2 max-h-[480px] overflow-y-auto pr-1 no-scrollbar w-16 sm:w-20 shrink-0"
+              >
+                <button
+                  v-for="img in product.images"
+                  :key="img.id"
+                  @click="selectedImage = img.path"
+                  :class="[
+                    'w-full aspect-[3/4] rounded-lg overflow-hidden border-2 transition-all shrink-0',
+                    selectedImage === img.path
+                      ? 'border-[#E25C38]'
+                      : 'border-transparent opacity-70 hover:opacity-100',
+                  ]"
+                >
+                  <img
+                    :src="img.path"
+                    :alt="product.name"
+                    class="w-full h-full object-cover"
+                  />
                 </button>
               </div>
 
               <!-- Main Image -->
               <div
-                class="relative flex-1 bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100 aspect-[3/4] max-h-[480px]">
-                <img :src="selectedImage ||
-                  product.featured_image?.path ||
-                  'https://placehold.co/600x800?text=No+Image'
-                  " :alt="product.name" class="w-full h-full object-cover transition-all duration-300" />
+                class="relative flex-1 bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100 aspect-[3/4] max-h-[480px]"
+              >
+                <img
+                  :src="
+                    selectedImage ||
+                    product.featured_image?.path ||
+                    'https://placehold.co/600x800?text=No+Image'
+                  "
+                  :alt="product.name"
+                  class="w-full h-full object-cover transition-all duration-300"
+                />
                 <div
-                  class="absolute bottom-3 right-3 bg-white/80 backdrop-blur border border-gray-300 px-2 py-0.5 rounded-md text-xs font-bold text-gray-800">
+                  class="absolute bottom-3 right-3 bg-white/80 backdrop-blur border border-gray-300 px-2 py-0.5 rounded-md text-xs font-bold text-gray-800"
+                >
                   21+
                 </div>
               </div>
@@ -576,7 +603,9 @@ const filteredReviews = computed(() => {
             <!-- Product Description -->
             <div v-if="product.product_information" class="space-y-3">
               <h2 class="text-lg font-bold text-gray-900">Deskripsi</h2>
-              <div class="bg-white rounded-2xl p-5 sm:p-6 border border-gray-100/80 shadow-sm">
+              <div
+                class="bg-white rounded-2xl p-5 sm:p-6 border border-gray-100/80 shadow-sm"
+              >
                 <p class="text-sm sm:text-base text-gray-600 leading-relaxed">
                   {{ product.product_information }}
                 </p>
@@ -585,29 +614,47 @@ const filteredReviews = computed(() => {
           </div>
 
           <!-- Product Info & Actions (Sticky) -->
-          <div class="space-y-4 lg:sticky lg:top-24 lg:self-start lg:z-10">
+          <div class="space-y-4 lg:sticky lg:top-36 lg:self-start lg:z-10">
             <div class="flex items-start justify-between gap-4">
               <div>
-                <span class="text-[11px] font-bold tracking-widest text-gray-400 uppercase">
+                <span
+                  class="text-[11px] font-bold tracking-widest text-gray-400 uppercase"
+                >
                   {{ activeCategoryName }}
                 </span>
-                <h1 class="text-2xl sm:text-3xl font-extrabold text-[#0F172A] mt-0.5">
+                <h1
+                  class="text-2xl sm:text-3xl font-extrabold text-[#0F172A] mt-0.5"
+                >
                   {{ product.name }}
                 </h1>
               </div>
 
               <!-- Wishlist Toggle Button -->
-              <button @click="toggleWishlist" type="button" :class="[
-                'px-4 py-2.5 rounded-xl border text-xs font-bold transition-all shrink-0 flex items-center justify-center gap-2',
-                isInWishlist
-                  ? 'bg-rose-50 border-rose-200 text-rose-500 hover:bg-rose-100'
-                  : 'bg-white border-gray-200 text-gray-700 hover:text-rose-500 hover:border-rose-200',
-              ]" :title="isInWishlist ? 'Remove From Wishlist' : 'Add To Wishlist'
-                ">
-                <svg class="w-4 h-4 shrink-0" :fill="isInWishlist ? 'currentColor' : 'none'" stroke="currentColor"
-                  viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                    d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+              <button
+                @click="toggleWishlist"
+                type="button"
+                :class="[
+                  'px-4 py-2.5 rounded-xl border text-xs font-bold transition-all shrink-0 flex items-center justify-center gap-2',
+                  isInWishlist
+                    ? 'bg-rose-50 border-rose-200 text-rose-500 hover:bg-rose-100'
+                    : 'bg-white border-gray-200 text-gray-700 hover:text-rose-500 hover:border-rose-200',
+                ]"
+                :title="
+                  isInWishlist ? 'Remove From Wishlist' : 'Add To Wishlist'
+                "
+              >
+                <svg
+                  class="w-4 h-4 shrink-0"
+                  :fill="isInWishlist ? 'currentColor' : 'none'"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
+                  />
                 </svg>
                 <span>{{
                   isInWishlist ? "Remove From Wishlist" : "Add To Wishlist"
@@ -617,10 +664,16 @@ const filteredReviews = computed(() => {
 
             <div class="flex items-center gap-2 mt-1.5 text-xs">
               <div class="flex text-xs gap-0.5">
-                <span v-for="i in 5" :key="i" :class="i <= Math.round(product.average_rating || 0)
-                  ? 'text-amber-400'
-                  : 'text-gray-300'
-                  ">★</span>
+                <span
+                  v-for="i in 5"
+                  :key="i"
+                  :class="
+                    i <= Math.round(product.average_rating || 0)
+                      ? 'text-amber-400'
+                      : 'text-gray-300'
+                  "
+                  >★</span
+                >
               </div>
               <span class="font-bold text-gray-700">{{
                 product.average_rating || "0"
@@ -634,37 +687,62 @@ const filteredReviews = computed(() => {
               <span class="text-2xl sm:text-3xl font-extrabold text-[#E25C38]">
                 Rp {{ activePrice.toLocaleString("id-ID") }}
               </span>
-              <span v-if="activeStrikePrice" class="text-xs sm:text-sm text-gray-400 line-through">
+              <span
+                v-if="activeStrikePrice"
+                class="text-xs sm:text-sm text-gray-400 line-through"
+              >
                 Rp {{ activeStrikePrice.toLocaleString("id-ID") }}
               </span>
 
-              <span v-if="isFreeShipping"
-                class="text-[10px] font-bold text-green-700 bg-green-50 border border-green-200 px-2 py-0.5 rounded-full flex items-center gap-1">
+              <span
+                v-if="isFreeShipping"
+                class="text-[10px] font-bold text-green-700 bg-green-50 border border-green-200 px-2 py-0.5 rounded-full flex items-center gap-1"
+              >
                 🚚 Gratis Ongkir
               </span>
             </div>
 
             <!-- Variants -->
-            <div v-if="product.variants && product.variants.length > 0" class="space-y-1.5 pt-1">
-              <label class="text-[11px] font-semibold text-gray-600 block">Pilih Ukuran</label>
+            <div
+              v-if="product.variants && product.variants.length > 0"
+              class="space-y-1.5 pt-1"
+            >
+              <label class="text-[11px] font-semibold text-gray-600 block"
+                >Pilih Ukuran</label
+              >
               <div class="flex flex-wrap gap-2">
-                <button v-for="variant in product.variants" :key="variant.id" @click="selectVariant(variant)" :class="[
-                  'px-4 py-1.5 rounded-lg text-xs font-semibold transition-all border',
-                  selectedVariant?.id === variant.id
-                    ? 'bg-[#E25C38] text-white border-[#E25C38]'
-                    : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50',
-                ]">
+                <button
+                  v-for="variant in product.variants"
+                  :key="variant.id"
+                  @click="selectVariant(variant)"
+                  :class="[
+                    'px-4 py-1.5 rounded-lg text-xs font-semibold transition-all border',
+                    selectedVariant?.id === variant.id
+                      ? 'bg-[#E25C38] text-white border-[#E25C38]'
+                      : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50',
+                  ]"
+                >
                   {{ variant.variant_name }}
                 </button>
               </div>
             </div>
 
             <!-- Store Selection (Lokasi Toko) -->
-            <div v-if="selectedVariant?.stock_relations?.length" class="space-y-1.5 pt-1">
-              <label class="text-[11px] font-semibold text-gray-600 block">Pilih Lokasi Toko</label>
+            <div
+              v-if="selectedVariant?.stock_relations?.length"
+              class="space-y-1.5 pt-1"
+            >
+              <label class="text-[11px] font-semibold text-gray-600 block"
+                >Pilih Lokasi Toko</label
+              >
               <div class="flex flex-wrap gap-2">
-                <button v-for="item in selectedVariant.stock_relations" :key="item.id" type="button"
-                  @click="selectedStore = item" :disabled="getAvailableQty(item) <= 0" :class="[
+                <button
+                  v-for="item in selectedVariant.stock_relations"
+                  :key="item.id"
+                  type="button"
+                  @click="selectedStore = item"
+                  :disabled="getAvailableQty(item) <= 0"
+                  :class="[
                     'px-3.5 py-1.5 rounded-lg text-xs transition-all border flex items-center gap-1.5',
                     selectedStore?.id === item.id
                       ? 'border-[#E25C38] bg-[#E25C38]/10 text-[#E25C38] font-semibold'
@@ -672,40 +750,69 @@ const filteredReviews = computed(() => {
                     getAvailableQty(item) <= 0
                       ? 'opacity-50 cursor-not-allowed bg-gray-50'
                       : '',
-                  ]">
-                  <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                      d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                      d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                  ]"
+                >
+                  <svg
+                    class="w-3.5 h-3.5 shrink-0"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
+                    />
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
+                    />
                   </svg>
                   <span>{{ item.store?.name }}</span>
-                  <span class="text-[10px] text-gray-400">({{ getAvailableQty(item) }} stok)</span>
+                  <span class="text-[10px] text-gray-400"
+                    >({{ getAvailableQty(item) }} stok)</span
+                  >
                 </button>
               </div>
             </div>
 
             <!-- Quantity Counter -->
             <div class="space-y-1.5 pt-1">
-              <label class="text-[11px] font-semibold text-gray-600 block">Jumlah</label>
-              <div class="inline-flex items-center border border-gray-200 bg-white rounded-lg p-1">
-                <button @click="decrementQty"
-                  class="w-7 h-7 flex items-center justify-center text-gray-400 hover:text-black text-sm font-bold">
+              <label class="text-[11px] font-semibold text-gray-600 block"
+                >Jumlah</label
+              >
+              <div
+                class="inline-flex items-center border border-gray-200 bg-white rounded-lg p-1"
+              >
+                <button
+                  @click="decrementQty"
+                  class="w-7 h-7 flex items-center justify-center text-gray-400 hover:text-black text-sm font-bold"
+                >
                   -
                 </button>
                 <span class="w-8 text-center text-xs font-bold text-gray-800">
                   {{ quantity }}
                 </span>
-                <button @click="incrementQty" :disabled="quantity >= remainingStock" :class="[
-                  'w-7 h-7 flex items-center justify-center font-bold text-sm',
-                  quantity >= remainingStock
-                    ? 'text-gray-300 cursor-not-allowed'
-                    : 'text-[#E25C38]',
-                ]">
+                <button
+                  @click="incrementQty"
+                  :disabled="quantity >= remainingStock"
+                  :class="[
+                    'w-7 h-7 flex items-center justify-center font-bold text-sm',
+                    quantity >= remainingStock
+                      ? 'text-gray-300 cursor-not-allowed'
+                      : 'text-[#E25C38]',
+                  ]"
+                >
                   +
                 </button>
               </div>
-              <p v-if="cartQtyForSelection > 0" class="text-[10px] text-gray-400">
+              <p
+                v-if="cartQtyForSelection > 0"
+                class="text-[10px] text-gray-400"
+              >
                 Kamu sudah punya {{ cartQtyForSelection }} item ini di
                 keranjang.
               </p>
@@ -713,36 +820,55 @@ const filteredReviews = computed(() => {
 
             <!-- Action Buttons -->
             <div class="grid grid-cols-3 gap-2 pt-2">
-              <button @click="handleAddToCart($event)" :disabled="remainingStock <= 0"
-                class="py-2.5 px-2 border border-gray-800 rounded-xl font-bold text-[11px] text-gray-900 bg-white hover:bg-gray-50 transition-all active:scale-95 flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed">
+              <button
+                @click="handleAddToCart($event)"
+                :disabled="remainingStock <= 0"
+                class="py-2.5 px-2 border border-gray-800 rounded-xl font-bold text-[11px] text-gray-900 bg-white hover:bg-gray-50 transition-all active:scale-95 flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
+              >
                 + Keranjang
               </button>
-              <button @click="handleBuyNow" :disabled="remainingStock <= 0"
-                class="py-2.5 px-2 bg-[#14120E] hover:bg-black text-[#D4B26F] rounded-xl font-bold text-[11px] transition-colors active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed">
+              <button
+                @click="handleBuyNow"
+                :disabled="remainingStock <= 0"
+                class="py-2.5 px-2 bg-[#14120E] hover:bg-black text-[#D4B26F] rounded-xl font-bold text-[11px] transition-colors active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
                 Beli Sekarang
               </button>
 
               <!-- Buy Now via WhatsApp -->
-              <a v-if="phoneNumber" :href="remainingStock > 0 ? whatsappUrl : undefined" target="_blank"
-                rel="noopener noreferrer" :class="[
+              <a
+                v-if="phoneNumber"
+                :href="remainingStock > 0 ? whatsappUrl : undefined"
+                target="_blank"
+                rel="noopener noreferrer"
+                :class="[
                   'py-2.5 px-2 rounded-xl font-bold text-[11px] transition-all active:scale-95 flex items-center justify-center gap-1',
                   remainingStock > 0
                     ? 'bg-[#25D366] hover:bg-[#20ba5a] text-white cursor-pointer'
                     : 'bg-gray-100 text-gray-400 pointer-events-none cursor-not-allowed',
-                ]">
-                <svg class="w-3.5 h-3.5 fill-current shrink-0" viewBox="0 0 24 24">
+                ]"
+              >
+                <svg
+                  class="w-3.5 h-3.5 fill-current shrink-0"
+                  viewBox="0 0 24 24"
+                >
                   <path
-                    d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.521.151-.172.2-.296.3-.495.099-.198.05-.372-.025-.521-.075-.148-.669-1.611-.916-2.206-.242-.579-.487-.501-.669-.51l-.57-.01c-.198 0-.52.074-.792.372s-1.04 1.016-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.095 3.2 5.076 4.487.709.306 1.263.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L0 24l6.335-1.662a11.87 11.87 0 005.707 1.456h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
+                    d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.521.151-.172.2-.296.3-.495.099-.198.05-.372-.025-.521-.075-.148-.669-1.611-.916-2.206-.242-.579-.487-.501-.669-.51l-.57-.01c-.198 0-.52.074-.792.372s-1.04 1.016-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.095 3.2 5.076 4.487.709.306 1.263.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L0 24l6.335-1.662a11.87 11.87 0 005.707 1.456h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"
+                  />
                 </svg>
                 Beli via WhatsApp
               </a>
             </div>
 
             <!-- Stock Status -->
-            <p class="text-[11px] font-medium flex items-center gap-1.5 pt-1"
-              :class="remainingStock > 0 ? 'text-emerald-600' : 'text-rose-600'">
-              <span class="w-1.5 h-1.5 rounded-full inline-block"
-                :class="remainingStock > 0 ? 'bg-emerald-500' : 'bg-rose-500'"></span>
+            <p
+              class="text-[11px] font-medium flex items-center gap-1.5 pt-1"
+              :class="remainingStock > 0 ? 'text-emerald-600' : 'text-rose-600'"
+            >
+              <span
+                class="w-1.5 h-1.5 rounded-full inline-block"
+                :class="remainingStock > 0 ? 'bg-emerald-500' : 'bg-rose-500'"
+              ></span>
               <span v-if="remainingStock > 0">
                 Stok tersedia (Sisa {{ remainingStock }} bisa ditambahkan di
                 toko {{ selectedStore?.store?.name }}) &bull; Estimasi tiba hari
@@ -762,15 +888,21 @@ const filteredReviews = computed(() => {
           <h2 class="text-lg font-bold text-gray-900">Ulasan Pembeli</h2>
 
           <div
-            class="bg-white rounded-2xl p-6 border border-gray-100/80 shadow-sm flex flex-col md:flex-row items-center gap-8">
-            <div class="text-center md:text-left space-y-1 md:pr-8 md:border-r border-gray-100">
+            class="bg-white rounded-2xl p-6 border border-gray-100/80 shadow-sm flex flex-col md:flex-row items-center gap-8"
+          >
+            <div
+              class="text-center md:text-left space-y-1 md:pr-8 md:border-r border-gray-100"
+            >
               <div class="text-4xl font-extrabold text-[#E25C38]">
                 {{ product.average_rating || "0" }}
               </div>
               <p class="text-[11px] text-gray-400">dari 5.0</p>
-              <div class="flex justify-center md:justify-start text-amber-400 text-sm">
+              <div
+                class="flex justify-center md:justify-start text-amber-400 text-sm"
+              >
                 <span v-for="i in 5" :key="i">
-                  {{ i <= Math.round(product.average_rating || 0) ? "★" : "☆" }} </span>
+                  {{ i <= Math.round(product.average_rating || 0) ? "★" : "☆" }}
+                </span>
               </div>
               <p class="text-[10px] text-gray-400 mt-1">
                 {{ reviews.length }} ulasan
@@ -778,13 +910,23 @@ const filteredReviews = computed(() => {
             </div>
 
             <div class="flex-1 w-full space-y-2 text-xs">
-              <div v-for="star in [5, 4, 3, 2, 1]" :key="star" class="flex items-center gap-3">
-                <span class="w-8 text-gray-500 font-semibold flex items-center gap-0.5 whitespace-nowrap">
+              <div
+                v-for="star in [5, 4, 3, 2, 1]"
+                :key="star"
+                class="flex items-center gap-3"
+              >
+                <span
+                  class="w-8 text-gray-500 font-semibold flex items-center gap-0.5 whitespace-nowrap"
+                >
                   {{ star }} <span class="text-amber-400">★</span>
                 </span>
-                <div class="flex-1 bg-gray-100 h-2 rounded-full overflow-hidden">
-                  <div class="bg-[#E25C38] h-full rounded-full transition-all duration-300"
-                    :style="{ width: `${getRatingPercentage(star)}%` }"></div>
+                <div
+                  class="flex-1 bg-gray-100 h-2 rounded-full overflow-hidden"
+                >
+                  <div
+                    class="bg-[#E25C38] h-full rounded-full transition-all duration-300"
+                    :style="{ width: `${getRatingPercentage(star)}%` }"
+                  ></div>
                 </div>
                 <span class="w-6 text-right text-gray-400 text-[11px]">
                   {{ ratingCounts[star] }}
@@ -794,24 +936,37 @@ const filteredReviews = computed(() => {
           </div>
 
           <!-- Review Filters -->
-          <div class="flex items-center gap-2 overflow-x-auto pb-2 no-scrollbar">
-            <button v-for="filter in filterOptions" :key="filter" @click="selectedFilter = filter" :class="[
-              'px-4 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all',
-              selectedFilter === filter
-                ? 'bg-[#E25C38] text-white'
-                : 'bg-white text-gray-600 hover:bg-gray-100',
-            ]">
+          <div
+            class="flex items-center gap-2 overflow-x-auto pb-2 no-scrollbar"
+          >
+            <button
+              v-for="filter in filterOptions"
+              :key="filter"
+              @click="selectedFilter = filter"
+              :class="[
+                'px-4 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all',
+                selectedFilter === filter
+                  ? 'bg-[#E25C38] text-white'
+                  : 'bg-white text-gray-600 hover:bg-gray-100',
+              ]"
+            >
               {{ filter }}
             </button>
           </div>
 
           <!-- Review List -->
           <div class="space-y-4">
-            <div v-if="filteredReviews.length === 0" class="bg-white rounded-xl p-8 text-center text-gray-400 text-xs">
+            <div
+              v-if="filteredReviews.length === 0"
+              class="bg-white rounded-xl p-8 text-center text-gray-400 text-xs"
+            >
               Belum ada ulasan untuk kategori filter ini.
             </div>
-            <div v-for="review in filteredReviews" :key="review.id"
-              class="bg-white rounded-xl p-4 border border-gray-100 space-y-2">
+            <div
+              v-for="review in filteredReviews"
+              :key="review.id"
+              class="bg-white rounded-xl p-4 border border-gray-100 space-y-2"
+            >
               <div class="flex items-center justify-between">
                 <span class="font-bold text-base text-gray-800">
                   {{
@@ -826,7 +981,8 @@ const filteredReviews = computed(() => {
               </div>
               <div class="flex text-amber-400 text-base">
                 <span v-for="i in 5" :key="i">{{
-                  i <= review.rating ? "★" : "☆" }}</span>
+                  i <= review.rating ? "★" : "☆"
+                }}</span>
               </div>
               <p class="text-sm text-gray-600 leading-relaxed">
                 {{ review.comment }}
@@ -839,15 +995,22 @@ const filteredReviews = computed(() => {
         <section v-if="relatedProducts.length > 0" class="space-y-4 pt-6">
           <h2 class="text-lg font-bold text-gray-900">Produk Serupa</h2>
           <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-            <ProductCard v-for="item in relatedProducts" :key="item.id" :product="item" />
+            <ProductCard
+              v-for="item in relatedProducts"
+              :key="item.id"
+              :product="item"
+            />
           </div>
         </section>
       </template>
     </div>
 
     <!-- Flying Badge Element untuk Animasi -->
-    <div v-if="isAnimating" :style="flyingStyle"
-      class="fixed w-8 h-8 bg-[#E25C38] text-white rounded-full flex items-center justify-center font-bold text-xs pointer-events-none z-50 shadow-lg">
+    <div
+      v-if="isAnimating"
+      :style="flyingStyle"
+      class="fixed w-8 h-8 bg-[#E25C38] text-white rounded-full flex items-center justify-center font-bold text-xs pointer-events-none z-50 shadow-lg"
+    >
       +{{ quantity }}
     </div>
   </div>
