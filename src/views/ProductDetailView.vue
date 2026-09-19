@@ -10,6 +10,7 @@ import { useCartStore } from "../stores/cart";
 import { useWishlistStore } from "../stores/wishlist";
 import { useAuth } from "../composables/useAuth";
 import ProductCard from "../components/ProductCard.vue";
+import DOMPurify from "dompurify";
 
 const route = useRoute();
 const router = useRouter();
@@ -62,6 +63,11 @@ const whatsappUrl = computed(() => {
   return sanitizedPhone.value
     ? `https://wa.me/${sanitizedPhone.value}?text=${encodeURIComponent(whatsappMessage.value)}`
     : "#";
+});
+
+const sanitizedDescription = computed(() => {
+  if (!product.value?.product_information) return "";
+  return DOMPurify.sanitize(product.value.product_information);
 });
 
 const fetchPhoneNumber = async () => {
@@ -603,12 +609,18 @@ const filteredReviews = computed(() => {
             <!-- Product Description -->
             <div v-if="product.product_information" class="space-y-3">
               <h2 class="text-lg font-bold text-gray-900">Deskripsi</h2>
+<<<<<<< HEAD
               <div
                 class="bg-white rounded-2xl p-5 sm:p-6 border border-gray-100/80 shadow-sm"
               >
                 <p class="text-sm sm:text-base text-gray-600 leading-relaxed">
                   {{ product.product_information }}
                 </p>
+=======
+              <div class="bg-white rounded-2xl p-5 sm:p-6 border border-gray-100/80 shadow-sm">
+                <div class="prose prose-sm sm:prose-base max-w-none text-gray-600 leading-relaxed"
+                  v-html="sanitizedDescription"></div>
+>>>>>>> d0944c46e9886bae1bccb090d283c8b61448b32e
               </div>
             </div>
           </div>
