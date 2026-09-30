@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted, watch } from "vue";
+import { ref, computed, onMounted, onUnmounted, watch } from "vue";
 import { useRoute } from "vue-router";
 import ProductCard from "../components/ProductCard.vue";
 import {
@@ -15,6 +15,9 @@ const route = useRoute();
 const priceMin = ref(null);
 const priceMax = ref(null);
 const sortBy = ref("Paling Sesuai");
+
+// Bottom sheet filter (khusus mobile / tablet, di bawah breakpoint lg)
+const isFilterOpen = ref(false);
 
 // Section "ukuran" statis dihapus — sekarang setiap attribute (Taste, Ukuran
 // Botol, dll) dari API /public/attributes/active akan jadi section-nya
@@ -39,7 +42,7 @@ const urlSearchQuery = ref("");
 
 const groupsData = ref([]);
 
-// Flag untuk mencegah watcher `filterSections` (deep) memicu fetch berulang
+// Flag untuk mencegah watcher filter memicu fetch berulang
 // saat data filter masih diisi / disinkronkan dari URL.
 const isReady = ref(false);
 
@@ -364,7 +367,6 @@ const syncFiltersFromUrl = () => {
     });
   }
 
-  // FIX: kategori sebelumnya tidak pernah disinkronkan dari URL
   const categorySection = filterSections.value.find((s) => s.id === "kategori");
   if (categorySection && categorySection.options.length) {
     categorySection.options.forEach((opt) => {
@@ -483,7 +485,38 @@ const fetchAttributes = async () => {
   }
 };
 
+/* ===================== Mobile helpers ===================== */
+const isMobileViewport = () => window.matchMedia("(max-width: 1023px)").matches;
+
+// Di mobile, hanya section Kategori yang terbuka di awal supaya sheet tidak panjang
+const collapseSectionsOnMobile = () => {
+  if (!isMobileViewport()) return;
+  filterSections.value.forEach((s) => {
+    s.open = s.id === "kategori";
+  });
+};
+
+const openFilter = () => {
+  isFilterOpen.value = true;
+};
+const closeFilter = () => {
+  isFilterOpen.value = false;
+};
+
+// Kunci scroll halaman saat bottom sheet terbuka
+watch(isFilterOpen, (open) => {
+  document.body.style.overflow = open ? "hidden" : "";
+});
+
+const handleResize = () => {
+  if (window.innerWidth >= 1024 && isFilterOpen.value) {
+    isFilterOpen.value = false;
+  }
+};
+
 onMounted(async () => {
+  window.addEventListener("resize", handleResize);
+
   await Promise.all([
     fetchGroupTaxonomy(),
     fetchCategoryTaxonomy(),
@@ -491,15 +524,22 @@ onMounted(async () => {
     fetchAttributes(),
   ]);
 
+  collapseSectionsOnMobile();
   syncFiltersFromUrl();
   await fetchProducts(1);
 
-  // Baru sekarang watcher deep di bawah boleh aktif merespons interaksi user.
+  // Baru sekarang watcher di bawah boleh aktif merespons interaksi user.
   isReady.value = true;
 });
 
+onUnmounted(() => {
+  window.removeEventListener("resize", handleResize);
+  document.body.style.overflow = "";
+  clearTimeout(priceTimeout);
+});
+
 // Saat query URL berubah (mis. klik kategori/brand/search dari Header saat sudah
-// berada di halaman ini), sync ulang checkbox lalu fetch — watcher deep
+// berada di halaman ini), sync ulang checkbox lalu fetch — watcher
 // dinonaktifkan sementara supaya tidak fetch dobel.
 watch(
   () => route.query,
@@ -523,20 +563,30 @@ watch([priceMin, priceMax], () => {
   }, 400);
 });
 
-// Hanya bereaksi pada perubahan checkbox oleh user, bukan saat data filter
-// awal sedang diisi/disinkronkan (lihat isReady di atas).
-watch(
-  filterSections,
-  () => {
-    if (!isReady.value) return;
-    fetchProducts(1);
-  },
-  { deep: true },
+// Hanya bereaksi pada perubahan CHECKBOX oleh user. Sebelumnya memakai
+// watch deep pada seluruh filterSections, sehingga membuka/menutup section
+// (section.open) ikut memicu fetch produk. Sekarang yang dipantau hanya
+// daftar id yang dicentang.
+const filterSignature = computed(() =>
+  filterSections.value
+    .map((s) =>
+      (s.options || [])
+        .filter((o) => o.checked)
+        .map((o) => o.id)
+        .join(","),
+    )
+    .join("|"),
 );
+
+watch(filterSignature, () => {
+  if (!isReady.value) return;
+  fetchProducts(1);
+});
 
 const changePage = (page) => {
   if (page >= 1 && page <= (pagination.value.last_page || 1)) {
     fetchProducts(page);
+    window.scrollTo({ top: 0, behavior: "smooth" });
   }
 };
 
@@ -547,7 +597,6 @@ const removeActiveFilter = (item) => {
     return;
   }
 
-  // FIX: id section grup adalah "grup", bukan "group" — sebelumnya cabang ini tidak pernah kena
   const section = filterSections.value.find((s) => s.id === item.type);
   if (section) {
     const option = section.options.find((o) => o.id === item.id);
@@ -599,6 +648,10 @@ const breadcrumbLabel = computed(() => {
   return "Produk";
 });
 
+const totalProducts = computed(
+  () => pagination.value.total || products.value.length,
+);
+
 // Windowing nomor halaman supaya tidak merender ratusan tombol saat last_page besar
 const visiblePages = computed(() => {
   const total = pagination.value.last_page || 1;
@@ -617,117 +670,164 @@ const visiblePages = computed(() => {
 </script>
 
 <template>
-  <div class="min-h-screen bg-[#FAF6F0] py-6 px-4 sm:px-6 lg:px-8 font-sans text-gray-900">
+  <div class="min-h-screen bg-[#FAF6F0] py-4 sm:py-6 px-3 sm:px-6 lg:px-8 font-sans text-gray-900">
     <div class="max-w-7xl mx-auto">
       <!-- BREADCRUMBS -->
-      <nav class="flex items-center gap-2 text-xs text-gray-400 mb-4 font-medium">
+      <nav class="flex items-center gap-2 text-xs text-gray-400 mb-3 sm:mb-4 font-medium">
         <router-link to="/" class="hover:text-gray-700 transition-colors">Beranda</router-link>
         <span>&rsaquo;</span>
-        <span class="text-gray-500 truncate max-w-[200px] sm:max-w-none">{{
-          breadcrumbLabel
-        }}</span>
+        <span class="text-gray-500 truncate min-w-0">{{ breadcrumbLabel }}</span>
       </nav>
 
-      <div class="flex flex-col lg:flex-row gap-6 items-start">
-        <!-- ==================== SIDEBAR FILTER ==================== -->
-        <aside class="w-full lg:w-64 bg-white rounded-2xl p-4 shadow-sm border border-gray-100 shrink-0">
-          <div class="flex items-center justify-between pb-3 border-b border-gray-100 mb-3">
-            <h2 class="text-xs font-extrabold text-gray-900 tracking-wide uppercase">
-              Filter
-            </h2>
-            <button @click="clearAllFilters" class="text-[11px] text-[#E25C38] font-bold hover:underline">
-              Reset
-            </button>
+      <div class="flex flex-col lg:flex-row gap-4 lg:gap-6 items-start">
+        <!-- Backdrop bottom sheet (mobile) -->
+        <div v-if="isFilterOpen" class="fixed inset-0 bg-black/50 z-[60] lg:hidden" @click="closeFilter"></div>
+
+        <!-- ==================== SIDEBAR FILTER ====================
+             Mobile : bottom sheet (dibuka lewat tombol "Filter")
+             Desktop: sidebar kiri seperti biasa -->
+        <aside :class="[
+          isFilterOpen
+            ? 'flex fixed inset-x-0 bottom-0 z-[70] max-h-[85vh] rounded-t-3xl animate-sheet-up'
+            : 'hidden',
+          'flex-col w-full lg:w-64 bg-white shadow-sm border border-gray-100 shrink-0',
+          'lg:flex lg:static lg:z-auto lg:max-h-none lg:rounded-2xl',
+        ]">
+          <!-- Header sheet -->
+          <div class="px-4 pt-2 lg:pt-4 pb-3 border-b border-gray-100 shrink-0">
+            <div class="lg:hidden mx-auto mb-2 h-1 w-10 rounded-full bg-gray-200"></div>
+            <div class="flex items-center justify-between">
+              <h2 class="text-sm lg:text-xs font-extrabold text-gray-900 tracking-wide uppercase">
+                Filter
+              </h2>
+              <div class="flex items-center gap-4">
+                <button @click="clearAllFilters"
+                  class="text-xs lg:text-[11px] text-[#E25C38] font-bold hover:underline">
+                  Reset
+                </button>
+                <button @click="closeFilter" aria-label="Tutup filter"
+                  class="lg:hidden -mr-1 p-1 text-gray-400 hover:text-gray-700">
+                  <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            </div>
           </div>
 
-          <div class="space-y-3">
+          <!-- Isi filter (scroll di dalam sheet pada mobile) -->
+          <div class="px-4 py-3 space-y-3 overflow-y-auto flex-1 min-h-0 lg:flex-none lg:overflow-visible">
             <div v-for="section in filterSections" :key="section.id"
               class="border-b border-gray-50 pb-3 last:border-none last:pb-0">
               <button @click="section.open = !section.open"
-                class="w-full flex items-center justify-between py-1 text-left">
-                <span class="text-xs font-bold text-gray-800">{{
+                class="w-full flex items-center justify-between py-2 lg:py-1 text-left">
+                <span class="text-sm lg:text-xs font-bold text-gray-800">{{
                   section.name
                 }}</span>
-                <svg class="w-3.5 h-3.5 text-gray-400 transition-transform duration-200"
+                <svg class="w-4 h-4 lg:w-3.5 lg:h-3.5 text-gray-400 transition-transform duration-200"
                   :class="section.open ? 'rotate-180' : ''" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
                 </svg>
               </button>
 
-              <div v-if="section.open" class="mt-2.5 pl-0.5">
+              <div v-if="section.open" class="mt-2 lg:mt-2.5 pl-0.5">
                 <!-- HARGA INPUT -->
                 <div v-if="section.id === 'harga'" class="flex items-center gap-2">
-                  <input type="number" v-model="priceMin" placeholder="Min"
-                    class="w-1/2 px-3 py-1.5 border border-gray-200 rounded-lg text-xs focus:outline-none focus:border-[#E25C38]" />
-                  <input type="number" v-model="priceMax" placeholder="Max"
-                    class="w-1/2 px-3 py-1.5 border border-gray-200 rounded-lg text-xs focus:outline-none focus:border-[#E25C38]" />
+                  <input type="number" inputmode="numeric" v-model="priceMin" placeholder="Min"
+                    class="w-1/2 px-3 py-2 lg:py-1.5 border border-gray-200 rounded-lg text-base lg:text-xs focus:outline-none focus:border-[#E25C38]" />
+                  <input type="number" inputmode="numeric" v-model="priceMax" placeholder="Max"
+                    class="w-1/2 px-3 py-2 lg:py-1.5 border border-gray-200 rounded-lg text-base lg:text-xs focus:outline-none focus:border-[#E25C38]" />
                 </div>
 
                 <!-- LOADERS -->
                 <div v-else-if="section.id === 'kategori' && isLoadingCategories"
-                  class="text-[11px] text-gray-400 py-1">
+                  class="text-xs lg:text-[11px] text-gray-400 py-1">
                   Memuat kategori...
                 </div>
-                <div v-else-if="section.id === 'kategori' && categoryError" class="text-[11px] text-red-500 py-1">
+                <div v-else-if="section.id === 'kategori' && categoryError"
+                  class="text-xs lg:text-[11px] text-red-500 py-1">
                   {{ categoryError }}
                 </div>
 
-                <div v-else-if="section.id === 'grup' && isLoadingGroups" class="text-[11px] text-gray-400 py-1">
+                <div v-else-if="section.id === 'grup' && isLoadingGroups"
+                  class="text-xs lg:text-[11px] text-gray-400 py-1">
                   Memuat grup produk...
                 </div>
-                <div v-else-if="section.id === 'grup' && groupsError" class="text-[11px] text-red-500 py-1">
+                <div v-else-if="section.id === 'grup' && groupsError" class="text-xs lg:text-[11px] text-red-500 py-1">
                   {{ groupsError }}
                 </div>
 
-                <div v-else-if="section.id === 'brand' && isLoadingBrands" class="text-[11px] text-gray-400 py-1">
+                <div v-else-if="section.id === 'brand' && isLoadingBrands"
+                  class="text-xs lg:text-[11px] text-gray-400 py-1">
                   Memuat brand...
                 </div>
-                <div v-else-if="section.id === 'brand' && brandError" class="text-[11px] text-red-500 py-1">
+                <div v-else-if="section.id === 'brand' && brandError" class="text-xs lg:text-[11px] text-red-500 py-1">
                   {{ brandError }}
                 </div>
 
                 <!-- Section attribute dinamis (Taste, Ukuran Botol, dll) -->
-                <div v-else-if="section.isAttribute && isLoadingAttributes" class="text-[11px] text-gray-400 py-1">
+                <div v-else-if="section.isAttribute && isLoadingAttributes"
+                  class="text-xs lg:text-[11px] text-gray-400 py-1">
                   Memuat {{ section.name.toLowerCase() }}...
                 </div>
-                <div v-else-if="section.isAttribute && attributeError" class="text-[11px] text-red-500 py-1">
+                <div v-else-if="section.isAttribute && attributeError" class="text-xs lg:text-[11px] text-red-500 py-1">
                   {{ attributeError }}
                 </div>
 
-                <div v-else-if="!section.options.length" class="text-[11px] text-gray-400 py-1">
+                <div v-else-if="!section.options.length" class="text-xs lg:text-[11px] text-gray-400 py-1">
                   Tidak ada opsi.
                 </div>
 
                 <!-- CHECKBOX -->
-                <div v-else class="space-y-2 max-h-48 overflow-y-auto pr-1">
+                <div v-else class="space-y-0.5 lg:space-y-2 lg:max-h-48 lg:overflow-y-auto pr-1">
                   <label v-for="opt in section.options" :key="opt.id"
-                    class="flex items-center gap-2.5 cursor-pointer text-xs text-gray-600 hover:text-gray-900">
+                    class="flex items-center gap-3 lg:gap-2.5 py-2 lg:py-0 cursor-pointer text-sm lg:text-xs text-gray-600 hover:text-gray-900">
                     <input type="checkbox" v-model="opt.checked"
-                      class="w-3.5 h-3.5 rounded border-gray-300 text-[#E25C38] focus:ring-0 cursor-pointer" />
+                      class="w-4 h-4 lg:w-3.5 lg:h-3.5 rounded border-gray-300 text-[#E25C38] focus:ring-0 cursor-pointer" />
                     <span>{{ opt.label }}</span>
                   </label>
                 </div>
               </div>
             </div>
           </div>
+
+          <!-- Tombol terapkan (mobile saja). Filter langsung aktif saat dicentang,
+               tombol ini hanya menutup sheet dan menampilkan jumlah hasil. -->
+          <div
+            class="lg:hidden shrink-0 border-t border-gray-100 px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+            <button @click="closeFilter"
+              class="w-full h-11 rounded-xl bg-black text-white text-sm font-bold active:scale-[0.99] transition">
+              Lihat {{ totalProducts }} produk
+            </button>
+          </div>
         </aside>
 
-        <main class="flex-1 w-full space-y-4">
-          <!-- TOP INFO & SORTING -->
+        <main class="flex-1 w-full min-w-0 space-y-3 sm:space-y-4">
+          <!-- TOOLBAR: filter (mobile) + info + sorting -->
           <div
-            class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-3.5 rounded-2xl shadow-sm border border-gray-100">
-            <p class="text-xs text-gray-500 font-medium">
-              Menampilkan
-              <span class="font-bold text-gray-800">{{
-                pagination.total || products.length
-              }}</span>
-              produk
+            class="flex items-center gap-2 sm:gap-3 bg-white p-2.5 sm:p-3.5 rounded-2xl shadow-sm border border-gray-100">
+            <button @click="openFilter" type="button"
+              class="lg:hidden inline-flex items-center gap-1.5 h-9 px-3 rounded-lg border border-gray-200 bg-white text-xs font-bold text-gray-800 active:bg-gray-50">
+              <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4h18M6 12h12M10 20h4" />
+              </svg>
+              Filter
+              <span v-if="activeFiltersList.length"
+                class="ml-0.5 min-w-[18px] h-[18px] px-1 rounded-full bg-[#E25C38] text-white text-[10px] leading-[18px] text-center">
+                {{ activeFiltersList.length }}
+              </span>
+            </button>
+
+            <p class="text-xs text-gray-500 font-medium min-w-0 truncate">
+              <span class="font-bold text-gray-800">{{ totalProducts }}</span>
+              <span class="hidden sm:inline"> produk ditampilkan</span>
+              <span class="sm:hidden"> produk</span>
             </p>
 
-            <div class="flex items-center gap-2 shrink-0">
-              <span class="text-xs text-gray-500">Urutkan:</span>
-              <select v-model="sortBy"
-                class="text-xs font-bold bg-white border border-gray-200 rounded-lg px-3 py-1.5 focus:outline-none focus:border-[#E25C38] cursor-pointer">
+            <div class="ml-auto flex items-center gap-2 shrink-0">
+              <span class="hidden sm:inline text-xs text-gray-500">Urutkan:</span>
+              <select v-model="sortBy" aria-label="Urutkan produk"
+                class="text-xs font-bold bg-white border border-gray-200 rounded-lg h-9 px-2.5 sm:px-3 focus:outline-none focus:border-[#E25C38] cursor-pointer">
                 <option value="Paling Sesuai">Paling Sesuai</option>
                 <option value="Harga Terendah">Harga Terendah</option>
                 <option value="Harga Tertinggi">Harga Tertinggi</option>
@@ -735,81 +835,132 @@ const visiblePages = computed(() => {
             </div>
           </div>
 
-          <!-- ACTIVE FILTERS BADGES -->
+          <!-- ACTIVE FILTERS BADGES: satu baris yang bisa digeser di mobile -->
           <div v-if="activeFiltersList.length"
-            class="flex flex-wrap items-center gap-2 bg-white p-3 rounded-2xl shadow-sm border border-gray-100">
-            <span class="text-xs font-bold text-gray-400 mr-1">Filter Aktif:</span>
+            class="flex items-center gap-2 overflow-x-auto no-scrollbar lg:flex-wrap lg:overflow-visible lg:bg-white lg:p-3 lg:rounded-2xl lg:shadow-sm lg:border lg:border-gray-100">
+            <span class="hidden lg:inline text-xs font-bold text-gray-400 mr-1">Filter Aktif:</span>
 
             <div v-for="item in activeFiltersList" :key="item.type + '-' + item.id"
-              class="inline-flex items-center gap-1.5 bg-orange-50 text-[#E25C38] border border-orange-200 px-2.5 py-1 rounded-lg text-xs font-semibold">
+              class="shrink-0 inline-flex items-center gap-1.5 bg-orange-50 text-[#E25C38] border border-orange-200 pl-2.5 pr-1.5 py-1 rounded-full lg:rounded-lg text-xs font-semibold whitespace-nowrap">
               <span>{{ item.label }}</span>
-              <button @click="removeActiveFilter(item)" class="hover:text-red-600 font-bold ml-0.5 focus:outline-none">
+              <button @click="removeActiveFilter(item)" :aria-label="'Hapus filter ' + item.label"
+                class="w-5 h-5 inline-flex items-center justify-center rounded-full hover:bg-orange-100 hover:text-red-600 font-bold focus:outline-none">
                 ✕
               </button>
             </div>
 
             <button @click="clearAllFilters"
-              class="text-xs text-gray-500 hover:text-red-500 font-bold underline ml-auto">
+              class="shrink-0 whitespace-nowrap text-xs text-gray-500 hover:text-red-500 font-bold underline px-1 lg:ml-auto">
               Hapus Semua
             </button>
           </div>
 
           <!-- STATE LOADING / ERROR / EMPTY -->
-          <div v-if="isLoadingProducts" class="bg-white rounded-2xl p-12 text-center text-xs text-gray-400 shadow-sm">
-            Memuat produk...
+          <div v-if="isLoadingProducts" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
+            <div v-for="n in 6" :key="n"
+              class="bg-white rounded-2xl p-3 shadow-sm border border-gray-100 animate-pulse">
+              <div class="aspect-[3/4] rounded-xl bg-gray-100"></div>
+              <div class="mt-3 h-3 w-3/4 rounded bg-gray-100"></div>
+              <div class="mt-2 h-3 w-1/2 rounded bg-gray-100"></div>
+            </div>
           </div>
-          <div v-else-if="productError" class="bg-white rounded-2xl p-12 text-center text-xs text-red-500 shadow-sm">
+          <div v-else-if="productError"
+            class="bg-white rounded-2xl p-10 sm:p-12 text-center text-xs text-red-500 shadow-sm">
             {{ productError }}
           </div>
           <div v-else-if="!products.length"
-            class="bg-white rounded-2xl p-12 text-center text-xs text-gray-500 shadow-sm">
+            class="bg-white rounded-2xl p-10 sm:p-12 text-center text-xs text-gray-500 shadow-sm">
             Tidak ada produk ditemukan.
           </div>
 
           <!-- PRODUCT GRID -->
-          <div v-else class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+          <div v-else class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
             <ProductCard v-for="product in products" :key="product.id" :product="product" />
           </div>
 
           <!-- PAGINATION -->
-          <div v-if="pagination.last_page > 1" class="flex items-center justify-center gap-2 pt-6 flex-wrap">
-            <button @click="changePage(currentPage - 1)" :disabled="currentPage === 1"
-              class="px-3 h-8 bg-white text-gray-600 disabled:opacity-40 hover:bg-gray-100 border border-gray-200 rounded-lg text-xs font-bold transition-all cursor-pointer">
-              ‹ Sebelumnya
-            </button>
+          <div v-if="pagination.last_page > 1" class="pt-4 sm:pt-6">
+            <!-- Mobile: ringkas -->
+            <div class="flex sm:hidden items-center justify-between gap-3">
+              <button @click="changePage(currentPage - 1)" :disabled="currentPage === 1"
+                class="flex-1 h-10 bg-white text-gray-700 disabled:opacity-40 border border-gray-200 rounded-xl text-xs font-bold transition-all">
+                ‹ Sebelumnya
+              </button>
+              <span class="text-xs font-bold text-gray-600 whitespace-nowrap">
+                {{ currentPage }} / {{ pagination.last_page }}
+              </span>
+              <button @click="changePage(currentPage + 1)" :disabled="currentPage === pagination.last_page"
+                class="flex-1 h-10 bg-white text-gray-700 disabled:opacity-40 border border-gray-200 rounded-xl text-xs font-bold transition-all">
+                Berikutnya ›
+              </button>
+            </div>
 
-            <button v-if="visiblePages[0] > 1" @click="changePage(1)"
-              class="w-8 h-8 rounded-lg text-xs font-bold bg-white text-gray-600 hover:bg-gray-100 border border-gray-200 transition-all cursor-pointer">
-              1
-            </button>
-            <span v-if="visiblePages[0] > 2" class="text-xs text-gray-400 px-1">…</span>
+            <!-- Tablet & desktop: nomor halaman -->
+            <div class="hidden sm:flex items-center justify-center gap-2 flex-wrap">
+              <button @click="changePage(currentPage - 1)" :disabled="currentPage === 1"
+                class="px-3 h-8 bg-white text-gray-600 disabled:opacity-40 hover:bg-gray-100 border border-gray-200 rounded-lg text-xs font-bold transition-all cursor-pointer">
+                ‹ Sebelumnya
+              </button>
 
-            <button v-for="p in visiblePages" :key="p" @click="changePage(p)" :class="[
-              'w-8 h-8 rounded-lg text-xs font-bold transition-all cursor-pointer',
-              currentPage === p
-                ? 'bg-black text-white'
-                : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-200',
-            ]">
-              {{ p }}
-            </button>
+              <button v-if="visiblePages[0] > 1" @click="changePage(1)"
+                class="w-8 h-8 rounded-lg text-xs font-bold bg-white text-gray-600 hover:bg-gray-100 border border-gray-200 transition-all cursor-pointer">
+                1
+              </button>
+              <span v-if="visiblePages[0] > 2" class="text-xs text-gray-400 px-1">…</span>
 
-            <span v-if="
-              visiblePages[visiblePages.length - 1] < pagination.last_page - 1
-            " class="text-xs text-gray-400 px-1">…</span>
-            <button v-if="
-              visiblePages[visiblePages.length - 1] < pagination.last_page
-            " @click="changePage(pagination.last_page)"
-              class="w-8 h-8 rounded-lg text-xs font-bold bg-white text-gray-600 hover:bg-gray-100 border border-gray-200 transition-all cursor-pointer">
-              {{ pagination.last_page }}
-            </button>
+              <button v-for="p in visiblePages" :key="p" @click="changePage(p)" :class="[
+                'w-8 h-8 rounded-lg text-xs font-bold transition-all cursor-pointer',
+                currentPage === p
+                  ? 'bg-black text-white'
+                  : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-200',
+              ]">
+                {{ p }}
+              </button>
 
-            <button @click="changePage(currentPage + 1)" :disabled="currentPage === pagination.last_page"
-              class="px-3 h-8 bg-white text-gray-600 disabled:opacity-40 hover:bg-gray-100 border border-gray-200 rounded-lg text-xs font-bold transition-all cursor-pointer">
-              Berikutnya ›
-            </button>
+              <span v-if="
+                visiblePages[visiblePages.length - 1] <
+                pagination.last_page - 1
+              " class="text-xs text-gray-400 px-1">…</span>
+              <button v-if="
+                visiblePages[visiblePages.length - 1] < pagination.last_page
+              " @click="changePage(pagination.last_page)"
+                class="w-8 h-8 rounded-lg text-xs font-bold bg-white text-gray-600 hover:bg-gray-100 border border-gray-200 transition-all cursor-pointer">
+                {{ pagination.last_page }}
+              </button>
+
+              <button @click="changePage(currentPage + 1)" :disabled="currentPage === pagination.last_page"
+                class="px-3 h-8 bg-white text-gray-600 disabled:opacity-40 hover:bg-gray-100 border border-gray-200 rounded-lg text-xs font-bold transition-all cursor-pointer">
+                Berikutnya ›
+              </button>
+            </div>
           </div>
         </main>
       </div>
     </div>
   </div>
 </template>
+
+<style scoped>
+@keyframes sheet-up {
+  from {
+    transform: translateY(100%);
+  }
+
+  to {
+    transform: translateY(0);
+  }
+}
+
+.animate-sheet-up {
+  animation: sheet-up 0.25s ease-out;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+</style>
