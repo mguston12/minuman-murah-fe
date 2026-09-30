@@ -148,9 +148,9 @@ const fetchSuggestions = async (q) => {
   try {
     const response = await productService.getProducts({
       search: q,
-      per_page: 20, 
+      per_page: 20,
     });
-    if (currentId !== requestId) return; 
+    if (currentId !== requestId) return;
 
     const list = response?.data?.data?.products || [];
     const ql = q.toLowerCase();
@@ -195,7 +195,7 @@ watch(searchQuery, (val) => {
 
 const goToProduct = (p) => {
   isSuggestOpen.value = false;
-  router.push(`/products/${p.slug || p.id}`);
+  router.push({ path: "/products", query: { search: p.name } });
 };
 
 const goToBrand = (b) => {
