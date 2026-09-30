@@ -148,9 +148,9 @@ const fetchSuggestions = async (q) => {
   try {
     const response = await productService.getProducts({
       search: q,
-      per_page: 20, // ambil lebih banyak, lalu disaring berdasarkan nama
+      per_page: 20, 
     });
-    if (currentId !== requestId) return; // abaikan response lama
+    if (currentId !== requestId) return; 
 
     const list = response?.data?.data?.products || [];
     const ql = q.toLowerCase();
@@ -163,9 +163,7 @@ const fetchSuggestions = async (q) => {
         image: p.featured_image?.path || p.images?.[0]?.path || null,
         price: p.final_price ?? p.price ?? 0,
       }))
-      // hanya nama yang benar-benar mengandung teks pencarian
       .filter((p) => p.name.toLowerCase().includes(ql))
-      // yang namanya diawali teks pencarian didahulukan
       .sort((a, b) => {
         const aStart = a.name.toLowerCase().startsWith(ql) ? 0 : 1;
         const bStart = b.name.toLowerCase().startsWith(ql) ? 0 : 1;
@@ -185,7 +183,7 @@ watch(searchQuery, (val) => {
   activeIndex.value = -1;
   const q = val.trim();
   if (q.length < 1) {
-    requestId++; // batalkan response yang masih jalan
+    requestId++;
     productSuggestions.value = [];
     isSuggestLoading.value = false;
     isSuggestOpen.value = false;
@@ -313,11 +311,8 @@ const handleLogout = () => {
 <template>
   <header class="w-full bg-black shadow-md border-b border-zinc-800 sticky top-0 z-40">
     <div class="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
-      <!--
-        Mobile : baris 1 = logo + aksi, baris 2 = search (lebar penuh)
-        Desktop: satu baris = logo | search | aksi
-      -->
-      <div class="flex flex-wrap md:flex-nowrap items-center gap-x-3 gap-y-2 pt-2.5 pb-2 md:py-2 md:h-20">
+      <div
+        class="flex flex-wrap md:flex-nowrap items-center justify-between gap-x-3 md:gap-x-4 gap-y-2 pt-2.5 pb-2 md:py-2 md:h-20">
         <!-- Logo -->
         <router-link to="/" class="order-1 flex-shrink-0 flex items-center md:h-full">
           <img :src="logoMM" alt="Minuman Murah Logo" class="h-9 md:h-12 w-auto object-contain brightness-110" />
