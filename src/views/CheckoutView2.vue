@@ -14,9 +14,6 @@ import { useVoucher } from "../composables/useVoucher";
 
 const router = useRouter();
 
-/* ============================================================
- * STATE: CART API
- * ============================================================ */
 const cartItems = ref([]);
 const outOfStockItems = ref([]);
 const cartCalculation = ref({
@@ -58,32 +55,17 @@ const clearCartData = async () => {
   }
 };
 
-/* ============================================================
- * FITUR: GRATIS ONGKIR PER ITEM
- *
- * Aturan (dikonfirmasi): independen per item. Kalau sebuah item
- * punya is_freeshiping === "ACTIVE", berat item tersebut TIDAK
- * ikut dihitung ke berat pengiriman toko (sehingga tidak menambah
- * ongkir). Item lain di toko yang sama yang TIDAK gratis ongkir
- * tetap dihitung berat & ongkirnya seperti biasa.
- * ============================================================ */
+const removeOrderedItemsFromCart = async (variantIds) => {
+  await Promise.allSettled(
+    variantIds.map((variantId) => cartService.removeCartItem(variantId)),
+  );
+  cartItems.value = [];
+  window.dispatchEvent(new Event("cart-updated"));
+};
+
 const isItemFreeShipping = (item) => item.is_freeshiping === "ACTIVE";
 
-/* ============================================================
- * FITUR: STOK PER VARIANT+TOKO UNTUK ITEM DI CART
- *
- * GET /cart tidak mengembalikan info stok per item (lihat
- * routes/api.php: CartController::index tidak punya field itu).
- * Satu-satunya endpoint publik yang punya data stok toko adalah
- * GET /products/{slug} (ProductController::show) — endpoint yang
- * sama dipakai di ProductDetail.vue lewat productService.getProductBySlug.
- *
- * Jadi di sini kita fetch produk untuk setiap product_slug UNIK
- * yang ada di cart (dedup, supaya tidak fetch berkali-kali untuk
- * produk yang sama), lalu simpan sisa stok bersih per kombinasi
- * variant_id + store_id ke dalam sebuah map.
- * ============================================================ */
-const stockMap = ref({}); // key: `${variant_id}_${store_id}` -> sisa stok bersih toko
+const stockMap = ref({});
 const isLoadingStock = ref(false);
 
 const getAvailableQty = (storeRelation) => {
@@ -140,23 +122,12 @@ const fetchStockForCartItems = async () => {
   }
 };
 
-// Sisa stok bersih toko untuk item cart tertentu.
-// null berarti data stoknya belum/tidak berhasil dimuat (fail-open agar
-// tidak mengunci tombol kalau memang datanya belum tersedia); jika sudah
-// dimuat, batas ini dipakai untuk membatasi tombol tambah qty.
 const remainingStockForItem = (item) => {
   const storeId = item.store_id ?? item.store?.id ?? null;
   const key = stockKey(item.variant_id, storeId);
   return key in stockMap.value ? stockMap.value[key] : null;
 };
 
-/* ============================================================
- * FITUR: TAMBAH / KURANG QUANTITY & HAPUS ITEM DARI CHECKOUT
- * Menggunakan cartService.updateCartItem / removeCartItem yang
- * sama seperti di CartDrawer.vue. Setelah berhasil, cart di-refetch
- * agar subtotal, ongkir per toko, proteksi, dan voucher (yang semua
- * reaktif terhadap cartItems / groupedByStore) ikut ter-update.
- * ============================================================ */
 const updatingQtyVariantId = ref(null);
 
 const changeItemQuantity = async (item, delta) => {
@@ -166,8 +137,6 @@ const changeItemQuantity = async (item, delta) => {
   if (newQty < 1) return;
   if (updatingQtyVariantId.value !== null) return;
 
-  // Guard di frontend: cegah nambah melebihi sisa stok bersih toko,
-  // kalau data stoknya sudah berhasil dimuat.
   if (delta > 0) {
     const remaining = remainingStockForItem(item);
     if (remaining !== null && newQty > remaining) {
@@ -193,7 +162,6 @@ const changeItemQuantity = async (item, delta) => {
       err.response?.data?.message ||
       "Jumlah melebihi stok yang tersedia atau terjadi kesalahan.";
     showToast("error", "Gagal Memperbarui Jumlah", message);
-    // Sinkronkan ulang data cart & stok agar tampilan sesuai kondisi terbaru di server
     await fetchCartData();
     await fetchStockForCartItems();
   } finally {
@@ -236,19 +204,6 @@ const subtotal = computed(() => {
   }, 0);
 });
 
-/* ============================================================
- * ALGORITMA: PENGELOMPOKAN PRODUK PER TOKO
- * Setiap toko punya subtotal, total berat, dan ongkir sendiri.
- *
- * GRATIS ONGKIR PER ITEM:
- * - totalWeight  : berat SEMUA item di toko (dipakai untuk info umum).
- * - billableWeight: berat item yang TIDAK gratis ongkir saja — ini yang
- *                   dipakai untuk menghitung ongkos kirim ke API.
- * - allFreeShipping     : true kalau SEMUA item di toko ini gratis ongkir
- *                         (maka ongkir toko = 0, tidak perlu fetch API).
- * - hasFreeShippingItem : true kalau ADA setidaknya 1 item gratis ongkir
- *                         di toko ini (dipakai untuk info/badge di UI).
- * ============================================================ */
 const groupedByStore = computed(() => {
   const groups = new Map();
 
@@ -282,7 +237,6 @@ const groupedByStore = computed(() => {
     group.totalWeight += weight;
     group.subtotal += price * qty;
 
-    // Item gratis ongkir tidak menyumbang berat yang dihitung untuk ongkir
     if (!isItemFreeShipping(item)) {
       group.billableWeight += weight;
     }
@@ -297,7 +251,6 @@ const groupedByStore = computed(() => {
   return Array.from(groups.values());
 });
 
-// Ringkasan gratis ongkir untuk ditampilkan di UI per toko
 const freeShippingSummary = (group) => {
   const freeCount = group.items.filter(isItemFreeShipping).length;
   const totalCount = group.items.length;
@@ -306,9 +259,6 @@ const freeShippingSummary = (group) => {
   return `${freeCount} dari ${totalCount} produk gratis ongkir`;
 };
 
-/* ============================================================
- * STATE: USER & ADDRESS
- * ============================================================ */
 const userData = ref(null);
 const isLoadingUser = ref(false);
 
@@ -318,12 +268,10 @@ const activeAddressId = ref(null);
 const tempSelectedAddressId = ref(null);
 const showSelectModal = ref(false);
 
-// --- STATE MODAL TAMBAH ALAMAT ---
 const showAddModal = ref(false);
 const isSavingAddress = ref(false);
 const labelOptions = ["Rumah", "Kantor", "Apartement", "Kost"];
 
-// Options Wilayah
 const provinces = ref([]);
 const cities = ref([]);
 const districts = ref([]);
@@ -361,11 +309,6 @@ const addressForm = reactive({
   sub_district_label: "",
 });
 
-/* ============================================================
- * ALGORITMA: ONGKIR PER TOKO
- * shippingPerStore disimpan per store_key, masing-masing punya
- * agent/service/cost/etd + daftar opsi kurir (options) untuk modal.
- * ============================================================ */
 const shippingPerStore = ref({});
 const isFetchingShipping = ref(false);
 const shippingError = ref(null);
@@ -375,34 +318,18 @@ const editingShippingStoreKey = ref(null);
 const allCouriers =
   "jne:sicepat:ide:sap:jnt:ninja:tiki:lion:anteraja:pos:ncs:rex:rpx:sentral:star:wahana";
 
-// --- STATE PRODUCT PROTECTION ---
 const protectionConfig = ref({
   fee: 10,
   description: "Melindungi barang dari kerusakan & kehilangan.",
 });
 
-/* ============================================================
- * ALGORITMA: PROTEKSI PER ITEM
- * Diganti dari satu checkbox global menjadi per variant_id.
- * ============================================================ */
 const protectionPerItem = ref({});
 
-/* ============================================================
- * ALGORITMA: CATATAN PER ITEM
- * ============================================================ */
 const notePerItem = ref({});
 const showNoteModal = ref(false);
 const currentNoteVariantId = ref(null);
 const noteDraft = ref("");
 
-/* ============================================================
- * VOUCHER — memakai composable useVoucher()
- * useVoucher menghandle: daftar voucher yang applicable
- * (fetchApplicableVouchers), validasi kode voucher manual
- * (validateVoucherCode), dan penghapusan voucher (removeVoucher).
- * Discount tidak lagi dihitung manual di komponen ini — nilainya
- * datang langsung dari response backend (discountAmount).
- * ============================================================ */
 const showVoucherModal = ref(false);
 const voucherCode = ref("");
 const isApplyingVoucher = ref(false);
@@ -418,25 +345,85 @@ const {
   removeVoucher,
 } = useVoucher(subtotal, () => cartItems.value.map((item) => item.variant_id));
 
-// Alias supaya seluruh template (yang memakai nama `discount`) tetap jalan
-// tanpa perlu diganti satu-satu. Nilainya sepenuhnya berasal dari backend.
 const discount = discountAmount;
 
-// --- STATE PAYMENT ---
-// NOTE: apiServices.js Anda saat ini hanya punya orderService.payOrderMidtrans,
-// jadi metode pembayaran dikunci ke Midtrans. Kalau nanti backend menambah
-// endpoint Xendit (mis. orderService.payOrderXendit), tinggal tambahkan lagi
-// di sini mengikuti pola payOrderMidtrans.
-const PAYMENT_GATEWAY = "midtrans";
+const PAYMENT_GATEWAY = "xendit";
+
+/* ---------------- MIDTRANS (di-comment) ----------------
+const paymentGateways = [
+  { value: "midtrans", label: "Midtrans", desc: "Kartu, e-wallet, VA, dll." },
+  { value: "xendit", label: "Xendit", desc: "VA, e-wallet, QRIS, dll." },
+];
+const selectedGateway = ref("midtrans");
+
+// Default keduanya aktif (fail-open); backend tetap yang memvalidasi.
+const gatewayActive = ref({ midtrans: true, xendit: true });
+
+const enabledGateways = computed(() =>
+  paymentGateways.filter((g) => gatewayActive.value[g.value]),
+);
+
+const fetchGatewayConfig = async () => {
+  try {
+    const [mid, xen] = await Promise.allSettled([
+      publicConfigService.getMidtransConfig(),
+      publicConfigService.getXenditConfig(),
+    ]);
+
+    const isActive = (result) => {
+      // Gagal fetch -> jangan sembunyikan gateway (fail-open)
+      if (result.status !== "fulfilled") return true;
+      const d = result.value.data?.data || result.value.data;
+      const flag = d?.is_active ?? d?.active ?? d?.status;
+      // Field tidak ada -> anggap aktif. Sesuaikan dengan response aslinya.
+      if (flag === undefined || flag === null) return true;
+      return (
+        flag === true ||
+        flag === 1 ||
+        flag === "1" ||
+        String(flag).toLowerCase() === "true" ||
+        String(flag).toLowerCase() === "active"
+      );
+    };
+
+    gatewayActive.value = {
+      midtrans: isActive(mid),
+      xendit: isActive(xen),
+    };
+  } catch (err) {
+    console.error("Gagal memuat konfigurasi payment gateway:", err);
+  }
+};
+---------------- END MIDTRANS ---------------- */
+
 const isProcessingPayment = ref(false);
 const errorMessage = ref("");
 
-/* ============================================================
- * TOAST NOTIFICATION (pengganti alert() browser)
- * ============================================================ */
+const pendingOrder = ref(null);
+
+const orderSignature = computed(() =>
+  JSON.stringify({
+    items: cartItems.value.map((item) => [
+      item.variant_id,
+      item.qty || item.quantity || 1,
+      !!protectionPerItem.value[item.variant_id],
+      notePerItem.value[item.variant_id] || "",
+    ]),
+    address: selectedAddress.value?.id ?? null,
+    shipping: groupedByStore.value.map((g) => [
+      g.store_key,
+      shippingPerStore.value[g.store_key]?.agent || null,
+      shippingPerStore.value[g.store_key]?.service || null,
+      shippingPerStore.value[g.store_key]?.cost || 0,
+    ]),
+    voucher: selectedVoucher.value?.id ?? null,
+    discount: discount.value,
+  }),
+);
+
 const toast = reactive({
   show: false,
-  type: "info", // 'success' | 'error' | 'warning' | 'info'
+  type: "info",
   title: "",
   message: "",
 });
@@ -487,9 +474,6 @@ const closeToast = () => {
   toast.show = false;
 };
 
-/* ============================================================
- * COMPUTED PROPERTIES
- * ============================================================ */
 const selectedAddress = computed(() => {
   return (
     addresses.value.find((a) => a.id === activeAddressId.value) ||
@@ -536,9 +520,6 @@ const currentStoreShippingOptions = computed(() => {
   return shippingPerStore.value[editingShippingStoreKey.value]?.options || [];
 });
 
-/* ============================================================
- * API FETCHERS WILAYAH
- * ============================================================ */
 const fetchProvinces = async () => {
   try {
     const res = await shippingService.getProvinces();
@@ -636,9 +617,6 @@ const onSubDistrictChange = () => {
   }
 };
 
-/* ============================================================
- * API FETCHERS (USER & ADDRESS)
- * ============================================================ */
 const fetchUserProfile = async () => {
   isLoadingUser.value = true;
   try {
@@ -754,12 +732,6 @@ const fetchProtectionConfig = async () => {
   }
 };
 
-/* ============================================================
- * VOUCHER — pemakaian composable
- * Kode manual & pemilihan dari daftar keduanya lewat
- * validateVoucherCode(code), yang sudah menghitung discountAmount
- * dari response backend.
- * ============================================================ */
 const applyVoucherCode = async () => {
   if (cartItems.value.length === 0 || !voucherCode.value) return;
 
@@ -905,9 +877,6 @@ watch(showShippingModal, (open) => {
   if (!open) editingShippingStoreKey.value = null;
 });
 
-/* ============================================================
- * ALGORITMA: PROTEKSI & CATATAN PER ITEM
- * ============================================================ */
 const toggleProtectionForItem = (variantId) => {
   protectionPerItem.value = {
     ...protectionPerItem.value,
@@ -933,9 +902,6 @@ const saveNote = () => {
   currentNoteVariantId.value = null;
 };
 
-/* ============================================================
- * HANDLERS ALAMAT
- * ============================================================ */
 const openSelectAddressModal = () => {
   tempSelectedAddressId.value = activeAddressId.value;
   showSelectModal.value = true;
@@ -947,8 +913,9 @@ const saveSelectedAddress = () => {
 };
 
 /* ============================================================
- * MIDTRANS SDK LOADER
+ * MIDTRANS (di-comment, tidak dihapus)
  * ============================================================ */
+/* ---------------- MIDTRANS SDK LOADER + PAY ----------------
 const loadSnapScript = (clientKey = "Mid-client-5LwdNZy4xj2fsl_X") => {
   return new Promise((resolve, reject) => {
     if (window.snap) {
@@ -983,7 +950,7 @@ const payWithMidtrans = async (orderId, onDone) => {
   await loadSnapScript();
 
   const resPay = await orderService.payOrderMidtrans(orderId, {
-    payment_method: PAYMENT_GATEWAY,
+    payment_method: "midtrans",
   });
   const snapToken =
     resPay?.data?.data?.snap_token ||
@@ -1035,13 +1002,36 @@ const payWithMidtrans = async (orderId, onDone) => {
     },
   });
 };
+---------------- END MIDTRANS ---------------- */
+
+const payWithXendit = async (orderId, variantIdsToRemove) => {
+  const origin = window.location.origin;
+
+  const resPay = await orderService.payOrderXendit(orderId, {
+    payment_method: PAYMENT_GATEWAY,
+    success_redirect_url: `${origin}/account/orders?tab=paid`,
+    failure_redirect_url: `${origin}/account/orders?tab=unpaid`,
+  });
+
+  const d = resPay?.data?.data || resPay?.data || resPay;
+  const invoiceUrl =
+    d?.invoice_url || d?.checkout_url || d?.payment_url || d?.url;
+
+  if (!invoiceUrl) {
+    throw new Error("Gagal mendapatkan link pembayaran Xendit dari server.");
+  }
+
+  await removeOrderedItemsFromCart(variantIdsToRemove);
+  pendingOrder.value = null;
+
+  window.location.href = invoiceUrl;
+};
 
 const canSubmit = computed(() => {
   if (cartItems.value.length === 0) return false;
   if (!selectedAddress.value) return false;
 
   for (const group of groupedByStore.value) {
-    // Toko yang seluruh itemnya gratis ongkir tidak butuh kurir dipilih
     if (group.allFreeShipping) continue;
     const c = shippingPerStore.value[group.store_key];
     if (!c?.agent) return false;
@@ -1049,10 +1039,6 @@ const canSubmit = computed(() => {
   return true;
 });
 
-// Menggabungkan info ongkir dari semua toko menjadi satu ringkasan
-// courier untuk dikirim ke /checkout/create (backend hanya menerima
-// satu objek courier per order). Total biaya tetap akurat (dijumlah),
-// sementara nama agent/service digabung jadi deskripsi yang mudah dibaca.
 const buildCombinedCourier = () => {
   const groups = groupedByStore.value;
   const totalCost = totalShippingCost.value;
@@ -1080,7 +1066,6 @@ const buildCombinedCourier = () => {
     };
   }
 
-  // Lebih dari satu toko: gabungkan jadi satu deskripsi ongkir gabungan
   const perStoreDesc = groups
     .map((group) => {
       if (group.allFreeShipping) {
@@ -1126,75 +1111,103 @@ const handleCheckout = async () => {
     }
   }
 
+  const addr = selectedAddress.value;
+
+  const payerEmail = userData.value?.email || addr.email;
+  if (!payerEmail) {
+    alert(
+      isLoadingUser.value
+        ? "Data akun masih dimuat, coba lagi sebentar."
+        : "Email akun tidak ditemukan. Silakan login ulang atau lengkapi email di alamat pengiriman.",
+    );
+    return;
+  }
+
   isProcessingPayment.value = true;
   errorMessage.value = "";
 
-  const addr = selectedAddress.value;
-
   try {
-    const combinedCourier = buildCombinedCourier();
+    const variantIdsToRemove = cartItems.value.map((item) => item.variant_id);
+    let orderId = null;
 
-    const createOrderPayload = {
-      data: {
-        billing: {
-          address: addr.address,
-          city: addr.city,
-          city_id: addr.city_id,
-          district_id: addr.district_id,
-          email: userData.value?.email || "user@example.com",
-          first_name: addr.first_name || userData.value?.name || "Customer",
-          label_place: addr.label_place || "Rumah",
-          last_name: addr.last_name || "",
-          note_address: addr.note_address || "",
-          phone: addr.phone || userData.value?.phone || "",
-          postal_code: addr.postal_code || "",
-          province: addr.province,
-          province_id: addr.province_id,
-          same_as_shipping: true,
-          sub_district_id: addr.sub_district_id,
+    if (
+      pendingOrder.value &&
+      pendingOrder.value.signature === orderSignature.value
+    ) {
+      orderId = pendingOrder.value.id;
+    } else {
+      const combinedCourier = buildCombinedCourier();
+
+      const createOrderPayload = {
+        data: {
+          billing: {
+            address: addr.address,
+            city: addr.city,
+            city_id: addr.city_id,
+            district_id: addr.district_id,
+            email: payerEmail,
+            first_name: addr.first_name || userData.value?.name || "Customer",
+            label_place: addr.label_place || "Rumah",
+            last_name: addr.last_name || "",
+            note_address: addr.note_address || "",
+            phone: addr.phone || userData.value?.phone || "",
+            postal_code: addr.postal_code || "",
+            province: addr.province,
+            province_id: addr.province_id,
+            same_as_shipping: true,
+            sub_district_id: addr.sub_district_id,
+          },
+          courier: combinedCourier,
+          delivery_order_note: null,
+          invoice_note: null,
+          payment_method: PAYMENT_GATEWAY,
+          products: cartItems.value.map((item) => ({
+            is_protected: protectionPerItem.value[item.variant_id] ? 1 : 0,
+            note: notePerItem.value[item.variant_id] || null,
+            qty: item.qty || item.quantity || 1,
+            variant_id: item.variant_id,
+          })),
+          shipping: {
+            address: addr.address,
+            city: addr.city,
+            city_id: addr.city_id || 136,
+            district_id: addr.district_id || 0,
+            email: payerEmail,
+            first_name: addr.first_name || userData.value?.name || "Customer",
+            label_place: addr.label_place || "Rumah",
+            last_name: addr.last_name || "",
+            note_address: addr.note_address || "",
+            phone: addr.phone || userData.value?.phone || "",
+            postal_code: addr.postal_code || "",
+            province: addr.province || "",
+            province_id: addr.province_id || 0,
+            sub_district_id: addr.sub_district_id || 0,
+          },
+          use_points: false,
+          voucher_discount: discount.value,
+          voucher_id: selectedVoucher.value?.id || null,
         },
-        courier: combinedCourier,
-        delivery_order_note: null,
-        invoice_note: null,
-        payment_method: PAYMENT_GATEWAY,
-        // Seluruh produk dari semua toko dikirim dalam satu array (satu order)
-        products: cartItems.value.map((item) => ({
-          is_protected: protectionPerItem.value[item.variant_id] ? 1 : 0,
-          note: notePerItem.value[item.variant_id] || null,
-          qty: item.qty || item.quantity || 1,
-          variant_id: item.variant_id,
-        })),
-        shipping: {
-          address: addr.address,
-          city: addr.city,
-          city_id: addr.city_id || 136,
-          district_id: addr.district_id || 0,
-          email: userData.value?.email || "user@example.com",
-          first_name: addr.first_name || userData.value?.name || "Customer",
-          label_place: addr.label_place || "Rumah",
-          last_name: addr.last_name || "",
-          note_address: addr.note_address || "",
-          phone: addr.phone || userData.value?.phone || "",
-          postal_code: addr.postal_code || "",
-          province: addr.province || "",
-          province_id: addr.province_id || 0,
-          sub_district_id: addr.sub_district_id || 0,
-        },
-        use_points: false,
-        voucher_discount: discount.value,
-        voucher_id: selectedVoucher.value?.id || null,
-      },
-    };
+      };
 
-    const resOrder = await orderService.createOrder(createOrderPayload);
-    const orderId =
-      resOrder.data?.data?.order?.id ||
-      resOrder.data?.order?.id ||
-      resOrder.data?.id;
+      const resOrder = await orderService.createOrder(createOrderPayload);
+      orderId =
+        resOrder.data?.data?.order?.id ||
+        resOrder.data?.order?.id ||
+        resOrder.data?.id;
 
-    if (!orderId) throw new Error("Order ID tidak ditemukan.");
+      if (!orderId) throw new Error("Order ID tidak ditemukan.");
+      pendingOrder.value = { id: orderId, signature: orderSignature.value };
+    }
 
-    await payWithMidtrans(orderId, clearCartData);
+    await payWithXendit(orderId, variantIdsToRemove);
+
+    /* ---------------- MIDTRANS (di-comment) ----------------
+    if (selectedGateway.value === "xendit") {
+      await payWithXendit(orderId, variantIdsToRemove);
+    } else {
+      await payWithMidtrans(orderId, clearCartData);
+    }
+    ---------------- END MIDTRANS ---------------- */
   } catch (err) {
     console.error("Checkout error:", err);
     errorMessage.value =
@@ -1205,9 +1218,6 @@ const handleCheckout = async () => {
   }
 };
 
-/* ============================================================
- * FORMAT HELPER
- * ============================================================ */
 const formatPrice = (price) => {
   return new Intl.NumberFormat("id-ID", {
     style: "currency",
@@ -1216,9 +1226,6 @@ const formatPrice = (price) => {
   }).format(price || 0);
 };
 
-/* ============================================================
- * WATCHERS & LIFECYCLE
- * ============================================================ */
 watch(
   selectedAddress,
   (newAddress) => {
@@ -1235,19 +1242,31 @@ watch(groupedByStore, () => {
   }
 });
 
-// Voucher butuh product_ids dari cart, jadi baru di-fetch setelah
-// cartItems terisi (bukan bersamaan dengan fetchCartData yang async).
 watch(cartItems, (items) => {
   if (items.length > 0) {
     fetchApplicableVouchers();
   }
 });
 
+/* ---------------- MIDTRANS (di-comment) ----------------
+// Kalau gateway yang dipilih dimatikan admin, pindah ke yang masih aktif
+watch(
+  enabledGateways,
+  (list) => {
+    if (list.length && !list.some((g) => g.value === selectedGateway.value)) {
+      selectedGateway.value = list[0].value;
+    }
+  },
+  { immediate: true },
+);
+---------------- END MIDTRANS ---------------- */
+
 onMounted(async () => {
+  // fetchGatewayConfig();   // MIDTRANS/gateway toggle (di-comment)
   fetchUserProfile();
   fetchAddresses();
   fetchProtectionConfig();
-  loadSnapScript();
+  // loadSnapScript();       // MIDTRANS (di-comment)
   await fetchCartData();
   await fetchStockForCartItems();
 });
@@ -1677,6 +1696,60 @@ onMounted(async () => {
               </div>
             </div>
           </div>
+
+          <!-- METODE PEMBAYARAN (langsung Xendit) -->
+          <!-- <div
+            class="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 space-y-3"
+          >
+            <h2 class="text-sm font-bold text-gray-900">Metode Pembayaran</h2>
+
+            <div
+              class="p-4 rounded-xl border border-[#E25C38] bg-[#FFF8F6] flex items-start gap-3"
+            >
+              <span class="text-lg">💳</span>
+              <div>
+                <p class="text-sm font-bold text-gray-900">Xendit</p>
+                <p class="text-xs text-gray-500 mt-0.5">
+                  VA, e-wallet, QRIS, dll. Kamu akan diarahkan ke halaman
+                  pembayaran Xendit setelah menekan "Bayar Sekarang".
+                </p>
+              </div>
+            </div> -->
+
+          <!-- MIDTRANS (di-comment): pilihan metode pembayaran lama
+            <div
+              v-if="enabledGateways.length > 0"
+              class="grid grid-cols-1 sm:grid-cols-2 gap-3"
+            >
+              <label
+                v-for="g in enabledGateways"
+                :key="g.value"
+                :class="[
+                  'p-4 rounded-xl border cursor-pointer transition-all flex items-start gap-3',
+                  selectedGateway === g.value
+                    ? 'border-[#E25C38] bg-[#FFF8F6]'
+                    : 'border-gray-200 hover:border-gray-300',
+                ]"
+              >
+                <input
+                  type="radio"
+                  name="payment-gateway"
+                  :value="g.value"
+                  v-model="selectedGateway"
+                  class="mt-1 accent-[#E25C38] cursor-pointer"
+                />
+                <div>
+                  <p class="text-sm font-bold text-gray-900">{{ g.label }}</p>
+                  <p class="text-xs text-gray-500 mt-0.5">{{ g.desc }}</p>
+                </div>
+              </label>
+            </div>
+
+            <p v-else class="text-sm text-gray-400">
+              Saat ini belum ada metode pembayaran yang tersedia.
+            </p>
+            -->
+          <!-- </div> -->
         </div>
 
         <!-- Kolom Kanan: Ringkasan Pesanan -->

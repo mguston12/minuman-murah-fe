@@ -80,6 +80,7 @@ export const publicConfigService = {
   getTopBannerConfig: () => api.get("/public-configs/topbanner"),
   getProtection: () => api.get("/public-configs/product_protection"),
   getMidtransConfig: () => api.get("/public-configs/midtrans"),
+  getXenditConfig: () => api.get("/public-configs/xendit"),
 };
 
 // Alias / Export Tambahan untuk Kompatibilitas Import
@@ -128,6 +129,8 @@ export const orderService = {
   createOrder: (payload) => api.post("/checkout/create", payload),
   payOrderMidtrans: (orderId, payload) =>
     api.post(`/orders/${orderId}/pay/midtrans`, payload),
+  payOrderXendit: (orderId, payload) =>
+    api.post(`/orders/${orderId}/pay/xendit`, payload),
   getPaymentStatus: (orderId) => api.get(`/orders/${orderId}/payment-status`),
   cancelOrder: (orderId, reason) =>
     api.post(`/orders/${orderId}/cancel`, { reason }),
