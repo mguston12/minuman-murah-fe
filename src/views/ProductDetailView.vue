@@ -547,7 +547,7 @@ const filteredReviews = computed(() => {
         <nav class="text-xs text-gray-500 flex items-center gap-2">
           <router-link to="/" class="hover:text-black">Beranda</router-link>
           <span>&rsaquo;</span>
-          <router-link to="/oroducts" class="hover:text-black cursor-pointer"
+          <router-link to="/products" class="hover:text-black cursor-pointer"
             >Produk</router-link
           >
           <span>&rsaquo;</span>
@@ -560,34 +560,11 @@ const filteredReviews = computed(() => {
         <section class="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
           <!-- Left Column: Image Gallery + Description -->
           <div class="space-y-6">
-            <div class="flex gap-3 items-start">
-              <!-- Side Thumbnails -->
-              <div
-                v-if="product.images && product.images.length > 0"
-                class="flex flex-col gap-2 max-h-[480px] overflow-y-auto pr-1 no-scrollbar w-16 sm:w-20 shrink-0"
-              >
-                <button
-                  v-for="img in product.images"
-                  :key="img.id"
-                  @click="selectedImage = img.path"
-                  :class="[
-                    'w-full aspect-[3/4] rounded-lg overflow-hidden border-2 transition-all shrink-0',
-                    selectedImage === img.path
-                      ? 'border-[#E25C38]'
-                      : 'border-transparent opacity-70 hover:opacity-100',
-                  ]"
-                >
-                  <img
-                    :src="img.path"
-                    :alt="product.name"
-                    class="w-full h-full object-cover"
-                  />
-                </button>
-              </div>
-
+            <!-- Gallery: mobile = kolom (gambar utama dulu, thumbnail di bawah), sm+ = baris (thumbnail di kiri) -->
+            <div class="flex flex-col sm:flex-row gap-3 items-start">
               <!-- Main Image -->
               <div
-                class="relative flex-1 bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100 aspect-[3/4] max-h-[480px]"
+                class="relative w-full sm:flex-1 order-1 sm:order-2 bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100 aspect-square sm:aspect-[3/4] sm:max-h-[480px]"
               >
                 <img
                   :src="
@@ -603,6 +580,30 @@ const filteredReviews = computed(() => {
                 >
                   21+
                 </div>
+              </div>
+
+              <!-- Thumbnails: horizontal di bawah (mobile), vertikal di kiri (sm+) -->
+              <div
+                v-if="product.images && product.images.length > 0"
+                class="order-2 sm:order-1 flex flex-row sm:flex-col gap-2 w-full sm:w-20 sm:max-h-[480px] overflow-x-auto sm:overflow-x-visible sm:overflow-y-auto no-scrollbar shrink-0"
+              >
+                <button
+                  v-for="img in product.images"
+                  :key="img.id"
+                  @click="selectedImage = img.path"
+                  :class="[
+                    'w-16 sm:w-full aspect-[3/4] rounded-lg overflow-hidden border-2 transition-all shrink-0',
+                    selectedImage === img.path
+                      ? 'border-[#E25C38]'
+                      : 'border-transparent opacity-70 hover:opacity-100',
+                  ]"
+                >
+                  <img
+                    :src="img.path"
+                    :alt="product.name"
+                    class="w-full h-full object-cover"
+                  />
+                </button>
               </div>
             </div>
 
