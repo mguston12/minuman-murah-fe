@@ -156,7 +156,7 @@ onMounted(() => {
           <!-- STORE HOURS -->
           <div>
             <h4 class="font-bold text-white text-xs mb-1">STORE HOURS</h4>
-            <p class="text-xs text-gray-400">Mon-Sun: 10:00 - 22:00</p>
+            <p class="text-xs text-gray-400">Mon-Sun: 10:00 - 20:00</p>
           </div>
         </div>
       </div>

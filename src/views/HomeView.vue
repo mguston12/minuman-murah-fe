@@ -368,9 +368,9 @@ const handleQuickView = (product) => {
         </div>
 
         <div v-else ref="categoryContainer"
-          class="flex gap-1 sm:gap-6 overflow-x-auto scrollbar-none scroll-smooth pb-2 -mx-1 px-1">
+          class="flex gap-1 sm:gap-6 overflow-x-auto overscroll-x-none scrollbar-none pb-2 -mx-1 px-1 snap-x snap-proximity">
           <router-link v-for="item in categories" :key="item.id" :to="`/products?category_ids=${item.id}`"
-            class="w-[calc(50%-8px)] sm:w-[calc(33.333%-11px)] md:w-[calc(20%-13px)] flex-shrink-0 bg-white rounded-2xl p-4 sm:p-5 flex flex-col items-center justify-center gap-3 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all group border border-gray-100/80">
+            class="snap-start w-[calc(50%-8px)] sm:w-[calc(33.333%-11px)] md:w-[calc(20%-13px)] flex-shrink-0 bg-white rounded-2xl p-4 sm:p-5 flex flex-col items-center justify-center gap-3 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all group border border-gray-100/80">
             <div class="w-16 h-16 sm:w-20 sm:h-20 rounded-full overflow-hidden flex-shrink-0 bg-gray-50">
               <img :src="item.image" :alt="item.name"
                 class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300" />
@@ -416,10 +416,10 @@ const handleQuickView = (product) => {
         </div>
 
         <div v-else ref="brandsContainer"
-          class="flex gap-4 overflow-x-auto scrollbar-none scroll-smooth pb-2 -mx-1 px-1">
+          class="flex gap-4 overflow-x-auto overscroll-x-none scrollbar-none pb-2 -mx-1 px-1 snap-x snap-proximity">
           <router-link v-for="brand in topBrands" :key="brand.id || brand.slug || brand.name"
             :to="`/products?brand_ids=${brand.id}`"
-            class="w-[calc(50%-8px)] sm:w-[calc(33.333%-11px)] md:w-[calc(20%-13px)] flex-shrink-0 aspect-[4/3] rounded-xl overflow-hidden border border-gray-100 bg-white p-4 flex items-center justify-center group shadow-sm hover:shadow-md transition-all">
+            class="snap-start w-[calc(50%-8px)] sm:w-[calc(33.333%-11px)] md:w-[calc(20%-13px)] flex-shrink-0 aspect-[4/3] rounded-xl overflow-hidden border border-gray-100 bg-white p-4 flex items-center justify-center group shadow-sm hover:shadow-md transition-all">
             <img :src="brand.logo" :alt="brand.name"
               class="max-w-full max-h-full object-contain group-hover:scale-105 transition-transform duration-300" />
           </router-link>
@@ -479,9 +479,9 @@ const handleQuickView = (product) => {
           </div>
 
           <div v-else :ref="(el) => setContainerRef(el, group.id)"
-            class="flex gap-4 overflow-x-auto scrollbar-none scroll-smooth pb-2 -mx-1 px-1">
+            class="flex gap-4 overflow-x-auto overscroll-x-none scrollbar-none pb-2 -mx-1 px-1 snap-x snap-proximity">
             <div v-for="product in group.products" :key="product.id"
-              class="w-[calc(50%-8px)] sm:w-[calc(33.333%-11px)] md:w-[calc(20%-13px)] flex-shrink-0">
+              class="snap-start w-[calc(50%-8px)] sm:w-[calc(33.333%-11px)] md:w-[calc(20%-13px)] flex-shrink-0">
               <ProductCard :product="product" @add-to-cart="handleAddToCart" @quick-view="handleQuickView" />
             </div>
           </div>
