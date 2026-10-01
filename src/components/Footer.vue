@@ -30,7 +30,7 @@ const whatsappUrl = computed(() => {
 // Data Navigasi Footer
 const footerNav = computed(() => ({
   bantuan: [
-    { name: "Tentang Kami", href: "/about-us", isExternal: false },
+    // { name: "Tentang Kami", href: "/about-us", isExternal: false },
     { name: "Privacy Policy", href: "/privacy-policy", isExternal: false },
     { name: "Terms and Conditions", href: "/terms-conditions", isExternal: false },
     { name: "Hubungi Kami", href: whatsappUrl.value, isExternal: true },
