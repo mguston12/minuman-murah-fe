@@ -30,18 +30,14 @@ const quantity = ref(1);
 const relatedProducts = ref([]);
 const loadingRelated = ref(false);
 
-// --- State Animasi Flying Cart ---
 const isAnimating = ref(false);
 const flyingStyle = ref({});
 
-// --- Data Ulasan Pembeli ---
 const reviews = ref([]);
 
-// --- State Qty yang sudah ada di keranjang untuk variant+store terpilih ---
 const cartQtyForSelection = ref(0);
 const loadingCartQty = ref(false);
 
-// --- State & Helper WhatsApp ---
 const phoneNumber = ref("");
 
 const sanitizedPhone = computed(() => phoneNumber.value.replace(/\D/g, ""));
@@ -84,7 +80,6 @@ const fetchPhoneNumber = async () => {
   }
 };
 
-// --- Helper Stok Bersih ---
 const getAvailableQty = (storeRelation) => {
   if (!storeRelation) return 0;
   const available =
@@ -92,7 +87,6 @@ const getAvailableQty = (storeRelation) => {
   return available > 0 ? available : 0;
 };
 
-// --- Ambil qty variant+store ini yang sudah ada di keranjang user ---
 const fetchCartQtyForSelection = async () => {
   if (!isLoggedIn.value || !selectedVariant.value) {
     cartQtyForSelection.value = 0;
@@ -125,7 +119,6 @@ const fetchCartQtyForSelection = async () => {
   }
 };
 
-// --- Fetch Data Produk Utama ---
 const fetchProductDetail = async () => {
   const slug = route.params.slug;
   if (!slug) return;
@@ -140,12 +133,10 @@ const fetchProductDetail = async () => {
     if (data?.success) {
       product.value = data.data.product;
 
-      // 1. Set varian pertama jika ada
       if (product.value.variants && product.value.variants.length > 0) {
         const firstVariant = product.value.variants[0];
         selectedVariant.value = firstVariant;
 
-        // Auto-select toko pertama yang stok bersihnya > 0
         if (
           firstVariant.stock_relations &&
           firstVariant.stock_relations.length > 0
@@ -162,16 +153,13 @@ const fetchProductDetail = async () => {
         selectedStore.value = null;
       }
 
-      // 2. Set Gambar Utama
       selectedImage.value =
         product.value.featured_image?.path ||
         product.value.images?.[0]?.path ||
         "";
 
-      // 3. Ambil Ulasan (jika ada)
       reviews.value = product.value.reviews || [];
 
-      // 4. Ambil qty yang sudah ada di cart untuk selection saat ini
       await fetchCartQtyForSelection();
 
       fetchRelatedProducts();
@@ -186,7 +174,6 @@ const fetchProductDetail = async () => {
   }
 };
 
-// Auto-select toko pertama yang ada stok bersih saat ganti varian & reset quantity
 watch(selectedVariant, async (newVariant) => {
   if (newVariant?.stock_relations && newVariant.stock_relations.length > 0) {
     const availableStore =
@@ -200,13 +187,11 @@ watch(selectedVariant, async (newVariant) => {
   await fetchCartQtyForSelection();
 });
 
-// Setiap ganti toko, qty di cart untuk kombinasi variant+store bisa berbeda
 watch(selectedStore, async () => {
   quantity.value = 1;
   await fetchCartQtyForSelection();
 });
 
-// --- Fetch Related Products ---
 const fetchRelatedProducts = async () => {
   loadingRelated.value = true;
   try {
@@ -239,7 +224,6 @@ watch(
   },
 );
 
-// --- Handlers ---
 const selectVariant = (variant) => {
   selectedVariant.value = variant;
   if (variant.image_path) {
@@ -257,7 +241,6 @@ const decrementQty = () => {
   if (quantity.value > 1) quantity.value--;
 };
 
-// --- Wishlist Handler ---
 const isInWishlist = computed(() => {
   if (!product.value) return false;
   if (typeof wishlistStore.hasItem === "function") {
@@ -282,7 +265,6 @@ const toggleWishlist = () => {
   }
 };
 
-// --- Cart Handlers & Flying Animation ---
 const handleAddToCart = async (event) => {
   if (!isLoggedIn.value) {
     router.push({ path: "/login", query: { redirect: route.fullPath } });
@@ -291,7 +273,6 @@ const handleAddToCart = async (event) => {
 
   if (!product.value || isAnimating.value) return;
 
-  // Guard terakhir sebelum hit API: cegah nambah melebihi sisa stok bersih
   if (remainingStock.value <= 0) {
     alert(
       cartQtyForSelection.value > 0
@@ -338,7 +319,6 @@ const handleAddToCart = async (event) => {
       );
     }
 
-    // Refresh qty cart untuk selection ini & reset quantity input
     await fetchCartQtyForSelection();
     quantity.value = 1;
 
@@ -376,7 +356,6 @@ const handleAddToCart = async (event) => {
       err.response?.data?.message ||
         "Terjadi kesalahan saat menambahkan ke keranjang.",
     );
-    // Sinkronkan ulang, kalau-kalau state stok sudah berubah di server
     await fetchCartQtyForSelection();
   }
 };
@@ -438,7 +417,6 @@ const handleBuyNow = async () => {
   }
 };
 
-// --- Computed Properties ---
 const activePrice = computed(() => {
   if (!product.value) return 0;
   const rawPrice = selectedVariant.value
@@ -459,7 +437,6 @@ const activeCategoryName = computed(() => {
   return product.value?.categories?.[0]?.category_name || "PRODUK";
 });
 
-// Hitung max stock berdasarkan stok bersih toko terpilih (stok fisik di toko)
 const maxStock = computed(() => {
   if (selectedStore.value) {
     return getAvailableQty(selectedStore.value);
@@ -484,7 +461,6 @@ const remainingStock = computed(() => {
   return Math.max(maxStock.value - cartQtyForSelection.value, 0);
 });
 
-// --- Review Computations ---
 const ratingCounts = computed(() => {
   const counts = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
   reviews.value.forEach((r) => {
@@ -514,12 +490,50 @@ const filteredReviews = computed(() => {
   const targetRating = parseInt(selectedFilter.value.charAt(0));
   return reviews.value.filter((r) => r.rating === targetRating);
 });
+
+const REVIEWS_PER_PAGE = 3;
+const currentReviewPage = ref(1);
+
+const totalReviewPages = computed(() =>
+  Math.max(1, Math.ceil(filteredReviews.value.length / REVIEWS_PER_PAGE)),
+);
+
+const paginatedReviews = computed(() => {
+  const start = (currentReviewPage.value - 1) * REVIEWS_PER_PAGE;
+  return filteredReviews.value.slice(start, start + REVIEWS_PER_PAGE);
+});
+
+const visiblePages = computed(() => {
+  const total = totalReviewPages.value;
+  const current = currentReviewPage.value;
+  const pages = [];
+  for (let i = 1; i <= total; i++) {
+    if (i === 1 || i === total || Math.abs(i - current) <= 1) {
+      pages.push(i);
+    } else if (pages[pages.length - 1] !== "...") {
+      pages.push("...");
+    }
+  }
+  return pages;
+});
+
+const goToReviewPage = (page) => {
+  if (typeof page !== "number" || page < 1 || page > totalReviewPages.value)
+    return;
+  currentReviewPage.value = page;
+  document
+    .getElementById("reviews-section")
+    ?.scrollIntoView({ behavior: "smooth", block: "start" });
+};
+
+watch([selectedFilter, reviews], () => {
+  currentReviewPage.value = 1;
+});
 </script>
 
 <template>
   <div class="w-full bg-[#FAF6F0] min-h-screen py-6 text-gray-800 font-sans">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-12">
-      <!-- Loading State -->
       <div v-if="loading" class="py-20 text-center space-y-4">
         <div
           class="inline-block w-8 h-8 border-4 border-[#E25C38] border-t-transparent rounded-full animate-spin"
@@ -527,7 +541,6 @@ const filteredReviews = computed(() => {
         <p class="text-sm text-gray-500 font-medium">Memuat detail produk...</p>
       </div>
 
-      <!-- Error State -->
       <div
         v-else-if="error"
         class="bg-red-50 border border-red-200 text-red-700 p-6 rounded-2xl text-center space-y-3"
@@ -541,9 +554,7 @@ const filteredReviews = computed(() => {
         </button>
       </div>
 
-      <!-- Main Content -->
       <template v-else-if="product">
-        <!-- Breadcrumb -->
         <nav class="text-xs text-gray-500 flex items-center gap-2">
           <router-link to="/" class="hover:text-black">Beranda</router-link>
           <span>&rsaquo;</span>
@@ -556,13 +567,9 @@ const filteredReviews = computed(() => {
           </span>
         </nav>
 
-        <!-- SECTION 1: Product Details Section -->
         <section class="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
-          <!-- Left Column: Image Gallery + Description -->
           <div class="space-y-6">
-            <!-- Gallery: mobile = kolom (gambar utama dulu, thumbnail di bawah), sm+ = baris (thumbnail di kiri) -->
             <div class="flex flex-col sm:flex-row gap-3 items-start">
-              <!-- Main Image -->
               <div
                 class="relative w-full sm:flex-1 order-1 sm:order-2 bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100 aspect-square sm:aspect-[3/4] sm:max-h-[480px]"
               >
@@ -582,7 +589,6 @@ const filteredReviews = computed(() => {
                 </div>
               </div>
 
-              <!-- Thumbnails: horizontal di bawah (mobile), vertikal di kiri (sm+) -->
               <div
                 v-if="product.images && product.images.length > 0"
                 class="order-2 sm:order-1 flex flex-row sm:flex-col gap-2 w-full sm:w-20 sm:max-h-[480px] overflow-x-auto sm:overflow-x-visible sm:overflow-y-auto no-scrollbar shrink-0"
@@ -607,7 +613,6 @@ const filteredReviews = computed(() => {
               </div>
             </div>
 
-            <!-- Product Description -->
             <div v-if="product.product_information" class="space-y-3">
               <h2 class="text-lg font-bold text-gray-900">Deskripsi</h2>
               <div
@@ -621,7 +626,6 @@ const filteredReviews = computed(() => {
             </div>
           </div>
 
-          <!-- Product Info & Actions (Sticky) -->
           <div class="space-y-4 lg:sticky lg:top-36 lg:self-start lg:z-10">
             <div class="flex items-start justify-between gap-4">
               <div>
@@ -637,7 +641,6 @@ const filteredReviews = computed(() => {
                 </h1>
               </div>
 
-              <!-- Wishlist Toggle Button -->
               <button
                 @click="toggleWishlist"
                 type="button"
@@ -690,7 +693,6 @@ const filteredReviews = computed(() => {
               <span class="text-gray-400">{{ reviews.length }} ulasan</span>
             </div>
 
-            <!-- Price -->
             <div class="flex items-center gap-2.5 pt-1 flex-wrap">
               <span class="text-2xl sm:text-3xl font-extrabold text-[#E25C38]">
                 Rp {{ activePrice.toLocaleString("id-ID") }}
@@ -710,7 +712,6 @@ const filteredReviews = computed(() => {
               </span>
             </div>
 
-            <!-- Variants -->
             <div
               v-if="product.variants && product.variants.length > 0"
               class="space-y-1.5 pt-1"
@@ -735,7 +736,6 @@ const filteredReviews = computed(() => {
               </div>
             </div>
 
-            <!-- Store Selection (Lokasi Toko) -->
             <div
               v-if="selectedVariant?.stock_relations?.length"
               class="space-y-1.5 pt-1"
@@ -787,7 +787,6 @@ const filteredReviews = computed(() => {
               </div>
             </div>
 
-            <!-- Quantity Counter -->
             <div class="space-y-1.5 pt-1">
               <label class="text-[11px] font-semibold text-gray-600 block"
                 >Jumlah</label
@@ -826,7 +825,6 @@ const filteredReviews = computed(() => {
               </p>
             </div>
 
-            <!-- Action Buttons -->
             <div class="grid grid-cols-3 gap-2 pt-2">
               <button
                 @click="handleAddToCart($event)"
@@ -843,7 +841,6 @@ const filteredReviews = computed(() => {
                 Beli Sekarang
               </button>
 
-              <!-- Buy Now via WhatsApp -->
               <a
                 v-if="phoneNumber"
                 :href="remainingStock > 0 ? whatsappUrl : undefined"
@@ -868,7 +865,6 @@ const filteredReviews = computed(() => {
               </a>
             </div>
 
-            <!-- Stock Status -->
             <p
               class="text-[11px] font-medium flex items-center gap-1.5 pt-1"
               :class="remainingStock > 0 ? 'text-emerald-600' : 'text-rose-600'"
@@ -891,8 +887,7 @@ const filteredReviews = computed(() => {
           </div>
         </section>
 
-        <!-- SECTION 2: Reviews Section -->
-        <section class="space-y-6 pt-6">
+        <section id="reviews-section" class="space-y-6 pt-6 scroll-mt-32">
           <h2 class="text-lg font-bold text-gray-900">Ulasan Pembeli</h2>
 
           <div
@@ -943,7 +938,6 @@ const filteredReviews = computed(() => {
             </div>
           </div>
 
-          <!-- Review Filters -->
           <div
             class="flex items-center gap-2 overflow-x-auto pb-2 no-scrollbar"
           >
@@ -962,7 +956,6 @@ const filteredReviews = computed(() => {
             </button>
           </div>
 
-          <!-- Review List -->
           <div class="space-y-4">
             <div
               v-if="filteredReviews.length === 0"
@@ -970,8 +963,9 @@ const filteredReviews = computed(() => {
             >
               Belum ada ulasan untuk kategori filter ini.
             </div>
+
             <div
-              v-for="review in filteredReviews"
+              v-for="review in paginatedReviews"
               :key="review.id"
               class="bg-white rounded-xl p-4 border border-gray-100 space-y-2"
             >
@@ -996,10 +990,55 @@ const filteredReviews = computed(() => {
                 {{ review.comment }}
               </p>
             </div>
+
+            <nav
+              v-if="totalReviewPages > 1"
+              class="flex items-center justify-center gap-1.5 pt-2"
+              aria-label="Pagination ulasan"
+            >
+              <button
+                type="button"
+                @click="goToReviewPage(currentReviewPage - 1)"
+                :disabled="currentReviewPage === 1"
+                class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-white border border-gray-200 text-gray-600 hover:bg-gray-50 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                &lsaquo; Prev
+              </button>
+
+              <template
+                v-for="(page, idx) in visiblePages"
+                :key="`${page}-${idx}`"
+              >
+                <span v-if="page === '...'" class="px-1 text-xs text-gray-400"
+                  >…</span
+                >
+                <button
+                  v-else
+                  type="button"
+                  @click="goToReviewPage(page)"
+                  :class="[
+                    'w-8 h-8 rounded-lg text-xs font-semibold transition-all border',
+                    currentReviewPage === page
+                      ? 'bg-[#E25C38] text-white border-[#E25C38]'
+                      : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50',
+                  ]"
+                >
+                  {{ page }}
+                </button>
+              </template>
+
+              <button
+                type="button"
+                @click="goToReviewPage(currentReviewPage + 1)"
+                :disabled="currentReviewPage === totalReviewPages"
+                class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-white border border-gray-200 text-gray-600 hover:bg-gray-50 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                Next &rsaquo;
+              </button>
+            </nav>
           </div>
         </section>
 
-        <!-- SECTION 3: Related Products -->
         <section v-if="relatedProducts.length > 0" class="space-y-4 pt-6">
           <h2 class="text-lg font-bold text-gray-900">Produk Serupa</h2>
           <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
@@ -1013,7 +1052,6 @@ const filteredReviews = computed(() => {
       </template>
     </div>
 
-    <!-- Flying Badge Element untuk Animasi -->
     <div
       v-if="isAnimating"
       :style="flyingStyle"
