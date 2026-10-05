@@ -5,3 +5,55 @@
   --font-poppins: "Poppins", sans-serif;
   --font-sans: "Poppins", sans-serif;
 }
+
+.description-content p {
+  margin: 0 0 0.75em 0;
+  line-height: 1.6;
+}
+
+.description-content p:last-child {
+  margin-bottom: 0;
+}
+
+.description-content strong {
+  font-weight: 700;
+  color: #111827;
+}
+
+.description-content a {
+  color: #E25C38;
+  text-decoration: underline;
+}
+
+.description-content h1,
+.description-content h2,
+.description-content h3 {
+  font-weight: 700;
+  margin: 0.75em 0 0.25em;
+}
+
+.description-content ul,
+.description-content ol {
+  padding-left: 1.5rem;
+  margin: 0.5em 0;
+}
+
+.description-content ul {
+  list-style: disc;
+}
+
+.description-content ol {
+  list-style: decimal;
+}
+
+.description-content blockquote {
+  border-left: 3px solid #e5e7eb;
+  padding-left: 1rem;
+  margin: 0.75em 0;
+  color: #6b7280;
+}
+
+.description-content img {
+  max-width: 100%;
+  height: auto;
+}

@@ -618,8 +618,12 @@ watch([selectedFilter, reviews], () => {
               <div
                 class="bg-white rounded-2xl p-5 sm:p-6 border border-gray-100/80 shadow-sm"
               >
-                <div
+                <!-- <div
                   class="prose prose-sm sm:prose-base max-w-none text-gray-600 leading-relaxed"
+                  v-html="sanitizedDescription"
+                ></div> -->
+                <div
+                  class="description-content max-w-none text-gray-600"
                   v-html="sanitizedDescription"
                 ></div>
               </div>
@@ -826,7 +830,7 @@ watch([selectedFilter, reviews], () => {
             </div>
 
             <div class="grid grid-cols-3 gap-2 pt-2">
-              <button
+              <!-- <button
                 @click="handleAddToCart($event)"
                 :disabled="remainingStock <= 0"
                 class="py-2.5 px-2 border border-gray-800 rounded-xl font-bold text-[11px] text-gray-900 bg-white hover:bg-gray-50 transition-all active:scale-95 flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
@@ -839,7 +843,7 @@ watch([selectedFilter, reviews], () => {
                 class="py-2.5 px-2 bg-[#14120E] hover:bg-black text-[#D4B26F] rounded-xl font-bold text-[11px] transition-colors active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Beli Sekarang
-              </button>
+              </button> -->
 
               <a
                 v-if="phoneNumber"

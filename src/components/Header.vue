@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, watch, onMounted, onUnmounted } from "vue";
+import { ref, computed, watch, nextTick, onMounted, onUnmounted } from "vue";
 import { useRouter } from "vue-router";
 import Cookies from "js-cookie";
 import logoMM from "../assets/logo-3.png";
@@ -24,6 +24,27 @@ const categories = ref([]);
 const brands = ref([]);
 const totalCount = ref(0);
 
+/* ===================== Scroll Kategori (panah kiri/kanan) ===================== */
+const navRef = ref(null);
+const canScrollLeft = ref(false);
+const canScrollRight = ref(false);
+
+const updateNavArrows = () => {
+  const el = navRef.value;
+  if (!el) return;
+  canScrollLeft.value = el.scrollLeft > 4;
+  canScrollRight.value = el.scrollLeft + el.clientWidth < el.scrollWidth - 4;
+};
+
+const scrollNav = (dir) => {
+  const el = navRef.value;
+  if (!el) return;
+  el.scrollBy({
+    left: dir === "next" ? el.clientWidth * 0.7 : -el.clientWidth * 0.7,
+    behavior: "smooth",
+  });
+};
+
 /* ===================== Kategori & Cart ===================== */
 const fetchCategories = async () => {
   try {
@@ -42,6 +63,10 @@ const fetchCategories = async () => {
       ...dynamicCategories,
       { name: "Guide", href: "/blog", isHighlight: false },
     ];
+
+    // Hitung ulang panah setelah kategori ter-render
+    await nextTick();
+    updateNavArrows();
   } catch (err) {
     console.error("Gagal memuat kategori navigasi:", err);
   }
@@ -119,11 +144,12 @@ const flatSuggestions = computed(() => [
 
 const brandOffset = computed(() => productSuggestions.value.length);
 const categoryOffset = computed(
-  () => productSuggestions.value.length + brandSuggestions.value.length
+  () => productSuggestions.value.length + brandSuggestions.value.length,
 );
 
 const hasSideColumn = computed(
-  () => brandSuggestions.value.length > 0 || categorySuggestions.value.length > 0
+  () =>
+    brandSuggestions.value.length > 0 || categorySuggestions.value.length > 0,
 );
 
 const formatPrice = (val) =>
@@ -286,6 +312,7 @@ onMounted(() => {
   document.addEventListener("click", handleClickOutside);
   window.addEventListener("cart-updated", handleCartUpdated);
   window.addEventListener("scroll", handleScroll, { passive: true });
+  window.addEventListener("resize", updateNavArrows);
 
   fetchCategories();
   fetchBrands();
@@ -297,6 +324,7 @@ onUnmounted(() => {
   document.removeEventListener("click", handleClickOutside);
   window.removeEventListener("cart-updated", handleCartUpdated);
   window.removeEventListener("scroll", handleScroll);
+  window.removeEventListener("resize", updateNavArrows);
 });
 
 const handleLogout = () => {
@@ -309,55 +337,109 @@ const handleLogout = () => {
 </script>
 
 <template>
-  <header class="w-full bg-black shadow-md border-b border-zinc-800 sticky top-0 z-40">
+  <header
+    class="w-full bg-black shadow-md border-b border-zinc-800 sticky top-0 z-40"
+  >
     <div class="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
       <div
-        class="flex flex-wrap md:flex-nowrap items-center justify-between gap-x-3 md:gap-x-4 gap-y-2 pt-2.5 pb-2 md:py-2 md:h-20">
+        class="flex flex-wrap md:flex-nowrap items-center justify-between gap-x-3 md:gap-x-4 gap-y-2 pt-2.5 pb-2 md:py-2 md:h-20"
+      >
         <!-- Logo -->
-        <router-link to="/" class="order-1 flex-shrink-0 flex items-center md:h-full">
-          <img :src="logoMM" alt="Minuman Murah Logo" class="h-9 md:h-12 w-auto object-contain brightness-110" />
+        <router-link
+          to="/"
+          class="order-1 flex-shrink-0 flex items-center md:h-full"
+        >
+          <img
+            :src="logoMM"
+            alt="Minuman Murah Logo"
+            class="h-9 md:h-12 w-auto object-contain brightness-110"
+          />
         </router-link>
 
         <!-- Search Bar -->
-        <div class="order-3 md:order-2 w-full md:w-auto md:flex-1 md:max-w-xl md:mx-4">
+        <div
+          class="order-3 md:order-2 w-full md:w-auto md:flex-1 md:max-w-xl md:mx-4"
+        >
           <div ref="searchWrapperRef" class="relative">
-            <input v-model="searchQuery" @keydown="handleSearchKeydown"
-              @focus="searchQuery.trim().length >= 1 && (isSuggestOpen = true)" type="search" enterkeyhint="search"
-              autocomplete="off" placeholder="Cari wine, whisky, bir, dan lainnya..."
-              class="w-full bg-zinc-900 border border-zinc-800 text-base md:text-sm text-gray-100 rounded-full py-2.5 md:py-2 pl-4 pr-10 focus:outline-none focus:ring-2 focus:ring-[#E25C38] focus:bg-black transition-all placeholder-gray-500 [&::-webkit-search-cancel-button]:appearance-none" />
-            <button @click="handleSearch" aria-label="Cari Produk"
-              class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white transition-colors">
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24"
-                stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            <input
+              v-model="searchQuery"
+              @keydown="handleSearchKeydown"
+              @focus="searchQuery.trim().length >= 1 && (isSuggestOpen = true)"
+              type="search"
+              enterkeyhint="search"
+              autocomplete="off"
+              placeholder="Cari wine, whisky, bir, dan lainnya..."
+              class="w-full bg-zinc-900 border border-zinc-800 text-base md:text-sm text-gray-100 rounded-full py-2.5 md:py-2 pl-4 pr-10 focus:outline-none focus:ring-2 focus:ring-[#E25C38] focus:bg-black transition-all placeholder-gray-500 [&::-webkit-search-cancel-button]:appearance-none"
+            />
+            <button
+              @click="handleSearch"
+              aria-label="Cari Produk"
+              class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white transition-colors"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                class="h-4 w-4"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                />
               </svg>
             </button>
 
             <!-- Dropdown Suggestion -->
-            <div v-if="isSuggestOpen"
-              class="absolute left-0 right-0 top-full mt-2 bg-zinc-900 border border-zinc-800 rounded-2xl shadow-2xl z-50 overflow-hidden text-gray-200">
-              <div class="flex flex-col md:flex-row max-h-[65vh] md:max-h-[70vh] overflow-y-auto">
+            <div
+              v-if="isSuggestOpen"
+              class="absolute left-0 right-0 top-full mt-2 bg-zinc-900 border border-zinc-800 rounded-2xl shadow-2xl z-50 overflow-hidden text-gray-200"
+            >
+              <div
+                class="flex flex-col md:flex-row max-h-[65vh] md:max-h-[70vh] overflow-y-auto"
+              >
                 <!-- Kolom Produk -->
                 <div class="flex-1 py-2 min-w-0">
-                  <div v-if="isSuggestLoading && !productSuggestions.length" class="px-4 py-6 text-xs text-gray-500">
+                  <div
+                    v-if="isSuggestLoading && !productSuggestions.length"
+                    class="px-4 py-6 text-xs text-gray-500"
+                  >
                     Mencari...
                   </div>
 
-                  <button v-for="(p, i) in productSuggestions" :key="p.id" type="button" @click="goToProduct(p)"
-                    @mouseenter="activeIndex = i" :class="[
+                  <button
+                    v-for="(p, i) in productSuggestions"
+                    :key="p.id"
+                    type="button"
+                    @click="goToProduct(p)"
+                    @mouseenter="activeIndex = i"
+                    :class="[
                       'w-full flex items-center gap-3 px-4 py-2.5 md:py-2 text-left transition-colors',
                       activeIndex === i ? 'bg-zinc-800' : 'hover:bg-zinc-800',
-                    ]">
-                    <div class="w-10 h-12 flex-shrink-0 flex items-center justify-center bg-zinc-800 rounded">
-                      <img v-if="p.image" :src="p.image" :alt="p.name" class="max-h-full max-w-full object-contain" />
+                    ]"
+                  >
+                    <div
+                      class="w-10 h-12 flex-shrink-0 flex items-center justify-center bg-zinc-800 rounded"
+                    >
+                      <img
+                        v-if="p.image"
+                        :src="p.image"
+                        :alt="p.name"
+                        class="max-h-full max-w-full object-contain"
+                      />
                     </div>
                     <div class="min-w-0">
                       <p class="text-sm truncate text-gray-300">
-                        <template v-for="(part, k) in highlightParts(p.name)" :key="k">
-                          <span :class="part.bold ? 'font-bold text-white' : ''">{{
-                            part.text
-                          }}</span>
+                        <template
+                          v-for="(part, k) in highlightParts(p.name)"
+                          :key="k"
+                        >
+                          <span
+                            :class="part.bold ? 'font-bold text-white' : ''"
+                            >{{ part.text }}</span
+                          >
                         </template>
                       </p>
                       <p class="text-xs font-bold text-[#E25C38]">
@@ -366,30 +448,50 @@ const handleLogout = () => {
                     </div>
                   </button>
 
-                  <div v-if="!isSuggestLoading && !productSuggestions.length" class="px-4 py-6 text-xs text-gray-500">
+                  <div
+                    v-if="!isSuggestLoading && !productSuggestions.length"
+                    class="px-4 py-6 text-xs text-gray-500"
+                  >
                     Produk tidak ditemukan
                   </div>
                 </div>
 
                 <!-- Kolom Brand & Kategori -->
-                <div v-if="hasSideColumn"
-                  class="md:w-56 flex-shrink-0 border-t md:border-t-0 md:border-l border-zinc-800 py-2">
+                <div
+                  v-if="hasSideColumn"
+                  class="md:w-56 flex-shrink-0 border-t md:border-t-0 md:border-l border-zinc-800 py-2"
+                >
                   <!-- Brand -->
                   <template v-if="brandSuggestions.length">
                     <p class="px-4 py-2 text-xs font-bold text-white">Brand</p>
-                    <button v-for="(b, j) in brandSuggestions" :key="'brand-' + (b.id ?? b.name)" type="button"
-                      @click="goToBrand(b)" @mouseenter="activeIndex = brandOffset + j" :class="[
+                    <button
+                      v-for="(b, j) in brandSuggestions"
+                      :key="'brand-' + (b.id ?? b.name)"
+                      type="button"
+                      @click="goToBrand(b)"
+                      @mouseenter="activeIndex = brandOffset + j"
+                      :class="[
                         'w-full flex items-center gap-2 text-left px-4 py-2.5 md:py-2 text-sm text-gray-300 transition-colors',
                         activeIndex === brandOffset + j
                           ? 'bg-zinc-800'
                           : 'hover:bg-zinc-800',
-                      ]">
-                      <img v-if="b.logo" :src="b.logo" :alt="b.name" class="h-5 w-5 object-contain flex-shrink-0" />
+                      ]"
+                    >
+                      <img
+                        v-if="b.logo"
+                        :src="b.logo"
+                        :alt="b.name"
+                        class="h-5 w-5 object-contain flex-shrink-0"
+                      />
                       <span class="truncate">
-                        <template v-for="(part, k) in highlightParts(b.name)" :key="k">
-                          <span :class="part.bold ? 'font-bold text-white' : ''">{{
-                            part.text
-                          }}</span>
+                        <template
+                          v-for="(part, k) in highlightParts(b.name)"
+                          :key="k"
+                        >
+                          <span
+                            :class="part.bold ? 'font-bold text-white' : ''"
+                            >{{ part.text }}</span
+                          >
                         </template>
                       </span>
                     </button>
@@ -397,18 +499,30 @@ const handleLogout = () => {
 
                   <!-- Kategori -->
                   <template v-if="categorySuggestions.length">
-                    <p class="px-4 py-2 text-xs font-bold text-white">Kategori</p>
-                    <button v-for="(c, j) in categorySuggestions" :key="'cat-' + c.name" type="button"
-                      @click="goToCategory(c)" @mouseenter="activeIndex = categoryOffset + j" :class="[
+                    <p class="px-4 py-2 text-xs font-bold text-white">
+                      Kategori
+                    </p>
+                    <button
+                      v-for="(c, j) in categorySuggestions"
+                      :key="'cat-' + c.name"
+                      type="button"
+                      @click="goToCategory(c)"
+                      @mouseenter="activeIndex = categoryOffset + j"
+                      :class="[
                         'w-full text-left px-4 py-2.5 md:py-2 text-sm text-gray-300 transition-colors',
                         activeIndex === categoryOffset + j
                           ? 'bg-zinc-800'
                           : 'hover:bg-zinc-800',
-                      ]">
-                      <template v-for="(part, k) in highlightParts(c.name)" :key="k">
-                        <span :class="part.bold ? 'font-bold text-white' : ''">{{
-                          part.text
-                        }}</span>
+                      ]"
+                    >
+                      <template
+                        v-for="(part, k) in highlightParts(c.name)"
+                        :key="k"
+                      >
+                        <span
+                          :class="part.bold ? 'font-bold text-white' : ''"
+                          >{{ part.text }}</span
+                        >
                       </template>
                     </button>
                   </template>
@@ -416,8 +530,11 @@ const handleLogout = () => {
               </div>
 
               <!-- Lihat semua hasil -->
-              <button type="button" @click="handleSearch"
-                class="w-full px-4 py-3 md:py-2.5 text-xs font-medium text-[#E25C38] hover:bg-zinc-800 border-t border-zinc-800 text-left">
+              <button
+                type="button"
+                @click="handleSearch"
+                class="w-full px-4 py-3 md:py-2.5 text-xs font-medium text-[#E25C38] hover:bg-zinc-800 border-t border-zinc-800 text-left"
+              >
                 Lihat semua hasil untuk "{{ searchQuery.trim() }}"
               </button>
             </div>
@@ -425,15 +542,30 @@ const handleLogout = () => {
         </div>
 
         <!-- Auth & Cart Action -->
-        <div class="order-2 md:order-3 ml-auto md:ml-0 flex items-center gap-1.5 md:gap-3 text-sm flex-shrink-0">
+        <div
+          class="order-2 md:order-3 ml-auto md:ml-0 flex items-center gap-1.5 md:gap-3 text-sm flex-shrink-0"
+        >
           <!-- JIKA USER SUDAH LOGIN -->
           <div v-if="isLoggedIn" ref="profileDropdownRef" class="relative">
-            <button @click="isProfileMenuOpen = !isProfileMenuOpen" type="button" aria-label="Menu akun"
-              class="bg-zinc-900 border border-zinc-800 hover:bg-zinc-800 text-yellow-400 font-medium h-9 px-2.5 sm:px-4 rounded-lg transition-colors flex items-center gap-1.5">
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 flex-shrink-0" fill="none" viewBox="0 0 24 24"
-                stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                  d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+            <button
+              @click="isProfileMenuOpen = !isProfileMenuOpen"
+              type="button"
+              aria-label="Menu akun"
+              class="bg-zinc-900 border border-zinc-800 hover:bg-zinc-800 text-yellow-400 font-medium h-9 px-2.5 sm:px-4 rounded-lg transition-colors flex items-center gap-1.5"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                class="h-4 w-4 flex-shrink-0"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+                />
               </svg>
               <span class="hidden sm:inline max-w-[120px] truncate">{{
                 user?.name || "Profil"
@@ -441,17 +573,27 @@ const handleLogout = () => {
             </button>
 
             <!-- Dropdown Menu Logout / Akun -->
-            <div v-if="isProfileMenuOpen"
-              class="absolute right-0 mt-2 w-48 bg-zinc-900 rounded-lg shadow-xl border border-zinc-800 py-1 z-50 text-gray-200">
-              <div class="sm:hidden px-4 py-2 text-xs text-gray-400 border-b border-zinc-800 truncate">
+            <div
+              v-if="isProfileMenuOpen"
+              class="absolute right-0 mt-2 w-48 bg-zinc-900 rounded-lg shadow-xl border border-zinc-800 py-1 z-50 text-gray-200"
+            >
+              <div
+                class="sm:hidden px-4 py-2 text-xs text-gray-400 border-b border-zinc-800 truncate"
+              >
                 {{ user?.name || "Profil" }}
               </div>
-              <router-link to="/account" @click="isProfileMenuOpen = false"
-                class="block px-4 py-2.5 hover:bg-zinc-800 text-xs font-medium transition-colors">
+              <router-link
+                to="/account"
+                @click="isProfileMenuOpen = false"
+                class="block px-4 py-2.5 hover:bg-zinc-800 text-xs font-medium transition-colors"
+              >
                 Akun Saya
               </router-link>
-              <button @click="handleLogout" type="button"
-                class="w-full text-left px-4 py-2.5 hover:bg-red-950/40 text-red-400 text-xs font-medium border-t border-zinc-800 transition-colors">
+              <button
+                @click="handleLogout"
+                type="button"
+                class="w-full text-left px-4 py-2.5 hover:bg-red-950/40 text-red-400 text-xs font-medium border-t border-zinc-800 transition-colors"
+              >
                 Keluar (Logout)
               </button>
             </div>
@@ -459,61 +601,126 @@ const handleLogout = () => {
 
           <!-- JIKA USER BELUM LOGIN -->
           <template v-else>
-            <router-link to="/login"
-              class="text-gray-300 hover:text-white text-[13px] md:text-sm font-medium px-2 h-9 inline-flex items-center transition-colors">
+            <router-link
+              to="/login"
+              class="text-gray-300 hover:text-white text-[13px] md:text-sm font-medium px-2 h-9 inline-flex items-center transition-colors"
+            >
               Masuk
             </router-link>
 
-            <router-link to="/register"
-              class="bg-[#E25C38] hover:bg-[#c84c2a] text-white text-[13px] md:text-sm font-medium px-3 md:px-4 h-9 inline-flex items-center rounded-lg transition-colors shadow-sm">
+            <router-link
+              to="/register"
+              class="bg-[#E25C38] hover:bg-[#c84c2a] text-white text-[13px] md:text-sm font-medium px-3 md:px-4 h-9 inline-flex items-center rounded-lg transition-colors shadow-sm"
+            >
               Daftar
             </router-link>
           </template>
 
           <!-- Cart Button -->
-          <button id="cart-icon" @click="isCartOpen = true" type="button" aria-label="Buka keranjang"
-            class="flex items-center gap-1.5 border border-zinc-700 bg-zinc-900/80 rounded-lg h-9 px-2.5 sm:px-3 hover:bg-zinc-800 text-gray-200 hover:text-white font-medium transition-colors relative">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-[18px] w-[18px] sm:h-4 sm:w-4" fill="none"
-              viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
+          <!-- <button
+            id="cart-icon"
+            @click="isCartOpen = true"
+            type="button"
+            aria-label="Buka keranjang"
+            class="flex items-center gap-1.5 border border-zinc-700 bg-zinc-900/80 rounded-lg h-9 px-2.5 sm:px-3 hover:bg-zinc-800 text-gray-200 hover:text-white font-medium transition-colors relative"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              class="h-[18px] w-[18px] sm:h-4 sm:w-4"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"
+              />
             </svg>
 
             <span class="hidden sm:inline">Keranjang</span>
 
-            <!-- Mobile: badge menempel di pojok ikon. Desktop: sejajar teks -->
-            <span v-if="totalCount > 0"
-              class="absolute -top-1.5 -right-1.5 sm:static sm:ml-1 bg-[#E25C38] text-white text-[10px] sm:text-xs min-w-[18px] text-center px-1 sm:px-1.5 py-0.5 rounded-full font-bold leading-none sm:leading-normal">
+            <span
+              v-if="totalCount > 0"
+              class="absolute -top-1.5 -right-1.5 sm:static sm:ml-1 bg-[#E25C38] text-white text-[10px] sm:text-xs min-w-[18px] text-center px-1 sm:px-1.5 py-0.5 rounded-full font-bold leading-none sm:leading-normal"
+            >
               {{ totalCount }}
             </span>
-          </button>
+          </button> -->
         </div>
       </div>
 
       <!-- Navigation Categories (di mobile otomatis mengecil saat scroll ke bawah) -->
-      <nav :class="[
-        isScrolled
-          ? 'max-h-0 py-0 opacity-0 md:max-h-12 md:py-2.5 md:opacity-100'
-          : 'max-h-12 py-2.5 opacity-100',
-      ]"
-        class="flex items-center gap-5 md:gap-6 -mx-3 px-3 sm:mx-0 sm:px-0 overflow-x-auto border-t border-zinc-800/80 text-xs md:text-sm font-bold tracking-wider text-gray-300 no-scrollbar transition-all duration-200">
-        <router-link v-for="category in categories" :key="category.name" :to="category.href" :class="[
-          category.isHighlight
-            ? 'text-[#E25C38] font-bold'
-            : 'hover:text-yellow-400',
-          'whitespace-nowrap transition-colors',
-        ]">
-          {{ category.name }}
-        </router-link>
-      </nav>
+      <div
+        :class="[
+          isScrolled
+            ? 'max-h-0 py-0 opacity-0 md:max-h-12 md:py-2.5 md:opacity-100'
+            : 'max-h-12 py-2.5 opacity-100',
+        ]"
+        class="relative -mx-3 sm:mx-0 border-t border-zinc-800/80 overflow-hidden transition-all duration-200"
+      >
+        <!-- Fade + tombol kiri (desktop saja) -->
+        <div
+          v-if="canScrollLeft"
+          class="hidden md:flex absolute left-0 top-0 bottom-0 z-10 items-center pr-8 bg-gradient-to-r from-black via-black/90 to-transparent"
+        >
+          <button
+            @click="scrollNav('prev')"
+            type="button"
+            aria-label="Scroll kategori ke kiri"
+            class="w-7 h-7 rounded-full bg-zinc-900 border border-zinc-700 text-gray-200 hover:bg-zinc-800 hover:text-white flex items-center justify-center transition-colors"
+          >
+            &#10094;
+          </button>
+        </div>
+
+        <nav
+          ref="navRef"
+          @scroll.passive="updateNavArrows"
+          class="flex items-center gap-5 md:gap-6 px-3 sm:px-0 overflow-x-auto text-xs md:text-sm font-bold tracking-wider text-gray-300 no-scrollbar"
+        >
+          <router-link
+            v-for="category in categories"
+            :key="category.name"
+            :to="category.href"
+            :class="[
+              category.isHighlight
+                ? 'text-[#E25C38] font-bold'
+                : 'hover:text-yellow-400',
+              'whitespace-nowrap transition-colors',
+            ]"
+          >
+            {{ category.name }}
+          </router-link>
+        </nav>
+
+        <!-- Fade + tombol kanan (desktop saja) -->
+        <div
+          v-if="canScrollRight"
+          class="hidden md:flex absolute right-0 top-0 bottom-0 z-10 items-center justify-end pl-8 bg-gradient-to-l from-black via-black/90 to-transparent"
+        >
+          <button
+            @click="scrollNav('next')"
+            type="button"
+            aria-label="Scroll kategori ke kanan"
+            class="w-7 h-7 rounded-full bg-zinc-900 border border-zinc-700 text-gray-200 hover:bg-zinc-800 hover:text-white flex items-center justify-center transition-colors"
+          >
+            &#10095;
+          </button>
+        </div>
+      </div>
     </div>
   </header>
 
   <!-- Cart Drawer Component -->
-  <CartDrawer :is-open="isCartOpen" @close="
-    isCartOpen = false;
-  fetchCartCount();
-  " />
+  <CartDrawer
+    :is-open="isCartOpen"
+    @close="
+      isCartOpen = false;
+      fetchCartCount();
+    "
+  />
 </template>
 
 <style scoped>
