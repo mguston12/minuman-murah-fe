@@ -617,7 +617,7 @@ const handleLogout = () => {
           </template>
 
           <!-- Cart Button -->
-          <!-- <button
+          <button
             id="cart-icon"
             @click="isCartOpen = true"
             type="button"
@@ -647,7 +647,7 @@ const handleLogout = () => {
             >
               {{ totalCount }}
             </span>
-          </button> -->
+          </button>
         </div>
       </div>
 
