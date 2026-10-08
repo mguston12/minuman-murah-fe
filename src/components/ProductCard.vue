@@ -53,7 +53,7 @@ const formatRupiah = (number) => {
               v-else-if="product.total_stock <= 0"
               class="bg-gray-800 text-white text-[10px] font-bold px-2 py-0.5 rounded-md shadow-sm uppercase tracking-wider"
             >
-              Out of Stock
+              Pre Order via WA
             </span>
 
             <!-- Badge Diskon -->
