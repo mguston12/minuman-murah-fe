@@ -149,7 +149,7 @@ const categoriesError = ref(null);
 const resolveImageUrl = (path) => {
   if (!path) return null;
   if (/^https?:\/\//i.test(path)) return path; // sudah full URL
-  const STORAGE_BASE_URL = "https://api.minumanmurah.com/storage/";
+  const STORAGE_BASE_URL = "https://apitesting.minumanmurah.com/storage/";
   return STORAGE_BASE_URL + path.replace(/^\/+/, "");
 };
 

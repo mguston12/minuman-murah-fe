@@ -2,7 +2,7 @@ import Cookies from "js-cookie";
 
 export const useAuthApi = () => {
   const baseURL =
-    import.meta.env.VITE_API_BASE_URL || "https://api.minumanmurah.com/api";
+    import.meta.env.VITE_API_BASE_URL || "https://apitesting.minumanmurah.com/api";
 
   const getHeaders = () => {
     // Ambil token dari Cookie 'auth_token'
