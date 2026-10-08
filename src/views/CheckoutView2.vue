@@ -418,6 +418,9 @@ const orderSignature = computed(() =>
     ]),
     voucher: selectedVoucher.value?.id ?? null,
     discount: discount.value,
+    bubbleWrap: groupedByStore.value.map(
+      (g) => !!bubbleWrapPerStore.value[g.store_key],
+    ),
   }),
 );
 
@@ -474,6 +477,24 @@ const closeToast = () => {
   toast.show = false;
 };
 
+const BUBBLE_WRAP_FEE = 10000;
+const bubbleWrapPerStore = ref({});
+
+const toggleBubbleWrapForStore = (storeKey) => {
+  bubbleWrapPerStore.value = {
+    ...bubbleWrapPerStore.value,
+    [storeKey]: !bubbleWrapPerStore.value[storeKey],
+  };
+};
+
+const totalBubbleWrapCost = computed(() =>
+  groupedByStore.value.reduce(
+    (acc, g) =>
+      acc + (bubbleWrapPerStore.value[g.store_key] ? BUBBLE_WRAP_FEE : 0),
+    0,
+  ),
+);
+
 const selectedAddress = computed(() => {
   return (
     addresses.value.find((a) => a.id === activeAddressId.value) ||
@@ -510,7 +531,8 @@ const total = computed(() => {
     0,
     subtotal.value +
       totalShippingCost.value +
-      totalProtectionCost.value -
+      totalProtectionCost.value +
+      totalBubbleWrapCost.value -
       discount.value,
   );
 });
@@ -1004,7 +1026,7 @@ const payWithMidtrans = async (orderId, onDone) => {
 };
 ---------------- END MIDTRANS ---------------- */
 
-const payWithXendit = async (orderId, variantIdsToRemove) => {
+const payWithXendit = async (orderId, variantIdsToRemove, paymentTab) => {
   const origin = window.location.origin;
 
   const resPay = await orderService.payOrderXendit(orderId, {
@@ -1024,7 +1046,14 @@ const payWithXendit = async (orderId, variantIdsToRemove) => {
   await removeOrderedItemsFromCart(variantIdsToRemove);
   pendingOrder.value = null;
 
-  window.location.href = invoiceUrl;
+  if (paymentTab && !paymentTab.closed) {
+    // Tab baru diarahkan ke Xendit, tab ini pindah ke daftar pesanan
+    paymentTab.location.href = invoiceUrl;
+    router.push("/account/orders?tab=unpaid");
+  } else {
+    // Tab baru diblokir browser, fallback ke tab yang sama
+    window.location.href = invoiceUrl;
+  }
 };
 
 const canSubmit = computed(() => {
@@ -1041,7 +1070,10 @@ const canSubmit = computed(() => {
 
 const buildCombinedCourier = () => {
   const groups = groupedByStore.value;
-  const totalCost = totalShippingCost.value;
+  const bubbleCost = totalBubbleWrapCost.value;
+  const totalCost = totalShippingCost.value + bubbleCost;
+  const bubbleNote =
+    bubbleCost > 0 ? ` + Bubble Wrap (${formatPrice(bubbleCost)})` : "";
 
   if (groups.length === 1) {
     const key = groups[0].store_key;
@@ -1050,10 +1082,10 @@ const buildCombinedCourier = () => {
     if (groups[0].allFreeShipping) {
       return {
         agent: "gratis",
-        cost: 0,
+        cost: bubbleCost,
         etd: "-",
         service: "Gratis Ongkir",
-        service_desc: "Semua produk gratis ongkir",
+        service_desc: `Semua produk gratis ongkir${bubbleNote}`,
       };
     }
 
@@ -1062,20 +1094,24 @@ const buildCombinedCourier = () => {
       cost: totalCost,
       etd: c?.etd || "2-3 hari",
       service: c?.service || "Pos Reguler",
-      service_desc: c?.service_desc || "",
+      service_desc: `${c?.service_desc || ""}${bubbleNote}`.trim(),
     };
   }
 
   const perStoreDesc = groups
     .map((group) => {
+      const bw = bubbleWrapPerStore.value[group.store_key]
+        ? ` + Bubble Wrap (${formatPrice(BUBBLE_WRAP_FEE)})`
+        : "";
+
       if (group.allFreeShipping) {
-        return `${group.store_name}: Gratis Ongkir`;
+        return `${group.store_name}: Gratis Ongkir${bw}`;
       }
       const c = shippingPerStore.value[group.store_key];
       if (!c?.agent) return null;
       return `${group.store_name}: ${c.agent.toUpperCase()} ${c.service} (${formatPrice(
         c.cost,
-      )})`;
+      )})${bw}`;
     })
     .filter(Boolean)
     .join(" | ");
@@ -1121,6 +1157,14 @@ const handleCheckout = async () => {
         : "Email akun tidak ditemukan. Silakan login ulang atau lengkapi email di alamat pengiriman.",
     );
     return;
+  }
+
+  // Harus dipanggil langsung dari klik, sebelum ada await
+  const paymentTab = window.open("", "_blank");
+  if (paymentTab) {
+    paymentTab.document.write(
+      "<p style='font-family:sans-serif;padding:24px'>Memproses pembayaran...</p>",
+    );
   }
 
   isProcessingPayment.value = true;
@@ -1199,7 +1243,7 @@ const handleCheckout = async () => {
       pendingOrder.value = { id: orderId, signature: orderSignature.value };
     }
 
-    await payWithXendit(orderId, variantIdsToRemove);
+    await payWithXendit(orderId, variantIdsToRemove, paymentTab);
 
     /* ---------------- MIDTRANS (di-comment) ----------------
     if (selectedGateway.value === "xendit") {
@@ -1209,6 +1253,7 @@ const handleCheckout = async () => {
     }
     ---------------- END MIDTRANS ---------------- */
   } catch (err) {
+    if (paymentTab && !paymentTab.closed) paymentTab.close();
     console.error("Checkout error:", err);
     errorMessage.value =
       err.response?.data?.message || err.message || "Terjadi kesalahan sistem.";
@@ -1554,6 +1599,25 @@ onMounted(async () => {
             </div>
 
             <!-- Ongkir per toko -->
+            <!-- Bubble wrap per toko -->
+            <div
+              class="flex items-center justify-between gap-3 bg-emerald-50 p-3 rounded-xl border border-dashed border-gray-200"
+            >
+              <label class="flex items-center gap-2 cursor-pointer flex-1">
+                <input
+                  type="checkbox"
+                  :checked="bubbleWrapPerStore[group.store_key]"
+                  @change="toggleBubbleWrapForStore(group.store_key)"
+                  class="w-4 h-4 text-[#E25C38] accent-[#E25C38] rounded cursor-pointer"
+                />
+                <span class="text-xs sm:text-sm text-emerald-700">
+                  Tambah <b>Air Bubble Wrap</b>
+                </span>
+              </label>
+              <span class="text-xs sm:text-sm font-bold text-gray-900 shrink-0">
+                {{ formatPrice(BUBBLE_WRAP_FEE) }}
+              </span>
+            </div>
             <div
               class="flex items-center justify-between pt-2 border-t border-gray-100"
             >
@@ -1780,6 +1844,15 @@ onMounted(async () => {
                 <span>Proteksi Produk</span>
                 <span class="font-bold text-gray-800">{{
                   formatPrice(totalProtectionCost)
+                }}</span>
+              </div>
+              <div
+                v-if="totalBubbleWrapCost > 0"
+                class="flex justify-between text-gray-600"
+              >
+                <span>Bubble Wrap</span>
+                <span class="font-bold text-gray-800">{{
+                  formatPrice(totalBubbleWrapCost)
                 }}</span>
               </div>
               <div

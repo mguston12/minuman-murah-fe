@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted, watch } from "vue";
+import { ref, computed, onMounted, onUnmounted, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import {
   productService,
@@ -211,9 +211,18 @@ const fetchRelatedProducts = async () => {
   }
 };
 
+const handleCartUpdated = () => {
+  fetchCartQtyForSelection();
+};
+
 onMounted(() => {
   fetchProductDetail();
   fetchPhoneNumber();
+  window.addEventListener("cart-updated", handleCartUpdated);
+});
+
+onUnmounted(() => {
+  window.removeEventListener("cart-updated", handleCartUpdated);
 });
 
 watch(
@@ -848,7 +857,7 @@ watch([selectedFilter, reviews], () => {
               <p
                 class="text-[11px] leading-relaxed font-medium text-emerald-700"
               >
-                Penambahan <span class="font-bold">Air Bubble</span> akan
+                Penambahan <span class="font-bold">Air Bubble Wrap</span> akan
                 dikenakan tambahan biaya
               </p>
             </div>

@@ -38,34 +38,41 @@ const formatRupiah = (number) => {
             class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
           />
 
-          <!-- Container Badge / Flag -->
-          <div class="absolute top-2 left-2 flex flex-col gap-1 items-start">
-            <!-- Badge Low Stock (< 3) -->
+          <!-- Badge Diskon (kiri atas) -->
+          <span
+            v-if="product.discount_percent || product.base_discount_percent"
+            class="absolute top-2 left-2 bg-red-500 text-white text-[10px] sm:text-xs font-bold px-2 py-0.5 rounded-md shadow-sm"
+          >
+            -{{
+              Math.round(
+                product.discount_percent || product.base_discount_percent,
+              )
+            }}%
+          </span>
+
+          <!-- Status stok (strip bawah gambar) -->
+          <div
+            v-if="product.total_stock <= 3"
+            class="absolute bottom-0 inset-x-0 flex justify-center"
+          >
+            <!-- Out of stock: Pre Order via WhatsApp -->
             <span
-              v-if="product.total_stock > 0 && product.total_stock <= 3"
-              class="bg-amber-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-md shadow-sm uppercase tracking-wider"
+              v-if="product.total_stock <= 0"
+              class="w-full flex items-center justify-center gap-1.5 bg-gray-900/85 backdrop-blur-sm text-white font-semibold uppercase tracking-wide whitespace-nowrap py-1.5 text-[9px] sm:text-[11px]"
             >
-              Low Stock
+              <span
+                class="w-1.5 h-1.5 rounded-full bg-green-400 shrink-0"
+              ></span>
+              <span class="sm:hidden">Pre Order · WA</span>
+              <span class="hidden sm:inline">Pre Order via WhatsApp</span>
             </span>
 
-            <!-- Badge Out of Stock (0) -->
+            <!-- Low stock -->
             <span
-              v-else-if="product.total_stock <= 0"
-              class="bg-gray-800 text-white text-[10px] font-bold px-2 py-0.5 rounded-md shadow-sm uppercase tracking-wider"
+              v-else
+              class="w-full text-center bg-amber-500/90 backdrop-blur-sm text-white font-semibold uppercase tracking-wide whitespace-nowrap py-1.5 text-[9px] sm:text-[11px]"
             >
-              Pre Order via WA
-            </span>
-
-            <!-- Badge Diskon -->
-            <span
-              v-if="product.discount_percent || product.base_discount_percent"
-              class="bg-red-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-md shadow-sm"
-            >
-              -{{
-                Math.round(
-                  product.discount_percent || product.base_discount_percent,
-                )
-              }}%
+              Stok Terbatas
             </span>
           </div>
         </div>
