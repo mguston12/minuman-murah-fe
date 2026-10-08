@@ -2,8 +2,7 @@ import axios from "axios";
 import Cookies from "js-cookie";
 
 const api = axios.create({
-  // baseURL: import.meta.env.VITE_API_BASE_URL || "https://api.minumanmurah.com/api",
-  baseURL: "https://api.minumanmurah.com/api",
+  baseURL: import.meta.env.VITE_API_BASE_URL,
   headers: {
     Accept: "application/json",
     "Content-Type": "application/json",
