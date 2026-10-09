@@ -18,6 +18,12 @@ const routes = [
     component: () => import("../views/ProductListView.vue"),
   },
   {
+    path: "/payment-processing",
+    name: "payment-processing",
+    component: () => import("../views/PaymentProcessing.vue"),
+    meta: { requiresAuth: true },
+  },
+  {
     path: "/checkout",
     name: "checkout",
     component: () => import("../views/CheckoutView2.vue"),

@@ -530,10 +530,10 @@ const total = computed(() => {
   return Math.max(
     0,
     subtotal.value +
-      totalShippingCost.value +
-      totalProtectionCost.value +
-      totalBubbleWrapCost.value -
-      discount.value,
+    totalShippingCost.value +
+    totalProtectionCost.value +
+    totalBubbleWrapCost.value -
+    discount.value,
   );
 });
 
@@ -1047,11 +1047,9 @@ const payWithXendit = async (orderId, variantIdsToRemove, paymentTab) => {
   pendingOrder.value = null;
 
   if (paymentTab && !paymentTab.closed) {
-    // Tab baru diarahkan ke Xendit, tab ini pindah ke daftar pesanan
-    paymentTab.location.href = invoiceUrl;
+    localStorage.setItem("pending_invoice_url", invoiceUrl);
     router.push("/account/orders?tab=unpaid");
   } else {
-    // Tab baru diblokir browser, fallback ke tab yang sama
     window.location.href = invoiceUrl;
   }
 };
@@ -1070,10 +1068,7 @@ const canSubmit = computed(() => {
 
 const buildCombinedCourier = () => {
   const groups = groupedByStore.value;
-  const bubbleCost = totalBubbleWrapCost.value;
-  const totalCost = totalShippingCost.value + bubbleCost;
-  const bubbleNote =
-    bubbleCost > 0 ? ` + Bubble Wrap (${formatPrice(bubbleCost)})` : "";
+  const totalCost = totalShippingCost.value;
 
   if (groups.length === 1) {
     const key = groups[0].store_key;
@@ -1082,10 +1077,10 @@ const buildCombinedCourier = () => {
     if (groups[0].allFreeShipping) {
       return {
         agent: "gratis",
-        cost: bubbleCost,
+        cost: 0,
         etd: "-",
         service: "Gratis Ongkir",
-        service_desc: `Semua produk gratis ongkir${bubbleNote}`,
+        service_desc: "Semua produk gratis ongkir",
       };
     }
 
@@ -1094,24 +1089,16 @@ const buildCombinedCourier = () => {
       cost: totalCost,
       etd: c?.etd || "2-3 hari",
       service: c?.service || "Pos Reguler",
-      service_desc: `${c?.service_desc || ""}${bubbleNote}`.trim(),
+      service_desc: c?.service_desc || "",
     };
   }
 
   const perStoreDesc = groups
     .map((group) => {
-      const bw = bubbleWrapPerStore.value[group.store_key]
-        ? ` + Bubble Wrap (${formatPrice(BUBBLE_WRAP_FEE)})`
-        : "";
-
-      if (group.allFreeShipping) {
-        return `${group.store_name}: Gratis Ongkir${bw}`;
-      }
+      if (group.allFreeShipping) return `${group.store_name}: Gratis Ongkir`;
       const c = shippingPerStore.value[group.store_key];
       if (!c?.agent) return null;
-      return `${group.store_name}: ${c.agent.toUpperCase()} ${c.service} (${formatPrice(
-        c.cost,
-      )})${bw}`;
+      return `${group.store_name}: ${c.agent.toUpperCase()} ${c.service} (${formatPrice(c.cost)})`;
     })
     .filter(Boolean)
     .join(" | ");
@@ -1159,13 +1146,7 @@ const handleCheckout = async () => {
     return;
   }
 
-  // Harus dipanggil langsung dari klik, sebelum ada await
-  const paymentTab = window.open("", "_blank");
-  if (paymentTab) {
-    paymentTab.document.write(
-      "<p style='font-family:sans-serif;padding:24px'>Memproses pembayaran...</p>",
-    );
-  }
+  const paymentTab = window.open("/payment-processing", "_blank");
 
   isProcessingPayment.value = true;
   errorMessage.value = "";
@@ -1318,35 +1299,22 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div
-    class="min-h-screen bg-[#FAF6F0] py-8 px-4 sm:px-6 lg:px-8 font-sans text-gray-900"
-  >
+  <div class="min-h-screen bg-[#FAF6F0] py-8 px-4 sm:px-6 lg:px-8 font-sans text-gray-900">
     <!-- TOAST NOTIFICATION -->
-    <Transition
-      enter-active-class="transition ease-out duration-300"
+    <Transition enter-active-class="transition ease-out duration-300"
       enter-from-class="opacity-0 translate-y-[-8px] sm:translate-y-0 sm:translate-x-4"
-      enter-to-class="opacity-100 translate-y-0 sm:translate-x-0"
-      leave-active-class="transition ease-in duration-200"
-      leave-from-class="opacity-100"
-      leave-to-class="opacity-0"
-    >
-      <div
-        v-if="toast.show"
-        class="fixed top-4 right-4 left-4 sm:left-auto sm:w-96 z-[100]"
-      >
-        <div
-          :class="[
-            'flex items-start gap-3 p-4 rounded-xl border-l-4 shadow-lg',
-            toastStyles[toast.type].bg,
-            toastStyles[toast.type].border,
-          ]"
-        >
-          <div
-            :class="[
-              'w-8 h-8 rounded-full flex items-center justify-center shrink-0 text-sm',
-              toastStyles[toast.type].iconBg,
-            ]"
-          >
+      enter-to-class="opacity-100 translate-y-0 sm:translate-x-0" leave-active-class="transition ease-in duration-200"
+      leave-from-class="opacity-100" leave-to-class="opacity-0">
+      <div v-if="toast.show" class="fixed top-4 right-4 left-4 sm:left-auto sm:w-96 z-[100]">
+        <div :class="[
+          'flex items-start gap-3 p-4 rounded-xl border-l-4 shadow-lg',
+          toastStyles[toast.type].bg,
+          toastStyles[toast.type].border,
+        ]">
+          <div :class="[
+            'w-8 h-8 rounded-full flex items-center justify-center shrink-0 text-sm',
+            toastStyles[toast.type].iconBg,
+          ]">
             {{ toastStyles[toast.type].icon }}
           </div>
           <div class="flex-1 min-w-0">
@@ -1355,10 +1323,7 @@ onMounted(async () => {
               {{ toast.message }}
             </p>
           </div>
-          <button
-            @click="closeToast"
-            class="text-gray-300 hover:text-gray-500 shrink-0 cursor-pointer text-sm"
-          >
+          <button @click="closeToast" class="text-gray-300 hover:text-gray-500 shrink-0 cursor-pointer text-sm">
             ✕
           </button>
         </div>
@@ -1379,38 +1344,25 @@ onMounted(async () => {
         <!-- Kolom Kiri -->
         <div class="lg:col-span-8 space-y-5">
           <!-- Alamat Pengiriman -->
-          <div
-            class="bg-white rounded-2xl p-6 shadow-sm border border-gray-100"
-          >
+          <div class="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
             <div class="flex items-center justify-between mb-3">
               <h2 class="text-base font-bold text-gray-900">
                 Alamat Pengiriman
               </h2>
-              <button
-                v-if="addresses?.length > 0"
-                @click="openSelectAddressModal"
-                class="text-sm font-bold text-[#E25C38] hover:underline cursor-pointer"
-              >
+              <button v-if="addresses?.length > 0" @click="openSelectAddressModal"
+                class="text-sm font-bold text-[#E25C38] hover:underline cursor-pointer">
                 Ubah
               </button>
             </div>
 
-            <div
-              v-if="isLoadingAddresses || isLoadingUser"
-              class="text-sm text-gray-400 animate-pulse"
-            >
+            <div v-if="isLoadingAddresses || isLoadingUser" class="text-sm text-gray-400 animate-pulse">
               Memuat data alamat pengiriman...
             </div>
 
-            <div
-              v-else-if="selectedAddress"
-              class="text-sm text-gray-600 space-y-1"
-            >
+            <div v-else-if="selectedAddress" class="text-sm text-gray-600 space-y-1">
               <p class="font-bold text-gray-800">
                 {{ selectedAddress.first_name || selectedAddress.name }}
-                <span class="font-normal text-gray-500"
-                  >· {{ selectedAddress.phone }}</span
-                >
+                <span class="font-normal text-gray-500">· {{ selectedAddress.phone }}</span>
               </p>
               <p class="text-gray-600 leading-relaxed">
                 {{ selectedAddress.address }}, {{ selectedAddress.city }},
@@ -1420,22 +1372,15 @@ onMounted(async () => {
 
             <div v-else class="text-sm text-gray-400 space-y-2 py-2">
               <p>Belum ada alamat pengiriman yang tersimpan.</p>
-              <button
-                @click="openAddModal"
-                class="text-sm font-bold text-[#E25C38] hover:underline cursor-pointer"
-              >
+              <button @click="openAddModal" class="text-sm font-bold text-[#E25C38] hover:underline cursor-pointer">
                 + Tambah Alamat
               </button>
             </div>
           </div>
 
           <!-- Keranjang: dikelompokkan PER TOKO -->
-          <div
-            v-if="cartItems.length > 0"
-            v-for="group in groupedByStore"
-            :key="`store-${group.store_key}`"
-            class="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 space-y-4"
-          >
+          <div v-if="cartItems.length > 0" v-for="group in groupedByStore" :key="`store-${group.store_key}`"
+            class="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 space-y-4">
             <div class="flex items-center gap-2 pb-3 border-b border-gray-100">
               <span class="text-lg">🏪</span>
               <h2 class="text-base font-bold text-gray-900">
@@ -1443,25 +1388,17 @@ onMounted(async () => {
               </h2>
             </div>
 
-            <div
-              v-for="item in group.items"
-              :key="item.id || item.variant_id"
-              class="pb-4 border-b border-gray-100 last:border-0 last:pb-0"
-            >
+            <div v-for="item in group.items" :key="item.id || item.variant_id"
+              class="pb-4 border-b border-gray-100 last:border-0 last:pb-0">
               <div class="flex items-start justify-between mb-3 gap-3">
                 <div class="flex items-start gap-4 min-w-0">
-                  <img
-                    :src="item.image"
-                    :alt="item.title"
-                    class="w-14 h-14 rounded-lg object-cover bg-gray-100 shrink-0"
-                  />
+                  <img :src="item.image" :alt="item.title"
+                    class="w-14 h-14 rounded-lg object-cover bg-gray-100 shrink-0" />
                   <div class="min-w-0">
                     <h3 class="text-sm font-bold text-gray-800 truncate">
                       {{ item.product_name }}
                     </h3>
-                    <p
-                      class="text-xs text-gray-400 mt-0.5 flex items-center gap-1.5 flex-wrap"
-                    >
+                    <p class="text-xs text-gray-400 mt-0.5 flex items-center gap-1.5 flex-wrap">
                       Rp
                       {{
                         (
@@ -1474,84 +1411,56 @@ onMounted(async () => {
                       / item
 
                       <!-- Badge gratis ongkir per item -->
-                      <span
-                        v-if="isItemFreeShipping(item)"
-                        class="text-[10px] font-bold text-green-700 bg-green-50 px-1.5 py-0.5 rounded"
-                      >
+                      <span v-if="isItemFreeShipping(item)"
+                        class="text-[10px] font-bold text-green-700 bg-green-50 px-1.5 py-0.5 rounded">
                         Gratis Ongkir
                       </span>
                     </p>
 
                     <!-- Kontrol Tambah / Kurang Quantity -->
                     <div class="flex items-center gap-3 mt-2 flex-wrap">
-                      <div
-                        class="flex items-center border border-gray-200 rounded-lg bg-gray-50"
-                      >
-                        <button
-                          type="button"
-                          @click="changeItemQuantity(item, -1)"
-                          :disabled="
-                            (item.qty || item.quantity || 1) <= 1 ||
-                            updatingQtyVariantId !== null
+                      <div class="flex items-center border border-gray-200 rounded-lg bg-gray-50">
+                        <button type="button" @click="changeItemQuantity(item, -1)" :disabled="(item.qty || item.quantity || 1) <= 1 ||
+                          updatingQtyVariantId !== null
                           "
-                          class="w-7 h-7 flex items-center justify-center text-sm font-bold text-gray-600 hover:bg-gray-200 disabled:opacity-40 disabled:hover:bg-transparent rounded-l-lg transition-colors cursor-pointer disabled:cursor-not-allowed"
-                        >
+                          class="w-7 h-7 flex items-center justify-center text-sm font-bold text-gray-600 hover:bg-gray-200 disabled:opacity-40 disabled:hover:bg-transparent rounded-l-lg transition-colors cursor-pointer disabled:cursor-not-allowed">
                           -
                         </button>
-                        <span
-                          class="w-9 text-center text-xs font-bold text-gray-800"
-                        >
-                          <span
-                            v-if="updatingQtyVariantId === item.variant_id"
-                            class="inline-block animate-pulse text-gray-400"
-                            >...</span
-                          >
+                        <span class="w-9 text-center text-xs font-bold text-gray-800">
+                          <span v-if="updatingQtyVariantId === item.variant_id"
+                            class="inline-block animate-pulse text-gray-400">...</span>
                           <span v-else>{{
                             item.qty || item.quantity || 1
                           }}</span>
                         </span>
-                        <button
-                          type="button"
-                          @click="changeItemQuantity(item, 1)"
+                        <button type="button" @click="changeItemQuantity(item, 1)"
                           :disabled="updatingQtyVariantId !== null"
-                          class="w-7 h-7 flex items-center justify-center text-sm font-bold text-[#E25C38] hover:bg-gray-200 disabled:opacity-40 disabled:hover:bg-transparent rounded-r-lg transition-colors cursor-pointer disabled:cursor-not-allowed"
-                        >
+                          class="w-7 h-7 flex items-center justify-center text-sm font-bold text-[#E25C38] hover:bg-gray-200 disabled:opacity-40 disabled:hover:bg-transparent rounded-r-lg transition-colors cursor-pointer disabled:cursor-not-allowed">
                           +
                         </button>
                       </div>
 
-                      <button
-                        type="button"
-                        @click="handleRemoveCartItem(item)"
+                      <button type="button" @click="handleRemoveCartItem(item)"
                         :disabled="updatingQtyVariantId !== null"
-                        class="text-xs text-gray-400 hover:text-red-500 font-semibold transition-colors disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
-                      >
+                        class="text-xs text-gray-400 hover:text-red-500 font-semibold transition-colors disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer">
                         Hapus
                       </button>
                     </div>
 
-                    <button
-                      type="button"
-                      @click="openNoteModal(item)"
-                      class="text-xs text-[#E25C38] hover:underline mt-2 cursor-pointer block"
-                    >
+                    <button type="button" @click="openNoteModal(item)"
+                      class="text-xs text-[#E25C38] hover:underline mt-2 cursor-pointer block">
                       {{
                         notePerItem[item.variant_id]
                           ? "Ubah Catatan"
                           : "Tambah Catatan"
                       }}
                     </button>
-                    <p
-                      v-if="notePerItem[item.variant_id]"
-                      class="text-xs text-gray-400 mt-1 italic"
-                    >
+                    <p v-if="notePerItem[item.variant_id]" class="text-xs text-gray-400 mt-1 italic">
                       Catatan: {{ notePerItem[item.variant_id] }}
                     </p>
                   </div>
                 </div>
-                <span
-                  class="text-sm font-bold text-gray-900 shrink-0 whitespace-nowrap"
-                >
+                <span class="text-sm font-bold text-gray-900 shrink-0 whitespace-nowrap">
                   Rp
                   {{
                     (
@@ -1566,22 +1475,16 @@ onMounted(async () => {
 
               <!-- Proteksi per item -->
               <div
-                class="flex items-center justify-between gap-3 bg-[#FAF6F0]/50 p-3 rounded-xl border border-dashed border-gray-200"
-              >
+                class="flex items-center justify-between gap-3 bg-[#FAF6F0]/50 p-3 rounded-xl border border-dashed border-gray-200">
                 <label class="flex items-center gap-2 cursor-pointer flex-1">
-                  <input
-                    type="checkbox"
-                    :checked="protectionPerItem[item.variant_id]"
+                  <input type="checkbox" :checked="protectionPerItem[item.variant_id]"
                     @change="toggleProtectionForItem(item.variant_id)"
-                    class="w-4 h-4 text-[#E25C38] accent-[#E25C38] rounded cursor-pointer"
-                  />
+                    class="w-4 h-4 text-[#E25C38] accent-[#E25C38] rounded cursor-pointer" />
                   <span class="text-xs sm:text-sm text-gray-900">
                     Proteksi Produk ({{ protectionConfig?.fee ?? 0 }}%)
                   </span>
                 </label>
-                <span
-                  class="text-xs sm:text-sm font-bold text-gray-900 shrink-0"
-                >
+                <span class="text-xs sm:text-sm font-bold text-gray-900 shrink-0">
                   Rp
                   {{
                     (
@@ -1601,15 +1504,11 @@ onMounted(async () => {
             <!-- Ongkir per toko -->
             <!-- Bubble wrap per toko -->
             <div
-              class="flex items-center justify-between gap-3 bg-emerald-50 p-3 rounded-xl border border-dashed border-gray-200"
-            >
+              class="flex items-center justify-between gap-3 bg-emerald-50 p-3 rounded-xl border border-dashed border-gray-200">
               <label class="flex items-center gap-2 cursor-pointer flex-1">
-                <input
-                  type="checkbox"
-                  :checked="bubbleWrapPerStore[group.store_key]"
+                <input type="checkbox" :checked="bubbleWrapPerStore[group.store_key]"
                   @change="toggleBubbleWrapForStore(group.store_key)"
-                  class="w-4 h-4 text-[#E25C38] accent-[#E25C38] rounded cursor-pointer"
-                />
+                  class="w-4 h-4 text-[#E25C38] accent-[#E25C38] rounded cursor-pointer" />
                 <span class="text-xs sm:text-sm text-emerald-700">
                   Tambah <b>Air Bubble Wrap</b>
                 </span>
@@ -1618,32 +1517,21 @@ onMounted(async () => {
                 {{ formatPrice(BUBBLE_WRAP_FEE) }}
               </span>
             </div>
-            <div
-              class="flex items-center justify-between pt-2 border-t border-gray-100"
-            >
+            <div class="flex items-center justify-between pt-2 border-t border-gray-100">
               <div>
                 <p class="text-xs text-gray-500 mb-0.5">
                   Ongkos kirim ({{ group.items.length }} produk)
                 </p>
 
                 <!-- Info campuran gratis ongkir per item -->
-                <p
-                  v-if="freeShippingSummary(group)"
-                  class="text-[11px] text-green-600 font-medium mb-0.5"
-                >
+                <p v-if="freeShippingSummary(group)" class="text-[11px] text-green-600 font-medium mb-0.5">
                   🎉 {{ freeShippingSummary(group) }}
                 </p>
 
-                <p
-                  v-if="group.allFreeShipping"
-                  class="text-sm font-semibold text-green-600"
-                >
+                <p v-if="group.allFreeShipping" class="text-sm font-semibold text-green-600">
                   Gratis Ongkir
                 </p>
-                <p
-                  v-else-if="shippingPerStore[group.store_key]?.agent"
-                  class="text-sm font-semibold text-gray-900"
-                >
+                <p v-else-if="shippingPerStore[group.store_key]?.agent" class="text-sm font-semibold text-gray-900">
                   {{ shippingPerStore[group.store_key].agent?.toUpperCase() }}
                   - {{ shippingPerStore[group.store_key].service }} ·
                   {{ formatPrice(shippingPerStore[group.store_key].cost) }}
@@ -1658,12 +1546,8 @@ onMounted(async () => {
               </div>
 
               <!-- Tombol pilih kurir disembunyikan kalau seluruh item toko gratis ongkir -->
-              <button
-                v-if="!group.allFreeShipping"
-                type="button"
-                @click="openShippingModalForStore(group.store_key)"
-                class="text-sm font-bold text-[#E25C38] hover:underline cursor-pointer"
-              >
+              <button v-if="!group.allFreeShipping" type="button" @click="openShippingModalForStore(group.store_key)"
+                class="text-sm font-bold text-[#E25C38] hover:underline cursor-pointer">
                 {{
                   shippingPerStore[group.store_key]?.agent
                     ? "Ganti Kurir"
@@ -1673,23 +1557,17 @@ onMounted(async () => {
             </div>
           </div>
 
-          <div
-            v-else-if="!isLoadingCart"
-            class="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 text-center py-6 text-gray-400 text-sm"
-          >
+          <div v-else-if="!isLoadingCart"
+            class="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 text-center py-6 text-gray-400 text-sm">
             Keranjang kamu kosong. Silakan pilih produk terlebih dahulu.
           </div>
 
           <!-- VOUCHER -->
-          <div
-            class="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 space-y-3"
-          >
+          <div class="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 space-y-3">
             <div class="flex items-center justify-between">
               <h2 class="text-sm font-bold text-gray-900">Voucher Diskon</h2>
-              <button
-                @click="showVoucherModal = true"
-                class="text-sm font-bold text-[#E25C38] hover:underline cursor-pointer"
-              >
+              <button @click="showVoucherModal = true"
+                class="text-sm font-bold text-[#E25C38] hover:underline cursor-pointer">
                 {{ selectedVoucher ? "Ganti Voucher" : "Pilih Voucher" }}
               </button>
             </div>
@@ -1699,25 +1577,16 @@ onMounted(async () => {
             </div> -->
 
             <div class="flex gap-2">
-              <input
-                v-model="voucherCode"
-                type="text"
-                placeholder="Masukkan kode voucher"
-                class="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#E25C38]"
-              />
-              <button
-                @click="applyVoucherCode"
-                :disabled="isApplyingVoucher || !voucherCode"
-                class="px-4 py-2 rounded-lg bg-[#14120E] text-white text-sm font-bold hover:bg-black disabled:bg-gray-200 disabled:text-gray-400 disabled:cursor-not-allowed cursor-pointer"
-              >
+              <input v-model="voucherCode" type="text" placeholder="Masukkan kode voucher"
+                class="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#E25C38]" />
+              <button @click="applyVoucherCode" :disabled="isApplyingVoucher || !voucherCode"
+                class="px-4 py-2 rounded-lg bg-[#14120E] text-white text-sm font-bold hover:bg-black disabled:bg-gray-200 disabled:text-gray-400 disabled:cursor-not-allowed cursor-pointer">
                 Terapkan
               </button>
             </div>
 
-            <div
-              v-if="selectedVoucher"
-              class="border border-[#E25C38] bg-[#FFF8F6] rounded-xl px-4 py-3 text-sm flex flex-col gap-2"
-            >
+            <div v-if="selectedVoucher"
+              class="border border-[#E25C38] bg-[#FFF8F6] rounded-xl px-4 py-3 text-sm flex flex-col gap-2">
               <div class="flex items-start justify-between gap-3">
                 <div class="min-w-0">
                   <div class="flex items-center gap-2 flex-wrap">
@@ -1725,11 +1594,8 @@ onMounted(async () => {
                       selectedVoucher.name || selectedVoucher.code
                     }}</span>
                     <span
-                      class="text-xs font-bold text-[#E25C38] bg-[#FFE6E6] border border-[#E25C38] px-2 py-0.5 rounded"
-                    >
-                      <span
-                        v-if="selectedVoucher.discount_type === 'PERCENTAGE'"
-                      >
+                      class="text-xs font-bold text-[#E25C38] bg-[#FFE6E6] border border-[#E25C38] px-2 py-0.5 rounded">
+                      <span v-if="selectedVoucher.discount_type === 'PERCENTAGE'">
                         {{ Number(selectedVoucher.discount_value) }}%
                       </span>
                       <span v-else>
@@ -1745,18 +1611,13 @@ onMounted(async () => {
                     {{ selectedVoucher.description || "" }}
                   </p>
                 </div>
-                <button
-                  @click="removeVoucher"
-                  class="text-[#E25C38] hover:underline cursor-pointer text-xs shrink-0"
-                >
+                <button @click="removeVoucher" class="text-[#E25C38] hover:underline cursor-pointer text-xs shrink-0">
                   Hapus
                 </button>
               </div>
               <div class="flex justify-between items-center">
                 <span class="text-xs text-gray-500">Diskon</span>
-                <span class="text-sm font-bold text-gray-900"
-                  >- {{ formatPrice(discount) }}</span
-                >
+                <span class="text-sm font-bold text-gray-900">- {{ formatPrice(discount) }}</span>
               </div>
             </div>
           </div>
@@ -1818,9 +1679,7 @@ onMounted(async () => {
 
         <!-- Kolom Kanan: Ringkasan Pesanan -->
         <div class="lg:col-span-4">
-          <div
-            class="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 space-y-4"
-          >
+          <div class="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 space-y-4">
             <h2 class="text-base font-bold text-gray-900">Ringkasan Pesanan</h2>
             <div class="space-y-3 text-sm">
               <div class="flex justify-between text-gray-600">
@@ -1837,28 +1696,19 @@ onMounted(async () => {
                     : "Gratis"
                 }}</span>
               </div>
-              <div
-                v-if="totalProtectionCost > 0"
-                class="flex justify-between text-gray-600"
-              >
+              <div v-if="totalProtectionCost > 0" class="flex justify-between text-gray-600">
                 <span>Proteksi Produk</span>
                 <span class="font-bold text-gray-800">{{
                   formatPrice(totalProtectionCost)
                 }}</span>
               </div>
-              <div
-                v-if="totalBubbleWrapCost > 0"
-                class="flex justify-between text-gray-600"
-              >
+              <div v-if="totalBubbleWrapCost > 0" class="flex justify-between text-gray-600">
                 <span>Bubble Wrap</span>
                 <span class="font-bold text-gray-800">{{
                   formatPrice(totalBubbleWrapCost)
                 }}</span>
               </div>
-              <div
-                v-if="discount > 0"
-                class="flex justify-between text-[#E25C38]"
-              >
+              <div v-if="discount > 0" class="flex justify-between text-[#E25C38]">
                 <span>Diskon Voucher</span>
                 <span class="font-bold">- {{ formatPrice(discount) }}</span>
               </div>
@@ -1873,19 +1723,13 @@ onMounted(async () => {
               }}</span>
             </div>
 
-            <button
-              @click="handleCheckout"
-              :disabled="
-                !cartItems.length ||
-                isProcessingPayment ||
-                !canSubmit ||
-                updatingQtyVariantId !== null
+            <button @click="handleCheckout" :disabled="!cartItems.length ||
+              isProcessingPayment ||
+              !canSubmit ||
+              updatingQtyVariantId !== null
               "
-              class="w-full py-3.5 bg-[#14120E] hover:bg-black disabled:bg-gray-200 disabled:text-gray-400 text-[#D4B26F] font-bold text-sm rounded-xl transition-all shadow-sm cursor-pointer disabled:cursor-not-allowed flex items-center justify-center gap-2"
-            >
-              <span v-if="isProcessingPayment" class="animate-spin text-base"
-                >🌀</span
-              >
+              class="w-full py-3.5 bg-[#14120E] hover:bg-black disabled:bg-gray-200 disabled:text-gray-400 text-[#D4B26F] font-bold text-sm rounded-xl transition-all shadow-sm cursor-pointer disabled:cursor-not-allowed flex items-center justify-center gap-2">
+              <span v-if="isProcessingPayment" class="animate-spin text-base">🌀</span>
               <span>{{
                 isProcessingPayment ? "Memproses..." : "Bayar Sekarang"
               }}</span>
@@ -1895,9 +1739,7 @@ onMounted(async () => {
               {{ errorMessage }}
             </p>
 
-            <p
-              class="text-xs text-gray-400 text-center flex items-center justify-center gap-1"
-            >
+            <p class="text-xs text-gray-400 text-center flex items-center justify-center gap-1">
               <span>🔒</span> Transaksi aman & terenkripsi
             </p>
           </div>
@@ -1906,45 +1748,29 @@ onMounted(async () => {
     </div>
 
     <!-- MODAL PILIH ONGKIR / KURIR (per toko) -->
-    <div
-      v-if="showShippingModal"
-      class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
-    >
+    <div v-if="showShippingModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
       <div class="bg-white rounded-2xl max-w-md w-full p-6 space-y-4 shadow-xl">
         <div class="flex items-center justify-between border-b pb-3">
           <h3 class="text-base font-bold text-gray-900">
             Pilih Opsi Pengiriman
           </h3>
-          <button
-            @click="showShippingModal = false"
-            class="text-gray-400 hover:text-gray-600 text-base"
-          >
+          <button @click="showShippingModal = false" class="text-gray-400 hover:text-gray-600 text-base">
             ✕
           </button>
         </div>
 
-        <div
-          v-if="isFetchingShipping"
-          class="text-sm text-gray-400 animate-pulse text-center py-6"
-        >
+        <div v-if="isFetchingShipping" class="text-sm text-gray-400 animate-pulse text-center py-6">
           Menghitung ongkos kirim...
         </div>
 
-        <div
-          v-else-if="currentStoreShippingOptions?.length > 0"
-          class="space-y-2 max-h-72 overflow-y-auto pr-1"
-        >
-          <div
-            v-for="(opt, idx) in currentStoreShippingOptions"
-            :key="idx"
-            @click="selectCourierOptionFromModal(opt)"
+        <div v-else-if="currentStoreShippingOptions?.length > 0" class="space-y-2 max-h-72 overflow-y-auto pr-1">
+          <div v-for="(opt, idx) in currentStoreShippingOptions" :key="idx" @click="selectCourierOptionFromModal(opt)"
             :class="[
               'p-4 rounded-xl border transition-all cursor-pointer flex items-center justify-between',
               shippingPerStore[editingShippingStoreKey]?.service === opt.service
                 ? 'border-[#E25C38] bg-[#FFF8F6]'
                 : 'border-gray-200 hover:border-gray-300',
-            ]"
-          >
+            ]">
             <div>
               <span class="text-sm font-bold text-gray-900">
                 {{ (opt.name || opt.agent || "POS").toUpperCase() }} -
@@ -1965,10 +1791,8 @@ onMounted(async () => {
         </div>
 
         <div class="flex justify-end pt-3 border-t">
-          <button
-            @click="showShippingModal = false"
-            class="px-4 py-2 text-xs bg-gray-100 text-gray-700 font-bold rounded-lg hover:bg-gray-200"
-          >
+          <button @click="showShippingModal = false"
+            class="px-4 py-2 text-xs bg-gray-100 text-gray-700 font-bold rounded-lg hover:bg-gray-200">
             Tutup
           </button>
         </div>
@@ -1976,46 +1800,30 @@ onMounted(async () => {
     </div>
 
     <!-- MODAL PILIH ALAMAT -->
-    <div
-      v-if="showSelectModal"
-      class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
-    >
+    <div v-if="showSelectModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
       <div class="bg-white rounded-2xl max-w-lg w-full p-6 space-y-4 shadow-xl">
         <div class="flex items-center justify-between border-b pb-3">
           <h3 class="text-base font-bold text-gray-900">
             Pilih Alamat Pengiriman
           </h3>
-          <button
-            @click="showSelectModal = false"
-            class="text-gray-400 hover:text-gray-600 text-base"
-          >
+          <button @click="showSelectModal = false" class="text-gray-400 hover:text-gray-600 text-base">
             ✕
           </button>
         </div>
 
-        <div
-          v-if="addresses?.length > 0"
-          class="space-y-3 max-h-72 overflow-y-auto pr-1"
-        >
-          <div
-            v-for="addr in addresses"
-            :key="addr.id"
-            @click="tempSelectedAddressId = addr.id"
-            :class="[
-              'p-4 rounded-xl border transition-all cursor-pointer space-y-1',
-              tempSelectedAddressId === addr.id
-                ? 'border-[#E25C38] bg-[#FFF8F6]'
-                : 'border-gray-200 hover:border-gray-300',
-            ]"
-          >
+        <div v-if="addresses?.length > 0" class="space-y-3 max-h-72 overflow-y-auto pr-1">
+          <div v-for="addr in addresses" :key="addr.id" @click="tempSelectedAddressId = addr.id" :class="[
+            'p-4 rounded-xl border transition-all cursor-pointer space-y-1',
+            tempSelectedAddressId === addr.id
+              ? 'border-[#E25C38] bg-[#FFF8F6]'
+              : 'border-gray-200 hover:border-gray-300',
+          ]">
             <div class="flex items-center justify-between">
               <span class="text-sm font-bold text-gray-900">{{
                 addr.first_name || addr.name
               }}</span>
-              <span
-                v-if="addr.label_place || addr.label"
-                class="text-xs bg-gray-100 text-gray-600 px-2.5 py-0.5 rounded-md font-medium"
-              >
+              <span v-if="addr.label_place || addr.label"
+                class="text-xs bg-gray-100 text-gray-600 px-2.5 py-0.5 rounded-md font-medium">
                 {{ addr.label_place || addr.label }}
               </span>
             </div>
@@ -2032,23 +1840,16 @@ onMounted(async () => {
         </div>
 
         <div class="flex items-center justify-between pt-3 border-t">
-          <button
-            @click="openAddModal"
-            class="text-xs font-bold text-[#E25C38] hover:underline cursor-pointer"
-          >
+          <button @click="openAddModal" class="text-xs font-bold text-[#E25C38] hover:underline cursor-pointer">
             + Tambah Alamat Baru
           </button>
           <div class="flex gap-2">
-            <button
-              @click="showSelectModal = false"
-              class="px-4 py-2 text-xs text-gray-600 hover:bg-gray-100 rounded-lg"
-            >
+            <button @click="showSelectModal = false"
+              class="px-4 py-2 text-xs text-gray-600 hover:bg-gray-100 rounded-lg">
               Batal
             </button>
-            <button
-              @click="saveSelectedAddress"
-              class="px-4 py-2 text-xs bg-[#E25C38] text-white font-bold rounded-lg hover:bg-[#c94d2b]"
-            >
+            <button @click="saveSelectedAddress"
+              class="px-4 py-2 text-xs bg-[#E25C38] text-white font-bold rounded-lg hover:bg-[#c94d2b]">
               Simpan
             </button>
           </div>
@@ -2057,41 +1858,27 @@ onMounted(async () => {
     </div>
 
     <!-- MODAL TAMBAH ALAMAT BARU -->
-    <div
-      v-if="showAddModal"
-      class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 overflow-y-auto"
-    >
-      <div
-        class="bg-white rounded-3xl max-w-xl w-full p-6 space-y-5 shadow-2xl relative my-8"
-      >
+    <div v-if="showAddModal"
+      class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 overflow-y-auto">
+      <div class="bg-white rounded-3xl max-w-xl w-full p-6 space-y-5 shadow-2xl relative my-8">
         <div class="flex items-center justify-between">
           <h2 class="text-xl font-extrabold text-gray-900">Alamat Baru</h2>
-          <button
-            @click="showAddModal = false"
-            class="text-gray-400 hover:text-gray-600 text-xl font-bold"
-          >
+          <button @click="showAddModal = false" class="text-gray-400 hover:text-gray-600 text-xl font-bold">
             ✕
           </button>
         </div>
 
         <form @submit.prevent="submitAddAddress" class="space-y-4">
           <div>
-            <label class="block text-xs font-bold text-gray-700 mb-1.5"
-              >Label Alamat</label
-            >
+            <label class="block text-xs font-bold text-gray-700 mb-1.5">Label Alamat</label>
             <div class="flex gap-2">
-              <button
-                type="button"
-                v-for="opt in labelOptions"
-                :key="opt"
-                @click="addressForm.label_place = opt"
+              <button type="button" v-for="opt in labelOptions" :key="opt" @click="addressForm.label_place = opt"
                 :class="[
                   'px-3.5 py-1.5 text-xs rounded-xl border font-medium transition-all',
                   addressForm.label_place === opt
                     ? 'border-[#E25C38] bg-[#FFF8F6] text-[#E25C38]'
                     : 'border-gray-200 text-gray-600 hover:bg-gray-50',
-                ]"
-              >
+                ]">
                 {{ opt }}
               </button>
             </div>
@@ -2099,67 +1886,36 @@ onMounted(async () => {
 
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label class="block text-xs font-bold text-gray-700 mb-1.5"
-                >Nama Depan *</label
-              >
-              <input
-                v-model="addressForm.first_name"
-                type="text"
-                required
-                placeholder="Nama Depan"
-                class="w-full px-3.5 py-2.5 text-xs border border-gray-200 rounded-xl focus:outline-none focus:border-[#E25C38]"
-              />
+              <label class="block text-xs font-bold text-gray-700 mb-1.5">Nama Depan *</label>
+              <input v-model="addressForm.first_name" type="text" required placeholder="Nama Depan"
+                class="w-full px-3.5 py-2.5 text-xs border border-gray-200 rounded-xl focus:outline-none focus:border-[#E25C38]" />
             </div>
             <div>
-              <label class="block text-xs font-bold text-gray-700 mb-1.5"
-                >Nama Belakang</label
-              >
-              <input
-                v-model="addressForm.last_name"
-                type="text"
-                placeholder="Nama Belakang"
-                class="w-full px-3.5 py-2.5 text-xs border border-gray-200 rounded-xl focus:outline-none focus:border-[#E25C38]"
-              />
+              <label class="block text-xs font-bold text-gray-700 mb-1.5">Nama Belakang</label>
+              <input v-model="addressForm.last_name" type="text" placeholder="Nama Belakang"
+                class="w-full px-3.5 py-2.5 text-xs border border-gray-200 rounded-xl focus:outline-none focus:border-[#E25C38]" />
             </div>
           </div>
 
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label class="block text-xs font-bold text-gray-700 mb-1.5"
-                >Nomor Telepon *</label
-              >
-              <input
-                v-model="addressForm.phone"
-                type="tel"
-                required
-                placeholder="08123456789"
-                class="w-full px-3.5 py-2.5 text-xs border border-gray-200 rounded-xl focus:outline-none focus:border-[#E25C38]"
-              />
+              <label class="block text-xs font-bold text-gray-700 mb-1.5">Nomor Telepon *</label>
+              <input v-model="addressForm.phone" type="tel" required placeholder="08123456789"
+                class="w-full px-3.5 py-2.5 text-xs border border-gray-200 rounded-xl focus:outline-none focus:border-[#E25C38]" />
             </div>
             <div>
-              <label class="block text-xs font-bold text-gray-700 mb-1.5"
-                >Kode Pos</label
-              >
-              <input
-                v-model="addressForm.postal_code"
-                type="text"
-                placeholder="12345"
-                class="w-full px-3.5 py-2.5 text-xs border border-gray-200 rounded-xl focus:outline-none focus:border-[#E25C38]"
-              />
+              <label class="block text-xs font-bold text-gray-700 mb-1.5">Kode Pos</label>
+              <input v-model="addressForm.postal_code" type="text" placeholder="12345"
+                class="w-full px-3.5 py-2.5 text-xs border border-gray-200 rounded-xl focus:outline-none focus:border-[#E25C38]" />
             </div>
           </div>
 
           <!-- Cascading Dropdowns -->
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label class="block text-xs font-bold text-gray-700 mb-1.5"
-                >Provinsi *</label
-              >
-              <select
-                v-model="selectedProvinceId"
-                @change="onProvinceChange"
-                class="w-full px-3.5 py-2.5 text-xs border border-gray-200 rounded-xl focus:outline-none focus:border-[#E25C38]"
-              >
+              <label class="block text-xs font-bold text-gray-700 mb-1.5">Provinsi *</label>
+              <select v-model="selectedProvinceId" @change="onProvinceChange"
+                class="w-full px-3.5 py-2.5 text-xs border border-gray-200 rounded-xl focus:outline-none focus:border-[#E25C38]">
                 <option :value="null" disabled>Pilih Provinsi</option>
                 <option v-for="p in provinces" :key="p.id" :value="p.id">
                   {{ p.name }}
@@ -2167,15 +1923,9 @@ onMounted(async () => {
               </select>
             </div>
             <div>
-              <label class="block text-xs font-bold text-gray-700 mb-1.5"
-                >Kota / Kabupaten *</label
-              >
-              <select
-                v-model="selectedCityId"
-                @change="onCityChange"
-                :disabled="!selectedProvinceId || isLoadingCities"
-                class="w-full px-3.5 py-2.5 text-xs border border-gray-200 rounded-xl focus:outline-none focus:border-[#E25C38] disabled:bg-gray-100"
-              >
+              <label class="block text-xs font-bold text-gray-700 mb-1.5">Kota / Kabupaten *</label>
+              <select v-model="selectedCityId" @change="onCityChange" :disabled="!selectedProvinceId || isLoadingCities"
+                class="w-full px-3.5 py-2.5 text-xs border border-gray-200 rounded-xl focus:outline-none focus:border-[#E25C38] disabled:bg-gray-100">
                 <option :value="null" disabled>Pilih Kota/Kab</option>
                 <option v-for="c in cities" :key="c.id" :value="c.id">
                   {{ c.name }}
@@ -2186,15 +1936,10 @@ onMounted(async () => {
 
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label class="block text-xs font-bold text-gray-700 mb-1.5"
-                >Kecamatan *</label
-              >
-              <select
-                v-model="selectedDistrictId"
-                @change="onDistrictChange"
+              <label class="block text-xs font-bold text-gray-700 mb-1.5">Kecamatan *</label>
+              <select v-model="selectedDistrictId" @change="onDistrictChange"
                 :disabled="!selectedCityId || isLoadingDistricts"
-                class="w-full px-3.5 py-2.5 text-xs border border-gray-200 rounded-xl focus:outline-none focus:border-[#E25C38] disabled:bg-gray-100"
-              >
+                class="w-full px-3.5 py-2.5 text-xs border border-gray-200 rounded-xl focus:outline-none focus:border-[#E25C38] disabled:bg-gray-100">
                 <option :value="null" disabled>Pilih Kecamatan</option>
                 <option v-for="d in districts" :key="d.id" :value="d.id">
                   {{ d.name }}
@@ -2202,15 +1947,10 @@ onMounted(async () => {
               </select>
             </div>
             <div>
-              <label class="block text-xs font-bold text-gray-700 mb-1.5"
-                >Kelurahan *</label
-              >
-              <select
-                v-model="selectedSubDistrictId"
-                @change="onSubDistrictChange"
+              <label class="block text-xs font-bold text-gray-700 mb-1.5">Kelurahan *</label>
+              <select v-model="selectedSubDistrictId" @change="onSubDistrictChange"
                 :disabled="!selectedDistrictId || isLoadingSubDistricts"
-                class="w-full px-3.5 py-2.5 text-xs border border-gray-200 rounded-xl focus:outline-none focus:border-[#E25C38] disabled:bg-gray-100"
-              >
+                class="w-full px-3.5 py-2.5 text-xs border border-gray-200 rounded-xl focus:outline-none focus:border-[#E25C38] disabled:bg-gray-100">
                 <option :value="null" disabled>Pilih Kelurahan</option>
                 <option v-for="sd in subDistricts" :key="sd.id" :value="sd.id">
                   {{ sd.name }}
@@ -2220,46 +1960,26 @@ onMounted(async () => {
           </div>
 
           <div>
-            <label class="block text-xs font-bold text-gray-700 mb-1.5"
-              >Alamat Lengkap *</label
-            >
-            <textarea
-              v-model="addressForm.address"
-              rows="3"
-              required
-              placeholder="Nama jalan, nomor rumah, RT/RW..."
-              class="w-full px-3.5 py-2.5 text-xs border border-gray-200 rounded-xl focus:outline-none focus:border-[#E25C38]"
-            ></textarea>
+            <label class="block text-xs font-bold text-gray-700 mb-1.5">Alamat Lengkap *</label>
+            <textarea v-model="addressForm.address" rows="3" required placeholder="Nama jalan, nomor rumah, RT/RW..."
+              class="w-full px-3.5 py-2.5 text-xs border border-gray-200 rounded-xl focus:outline-none focus:border-[#E25C38]"></textarea>
           </div>
 
           <div class="flex items-center gap-2">
-            <input
-              type="checkbox"
-              id="is_primary"
-              v-model="addressForm.is_primary"
-              class="w-4 h-4 text-[#E25C38] accent-[#E25C38] rounded"
-            />
-            <label
-              for="is_primary"
-              class="text-xs font-medium text-gray-700 cursor-pointer"
-            >
+            <input type="checkbox" id="is_primary" v-model="addressForm.is_primary"
+              class="w-4 h-4 text-[#E25C38] accent-[#E25C38] rounded" />
+            <label for="is_primary" class="text-xs font-medium text-gray-700 cursor-pointer">
               Jadikan Alamat Utama
             </label>
           </div>
 
           <div class="flex justify-end gap-2 pt-3 border-t">
-            <button
-              type="button"
-              @click="showAddModal = false"
-              class="px-4 py-2 text-xs text-gray-600 hover:bg-gray-100 rounded-xl"
-            >
+            <button type="button" @click="showAddModal = false"
+              class="px-4 py-2 text-xs text-gray-600 hover:bg-gray-100 rounded-xl">
               Batal
             </button>
-            <button
-              type="submit"
-              :disabled="isSavingAddress"
-              class="px-5 py-2 text-xs bg-[#E25C38] text-white font-bold rounded-xl hover:bg-[#c94d2b] disabled:bg-gray-300"
-            >
+            <button type="submit" :disabled="isSavingAddress"
+              class="px-5 py-2 text-xs bg-[#E25C38] text-white font-bold rounded-xl hover:bg-[#c94d2b] disabled:bg-gray-300">
               {{ isSavingAddress ? "Menyimpan..." : "Simpan Alamat" }}
             </button>
           </div>
@@ -2268,45 +1988,28 @@ onMounted(async () => {
     </div>
 
     <!-- MODAL PILIH VOUCHER -->
-    <div
-      v-if="showVoucherModal"
-      class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
-    >
+    <div v-if="showVoucherModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
       <div class="bg-white rounded-2xl max-w-md w-full p-6 space-y-4 shadow-xl">
         <div class="flex items-center justify-between border-b pb-3">
           <h3 class="text-base font-bold text-gray-900">
             Gunakan Voucher Diskon
           </h3>
-          <button
-            @click="showVoucherModal = false"
-            class="text-gray-400 hover:text-gray-600 text-base"
-          >
+          <button @click="showVoucherModal = false" class="text-gray-400 hover:text-gray-600 text-base">
             ✕
           </button>
         </div>
 
-        <div
-          v-if="isLoadingVouchers"
-          class="text-sm text-gray-400 animate-pulse text-center py-4"
-        >
+        <div v-if="isLoadingVouchers" class="text-sm text-gray-400 animate-pulse text-center py-4">
           Memuat voucher...
         </div>
 
-        <div
-          v-else-if="applicableVouchers?.length > 0"
-          class="space-y-2 max-h-60 overflow-y-auto pr-1"
-        >
-          <div
-            v-for="v in applicableVouchers"
-            :key="v.id"
-            @click="selectVoucherFromList(v)"
-            :class="[
-              'p-3.5 rounded-xl border transition-all cursor-pointer flex items-center justify-between',
-              selectedVoucher?.id === v.id
-                ? 'border-[#E25C38] bg-[#FFF8F6]'
-                : 'border-gray-200 hover:border-gray-300',
-            ]"
-          >
+        <div v-else-if="applicableVouchers?.length > 0" class="space-y-2 max-h-60 overflow-y-auto pr-1">
+          <div v-for="v in applicableVouchers" :key="v.id" @click="selectVoucherFromList(v)" :class="[
+            'p-3.5 rounded-xl border transition-all cursor-pointer flex items-center justify-between',
+            selectedVoucher?.id === v.id
+              ? 'border-[#E25C38] bg-[#FFF8F6]'
+              : 'border-gray-200 hover:border-gray-300',
+          ]">
             <div>
               <p class="text-sm font-bold text-gray-900">
                 {{ v.name || v.code }}
@@ -2326,10 +2029,8 @@ onMounted(async () => {
         </div>
 
         <div class="flex justify-end pt-3 border-t">
-          <button
-            @click="showVoucherModal = false"
-            class="px-4 py-2 text-xs bg-gray-100 text-gray-700 font-bold rounded-lg hover:bg-gray-200"
-          >
+          <button @click="showVoucherModal = false"
+            class="px-4 py-2 text-xs bg-gray-100 text-gray-700 font-bold rounded-lg hover:bg-gray-200">
             Tutup
           </button>
         </div>
@@ -2337,31 +2038,21 @@ onMounted(async () => {
     </div>
 
     <!-- MODAL CATATAN PER PRODUK -->
-    <div
-      v-if="showNoteModal"
-      class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
-    >
+    <div v-if="showNoteModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
       <div class="bg-white rounded-2xl max-w-md w-full p-6 space-y-4 shadow-xl">
         <h3 class="text-base font-bold text-gray-900">Catatan untuk Produk</h3>
 
-        <textarea
-          v-model="noteDraft"
-          rows="4"
+        <textarea v-model="noteDraft" rows="4"
           class="w-full border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:border-[#E25C38]"
-          placeholder="Tulis catatan untuk produk ini..."
-        ></textarea>
+          placeholder="Tulis catatan untuk produk ini..."></textarea>
 
         <div class="flex justify-end gap-2">
-          <button
-            @click="showNoteModal = false"
-            class="px-4 py-2 text-xs text-gray-600 border rounded-lg hover:bg-gray-100 cursor-pointer"
-          >
+          <button @click="showNoteModal = false"
+            class="px-4 py-2 text-xs text-gray-600 border rounded-lg hover:bg-gray-100 cursor-pointer">
             Batal
           </button>
-          <button
-            @click="saveNote"
-            class="px-4 py-2 text-xs bg-[#E25C38] text-white font-bold rounded-lg hover:bg-[#c94d2b] cursor-pointer"
-          >
+          <button @click="saveNote"
+            class="px-4 py-2 text-xs bg-[#E25C38] text-white font-bold rounded-lg hover:bg-[#c94d2b] cursor-pointer">
             Simpan
           </button>
         </div>
