@@ -2,10 +2,7 @@
   <div>
     <h1 class="text-xl font-extrabold text-gray-900">Pesanan Saya</h1>
 
-    <div
-      v-if="isLoading"
-      class="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 text-center py-12 mt-4"
-    >
+    <div v-if="isLoading" class="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 text-center py-12 mt-4">
       <p class="text-xs font-bold text-gray-500 animate-pulse">
         Memuat data pesanan...
       </p>
@@ -13,21 +10,16 @@
 
     <div v-else class="space-y-4 mt-4">
       <template v-if="orders.length > 0">
-        <div
-          v-for="order in orders"
-          :key="order.id"
-          class="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 flex flex-col justify-between"
-        >
+        <div v-for="order in orders" :key="order.id"
+          class="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 flex flex-col justify-between">
           <div class="flex items-center justify-between">
             <h3 class="text-xs font-extrabold text-gray-900">
               Pesanan {{ order.orderNumber }}
             </h3>
-            <span
-              :class="[
-                'text-[10px] font-bold px-2.5 py-0.5 rounded-full',
-                order.statusColor || 'bg-gray-100 text-gray-700',
-              ]"
-            >
+            <span :class="[
+              'text-[10px] font-bold px-2.5 py-0.5 rounded-full',
+              order.statusColor || 'bg-gray-100 text-gray-700',
+            ]">
               {{ order.status }}
             </span>
           </div>
@@ -37,16 +29,9 @@
           </p>
 
           <div class="mt-3 space-y-3">
-            <div
-              v-for="item in order.items"
-              :key="item.id"
-              class="flex items-center gap-3"
-            >
-              <img
-                :src="item.image"
-                :alt="item.title"
-                class="w-10 h-10 object-cover rounded-lg border border-gray-100 shrink-0"
-              />
+            <div v-for="item in order.items" :key="item.id" class="flex items-center gap-3">
+              <img :src="item.image" :alt="item.title"
+                class="w-10 h-10 object-cover rounded-lg border border-gray-100 shrink-0" />
               <div class="flex-1 flex items-center justify-between gap-2">
                 <span class="text-xs font-bold text-gray-800">
                   {{ item.title }} (x{{ item.quantity }})
@@ -55,32 +40,20 @@
                 <!-- Hanya untuk pesanan COMPLETED -->
                 <template v-if="order.status === 'COMPLETED'">
                   <!-- SUDAH ADA ULASAN -->
-                  <div
-                    v-if="item.review"
-                    class="flex items-center gap-1.5 text-[11px] font-bold text-gray-500 bg-gray-50 px-3 py-1.5 rounded-lg shrink-0"
-                  >
+                  <div v-if="item.review"
+                    class="flex items-center gap-1.5 text-[11px] font-bold text-gray-500 bg-gray-50 px-3 py-1.5 rounded-lg shrink-0">
                     <span class="flex">
-                      <span
-                        v-for="star in 5"
-                        :key="star"
-                        :class="
-                          star <= item.review.rating
-                            ? 'text-[#D4B26F]'
-                            : 'text-gray-200'
-                        "
-                        >★</span
-                      >
+                      <span v-for="star in 5" :key="star" :class="star <= item.review.rating
+                          ? 'text-[#D4B26F]'
+                          : 'text-gray-200'
+                        ">★</span>
                     </span>
                     <span>Sudah Diulas</span>
                   </div>
 
                   <!-- BELUM ADA ULASAN -->
-                  <button
-                    v-else
-                    type="button"
-                    @click="openReviewModal(item)"
-                    class="text-[11px] font-bold px-3 py-1.5 rounded-lg transition-colors shrink-0 text-[#E25C38] bg-[#FFF8F6] hover:bg-[#FFEDE6]"
-                  >
+                  <button v-else type="button" @click="openReviewModal(item)"
+                    class="text-[11px] font-bold px-3 py-1.5 rounded-lg transition-colors shrink-0 text-[#E25C38] bg-[#FFF8F6] hover:bg-[#FFEDE6]">
                     Beri Ulasan
                   </button>
                 </template>
@@ -88,9 +61,7 @@
             </div>
           </div>
 
-          <div
-            class="pt-4 mt-4 border-t border-gray-100 flex items-center justify-between gap-2 flex-wrap"
-          >
+          <div class="pt-4 mt-4 border-t border-gray-100 flex items-center justify-between gap-2 flex-wrap">
             <div class="flex items-center gap-2 flex-wrap">
               <p class="text-xs text-gray-900">
                 <span class="font-bold">
@@ -99,10 +70,7 @@
               </p>
 
               <!-- NOMOR RESI -->
-              <span
-                v-if="order.resiNumber"
-                class="text-[11px] text-gray-500 font-medium flex items-center gap-1"
-              >
+              <span v-if="order.resiNumber" class="text-[11px] text-gray-500 font-medium flex items-center gap-1">
                 <span class="text-gray-300">&bull;</span>
                 No. Resi:
                 <span class="font-bold text-gray-700">{{
@@ -111,20 +79,22 @@
               </span>
             </div>
 
-            <div class="flex items-center gap-2">
-              <router-link
-                :to="`/account/orders/${order.id}`"
-                class="px-5 py-2 bg-[#14120E] text-[#D4B26F] text-xs font-bold rounded-xl shadow-sm hover:bg-black transition-colors"
-              >
+            <div class="flex items-center gap-2 flex-wrap">
+              <!-- BAYAR SEKARANG (hanya untuk pesanan PENDING) -->
+              <button v-if="order.status === 'PENDING'" type="button" @click="payPendingOrder(order)"
+                :disabled="payingOrderId !== null"
+                class="px-5 py-2 bg-[#E25C38] hover:bg-[#c94d2b] text-white text-xs font-bold rounded-xl shadow-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer">
+                {{ payingOrderId === order.id ? "Memproses..." : "Bayar Sekarang" }}
+              </button>
+
+              <router-link :to="`/account/orders/${order.id}`"
+                class="px-5 py-2 bg-[#14120E] text-[#D4B26F] text-xs font-bold rounded-xl shadow-sm hover:bg-black transition-colors">
                 Detail Pesanan
               </router-link>
 
-              <button
-                v-if="order.status === 'DELIVERED'"
-                @click="openCompleteOrderModal(order.id)"
+              <button v-if="order.status === 'DELIVERED'" @click="openCompleteOrderModal(order.id)"
                 :disabled="completingOrderId === order.id"
-                class="px-5 py-2 bg-white border border-[#14120E] hover:bg-gray-50 text-[#14120E] text-xs font-bold rounded-xl shadow-sm transition-colors disabled:opacity-50"
-              >
+                class="px-5 py-2 bg-white border border-[#14120E] hover:bg-gray-50 text-[#14120E] text-xs font-bold rounded-xl shadow-sm transition-colors disabled:opacity-50">
                 {{
                   completingOrderId === order.id
                     ? "Memproses..."
@@ -136,46 +106,29 @@
         </div>
 
         <!-- PAGINATION PESANAN -->
-        <div
-          v-if="orderLastPage > 1"
-          class="flex items-center justify-center gap-2 pt-4"
-        >
-          <button
-            @click="changeOrderPage(currentOrderPage - 1)"
-            :disabled="currentOrderPage === 1"
-            class="px-3 h-8 bg-white text-gray-600 disabled:opacity-40 hover:bg-gray-100 border border-gray-200 rounded-lg text-xs font-bold transition-all cursor-pointer"
-          >
+        <div v-if="orderLastPage > 1" class="flex items-center justify-center gap-2 pt-4">
+          <button @click="changeOrderPage(currentOrderPage - 1)" :disabled="currentOrderPage === 1"
+            class="px-3 h-8 bg-white text-gray-600 disabled:opacity-40 hover:bg-gray-100 border border-gray-200 rounded-lg text-xs font-bold transition-all cursor-pointer">
             ‹ Sebelumnya
           </button>
 
-          <button
-            v-for="p in orderLastPage"
-            :key="p"
-            @click="changeOrderPage(p)"
-            :class="[
-              'w-8 h-8 rounded-lg text-xs font-bold transition-all cursor-pointer',
-              currentOrderPage === p
-                ? 'bg-black text-white'
-                : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-200',
-            ]"
-          >
+          <button v-for="p in orderLastPage" :key="p" @click="changeOrderPage(p)" :class="[
+            'w-8 h-8 rounded-lg text-xs font-bold transition-all cursor-pointer',
+            currentOrderPage === p
+              ? 'bg-black text-white'
+              : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-200',
+          ]">
             {{ p }}
           </button>
 
-          <button
-            @click="changeOrderPage(currentOrderPage + 1)"
-            :disabled="currentOrderPage === orderLastPage"
-            class="px-3 h-8 bg-white text-gray-600 disabled:opacity-40 hover:bg-gray-100 border border-gray-200 rounded-lg text-xs font-bold transition-all cursor-pointer"
-          >
+          <button @click="changeOrderPage(currentOrderPage + 1)" :disabled="currentOrderPage === orderLastPage"
+            class="px-3 h-8 bg-white text-gray-600 disabled:opacity-40 hover:bg-gray-100 border border-gray-200 rounded-lg text-xs font-bold transition-all cursor-pointer">
             Berikutnya ›
           </button>
         </div>
       </template>
 
-      <div
-        v-else
-        class="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 text-center py-12"
-      >
+      <div v-else class="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 text-center py-12">
         <p class="text-xs text-gray-500 font-medium">
           Belum ada riwayat pesanan.
         </p>
@@ -183,13 +136,8 @@
     </div>
 
     <!-- ==================== MODAL KONFIRMASI PESANAN DITERIMA ==================== -->
-    <div
-      v-if="isCompleteOrderModalOpen"
-      class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
-    >
-      <div
-        class="bg-white rounded-3xl max-w-sm w-full p-6 shadow-xl space-y-4 relative text-gray-900 text-center"
-      >
+    <div v-if="isCompleteOrderModalOpen" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+      <div class="bg-white rounded-3xl max-w-sm w-full p-6 shadow-xl space-y-4 relative text-gray-900 text-center">
         <h3 class="text-base font-extrabold text-gray-900">
           Konfirmasi Pesanan Diterima
         </h3>
@@ -199,18 +147,12 @@
         </p>
 
         <div class="flex items-center justify-center gap-2 pt-2">
-          <button
-            type="button"
-            @click="isCompleteOrderModalOpen = false"
-            class="flex-1 px-4 py-2.5 rounded-xl text-xs font-bold text-gray-700 bg-gray-100 hover:bg-gray-200 transition-colors"
-          >
+          <button type="button" @click="isCompleteOrderModalOpen = false"
+            class="flex-1 px-4 py-2.5 rounded-xl text-xs font-bold text-gray-700 bg-gray-100 hover:bg-gray-200 transition-colors">
             Batal
           </button>
-          <button
-            type="button"
-            @click="confirmCompleteOrder"
-            class="flex-1 px-4 py-2.5 bg-[#14120E] text-[#D4B26F] text-xs font-bold rounded-xl hover:bg-black transition-colors"
-          >
+          <button type="button" @click="confirmCompleteOrder"
+            class="flex-1 px-4 py-2.5 bg-[#14120E] text-[#D4B26F] text-xs font-bold rounded-xl hover:bg-black transition-colors">
             Ya, Konfirmasi
           </button>
         </div>
@@ -218,61 +160,33 @@
     </div>
 
     <!-- ==================== MODAL BERI ULASAN ==================== -->
-    <div
-      v-if="isReviewModalOpen"
-      class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
-    >
-      <div
-        class="bg-white rounded-3xl max-w-sm w-full p-6 shadow-xl space-y-4 relative text-gray-900"
-      >
+    <div v-if="isReviewModalOpen" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+      <div class="bg-white rounded-3xl max-w-sm w-full p-6 shadow-xl space-y-4 relative text-gray-900">
         <div class="flex items-center justify-between">
           <h3 class="text-base font-extrabold">Beri Ulasan Produk</h3>
-          <button
-            @click="isReviewModalOpen = false"
-            class="text-gray-400 hover:text-gray-600 text-lg font-bold"
-          >
+          <button @click="isReviewModalOpen = false" class="text-gray-400 hover:text-gray-600 text-lg font-bold">
             ✕
           </button>
         </div>
 
         <div class="flex justify-center gap-1">
-          <button
-            v-for="star in 5"
-            :key="star"
-            type="button"
-            @click="reviewForm.rating = star"
-            class="text-2xl leading-none focus:outline-none"
-          >
-            <span
-              :class="
-                star <= reviewForm.rating ? 'text-[#D4B26F]' : 'text-gray-200'
-              "
-              >★</span
-            >
+          <button v-for="star in 5" :key="star" type="button" @click="reviewForm.rating = star"
+            class="text-2xl leading-none focus:outline-none">
+            <span :class="star <= reviewForm.rating ? 'text-[#D4B26F]' : 'text-gray-200'
+              ">★</span>
           </button>
         </div>
 
-        <textarea
-          v-model="reviewForm.comment"
-          rows="3"
-          placeholder="Ceritakan pengalamanmu dengan produk ini..."
-          class="w-full border border-gray-300 rounded-xl px-3.5 py-2 text-xs focus:outline-none focus:border-gray-900 transition-colors"
-        ></textarea>
+        <textarea v-model="reviewForm.comment" rows="3" placeholder="Ceritakan pengalamanmu dengan produk ini..."
+          class="w-full border border-gray-300 rounded-xl px-3.5 py-2 text-xs focus:outline-none focus:border-gray-900 transition-colors"></textarea>
 
         <div class="flex gap-2 pt-1">
-          <button
-            type="button"
-            @click="isReviewModalOpen = false"
-            class="flex-1 px-4 py-2.5 rounded-xl text-xs font-bold text-gray-700 bg-gray-100 hover:bg-gray-200 transition-colors"
-          >
+          <button type="button" @click="isReviewModalOpen = false"
+            class="flex-1 px-4 py-2.5 rounded-xl text-xs font-bold text-gray-700 bg-gray-100 hover:bg-gray-200 transition-colors">
             Batal
           </button>
-          <button
-            type="button"
-            @click="submitReview"
-            :disabled="isSubmittingReview"
-            class="flex-1 px-4 py-2.5 bg-[#14120E] text-[#D4B26F] text-xs font-bold rounded-xl hover:bg-black transition-colors disabled:opacity-50"
-          >
+          <button type="button" @click="submitReview" :disabled="isSubmittingReview"
+            class="flex-1 px-4 py-2.5 bg-[#14120E] text-[#D4B26F] text-xs font-bold rounded-xl hover:bg-black transition-colors disabled:opacity-50">
             {{ isSubmittingReview ? "Mengirim..." : "Kirim Ulasan" }}
           </button>
         </div>
@@ -280,13 +194,8 @@
     </div>
 
     <!-- ==================== MODAL INFO (SUKSES/GAGAL) ==================== -->
-    <div
-      v-if="isInfoModalOpen"
-      class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
-    >
-      <div
-        class="bg-white rounded-3xl max-w-sm w-full p-6 shadow-xl space-y-4 relative text-gray-900 text-center"
-      >
+    <div v-if="isInfoModalOpen" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+      <div class="bg-white rounded-3xl max-w-sm w-full p-6 shadow-xl space-y-4 relative text-gray-900 text-center">
         <h3 class="text-base font-extrabold text-gray-900">
           {{ infoModalTitle }}
         </h3>
@@ -294,11 +203,8 @@
           {{ infoModalMessage }}
         </p>
 
-        <button
-          type="button"
-          @click="isInfoModalOpen = false"
-          class="w-full px-4 py-2.5 bg-[#14120E] text-[#D4B26F] text-xs font-bold rounded-xl hover:bg-black transition-colors"
-        >
+        <button type="button" @click="isInfoModalOpen = false"
+          class="w-full px-4 py-2.5 bg-[#14120E] text-[#D4B26F] text-xs font-bold rounded-xl hover:bg-black transition-colors">
           Tutup
         </button>
       </div>
@@ -307,7 +213,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted } from "vue";
+import { ref, reactive, onMounted } from "vue";
 import { orderService, reviewService } from "../../services/apiServices";
 
 const isLoading = ref(true);
@@ -361,10 +267,10 @@ const fetchOrders = async (page = 1) => {
       statusColor: getOrderStatusColor(order.status),
       date: order.created_at
         ? new Date(order.created_at).toLocaleDateString("id-ID", {
-            day: "numeric",
-            month: "short",
-            year: "numeric",
-          })
+          day: "numeric",
+          month: "short",
+          year: "numeric",
+        })
         : "",
       totalPrice: order.total_amount || order.grand_total || 0,
       resiNumber: order.courier?.resi_number || null,
@@ -413,10 +319,10 @@ const confirmCompleteOrder = async () => {
     orders.value = orders.value.map((order) =>
       order.id === orderId
         ? {
-            ...order,
-            status: "COMPLETED",
-            statusColor: getOrderStatusColor("COMPLETED"),
-          }
+          ...order,
+          status: "COMPLETED",
+          statusColor: getOrderStatusColor("COMPLETED"),
+        }
         : order,
     );
 
@@ -440,6 +346,44 @@ const confirmCompleteOrder = async () => {
 const isInfoModalOpen = ref(false);
 const infoModalMessage = ref("");
 const infoModalTitle = ref("");
+
+// State Bayar Sekarang (untuk pesanan PENDING)
+const payingOrderId = ref(null);
+
+const payPendingOrder = async (order) => {
+  if (payingOrderId.value !== null) return;
+  payingOrderId.value = order.id;
+
+  try {
+    const origin = window.location.origin;
+
+    const res = await orderService.payOrderXendit(order.id, {
+      payment_method: "xendit",
+      success_redirect_url: `${origin}/account/orders?tab=paid`,
+      failure_redirect_url: `${origin}/account/orders?tab=unpaid`,
+    });
+
+    const d = res?.data?.data || res?.data || res;
+    const invoiceUrl =
+      d?.invoice_url || d?.checkout_url || d?.payment_url || d?.url;
+
+    if (!invoiceUrl) {
+      throw new Error("Gagal mendapatkan link pembayaran dari server.");
+    }
+
+    window.location.href = invoiceUrl;
+  } catch (error) {
+    console.error("Gagal memproses pembayaran:", error);
+    infoModalTitle.value = "Gagal";
+    infoModalMessage.value =
+      error.response?.data?.message ||
+      error.message ||
+      "Gagal memproses pembayaran.";
+    isInfoModalOpen.value = true;
+  } finally {
+    payingOrderId.value = null;
+  }
+};
 
 // State Modal Review
 const isReviewModalOpen = ref(false);

@@ -330,6 +330,25 @@ const showNoteModal = ref(false);
 const currentNoteVariantId = ref(null);
 const noteDraft = ref("");
 
+const BUBBLE_WRAP_FEE = 10000;
+const BUBBLE_WRAP_TAG = "[Air Bubble Wrap]";
+
+const useBubbleWrap = ref(false);
+
+const totalBubbleWrapCost = computed(() =>
+  useBubbleWrap.value && cartItems.value.length > 0 ? BUBBLE_WRAP_FEE : 0,
+);
+
+const bubbleWrapVariantId = computed(() =>
+  useBubbleWrap.value ? (cartItems.value[0]?.variant_id ?? null) : null,
+);
+
+const buildProductNote = (item) => {
+  const userNote = (notePerItem.value[item.variant_id] || "").trim();
+  if (item.variant_id !== bubbleWrapVariantId.value) return userNote || null;
+  return userNote ? `${userNote} ${BUBBLE_WRAP_TAG}` : BUBBLE_WRAP_TAG;
+};
+
 const showVoucherModal = ref(false);
 const voucherCode = ref("");
 const isApplyingVoucher = ref(false);
@@ -418,9 +437,7 @@ const orderSignature = computed(() =>
     ]),
     voucher: selectedVoucher.value?.id ?? null,
     discount: discount.value,
-    bubbleWrap: groupedByStore.value.map(
-      (g) => !!bubbleWrapPerStore.value[g.store_key],
-    ),
+    bubbleWrap: useBubbleWrap.value,
   }),
 );
 
@@ -476,24 +493,6 @@ const closeToast = () => {
   if (toastTimer) clearTimeout(toastTimer);
   toast.show = false;
 };
-
-const BUBBLE_WRAP_FEE = 10000;
-const bubbleWrapPerStore = ref({});
-
-const toggleBubbleWrapForStore = (storeKey) => {
-  bubbleWrapPerStore.value = {
-    ...bubbleWrapPerStore.value,
-    [storeKey]: !bubbleWrapPerStore.value[storeKey],
-  };
-};
-
-const totalBubbleWrapCost = computed(() =>
-  groupedByStore.value.reduce(
-    (acc, g) =>
-      acc + (bubbleWrapPerStore.value[g.store_key] ? BUBBLE_WRAP_FEE : 0),
-    0,
-  ),
-);
 
 const selectedAddress = computed(() => {
   return (
@@ -1069,6 +1068,11 @@ const canSubmit = computed(() => {
 const buildCombinedCourier = () => {
   const groups = groupedByStore.value;
   const totalCost = totalShippingCost.value;
+  const bubbleWrapCost = totalBubbleWrapCost.value;
+  const bubbleWrapDesc =
+    bubbleWrapCost > 0
+      ? `Termasuk Air Bubble Wrap ${formatPrice(bubbleWrapCost)}`
+      : "";
 
   if (groups.length === 1) {
     const key = groups[0].store_key;
@@ -1077,19 +1081,23 @@ const buildCombinedCourier = () => {
     if (groups[0].allFreeShipping) {
       return {
         agent: "gratis",
-        cost: 0,
+        cost: bubbleWrapCost,
         etd: "-",
         service: "Gratis Ongkir",
-        service_desc: "Semua produk gratis ongkir",
+        service_desc: ["Semua produk gratis ongkir", bubbleWrapDesc]
+          .filter(Boolean)
+          .join(" | "),
       };
     }
 
     return {
       agent: c?.agent || "pos",
-      cost: totalCost,
+      cost: totalCost + bubbleWrapCost,
       etd: c?.etd || "2-3 hari",
       service: c?.service || "Pos Reguler",
-      service_desc: c?.service_desc || "",
+      service_desc: [c?.service_desc || "", bubbleWrapDesc]
+        .filter(Boolean)
+        .join(" | "),
     };
   }
 
@@ -1101,6 +1109,7 @@ const buildCombinedCourier = () => {
       return `${group.store_name}: ${c.agent.toUpperCase()} ${c.service} (${formatPrice(c.cost)})`;
     })
     .filter(Boolean)
+    .concat(bubbleWrapDesc ? [bubbleWrapDesc] : [])
     .join(" | ");
 
   const maxEtd = groups
@@ -1110,7 +1119,7 @@ const buildCombinedCourier = () => {
 
   return {
     agent: "multi",
-    cost: totalCost,
+    cost: totalCost + bubbleWrapCost,
     etd: maxEtd || "2-3 hari",
     service: "Gabungan Multi Toko",
     service_desc: perStoreDesc,
@@ -1188,7 +1197,7 @@ const handleCheckout = async () => {
           payment_method: PAYMENT_GATEWAY,
           products: cartItems.value.map((item) => ({
             is_protected: protectionPerItem.value[item.variant_id] ? 1 : 0,
-            note: notePerItem.value[item.variant_id] || null,
+            note: buildProductNote(item),
             qty: item.qty || item.quantity || 1,
             variant_id: item.variant_id,
           })),
@@ -1499,24 +1508,22 @@ onMounted(async () => {
                   }}
                 </span>
               </div>
+              <div v-if="cartItems.length > 0"
+                class="flex items-center justify-between gap-3 bg-emerald-50 p-4 mt-2 rounded-2xl border border-dashed border-gray-200">
+                <label class="flex items-center gap-2 cursor-pointer flex-1">
+                  <input type="checkbox" v-model="useBubbleWrap"
+                    class="w-4 h-4 text-[#E25C38] accent-[#E25C38] rounded cursor-pointer" />
+                  <span class="text-xs sm:text-sm text-emerald-700">
+                    Tambah <b>Air Bubble Wrap</b>
+                    <span class="text-emerald-600/80">(berlaku untuk seluruh pesanan)</span>
+                  </span>
+                </label>
+                <span class="text-xs sm:text-sm font-bold text-gray-900 shrink-0">
+                  {{ formatPrice(BUBBLE_WRAP_FEE) }}
+                </span>
+              </div>
             </div>
 
-            <!-- Ongkir per toko -->
-            <!-- Bubble wrap per toko -->
-            <div
-              class="flex items-center justify-between gap-3 bg-emerald-50 p-3 rounded-xl border border-dashed border-gray-200">
-              <label class="flex items-center gap-2 cursor-pointer flex-1">
-                <input type="checkbox" :checked="bubbleWrapPerStore[group.store_key]"
-                  @change="toggleBubbleWrapForStore(group.store_key)"
-                  class="w-4 h-4 text-[#E25C38] accent-[#E25C38] rounded cursor-pointer" />
-                <span class="text-xs sm:text-sm text-emerald-700">
-                  Tambah <b>Air Bubble Wrap</b>
-                </span>
-              </label>
-              <span class="text-xs sm:text-sm font-bold text-gray-900 shrink-0">
-                {{ formatPrice(BUBBLE_WRAP_FEE) }}
-              </span>
-            </div>
             <div class="flex items-center justify-between pt-2 border-t border-gray-100">
               <div>
                 <p class="text-xs text-gray-500 mb-0.5">

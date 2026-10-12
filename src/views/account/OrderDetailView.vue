@@ -1,35 +1,24 @@
 <template>
   <div>
     <div class="flex items-center gap-2 mb-4">
-      <router-link
-        to="/account/orders"
-        class="text-xs font-bold text-gray-500 hover:text-gray-800 flex items-center gap-1"
-      >
+      <router-link to="/account/orders"
+        class="text-xs font-bold text-gray-500 hover:text-gray-800 flex items-center gap-1">
         ‹ Kembali ke Pesanan Saya
       </router-link>
     </div>
 
-    <div
-      v-if="isLoading"
-      class="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 text-center py-12"
-    >
+    <div v-if="isLoading" class="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 text-center py-12">
       <p class="text-xs font-bold text-gray-500 animate-pulse">
         Memuat detail pesanan...
       </p>
     </div>
 
-    <div
-      v-else-if="!order"
-      class="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 text-center py-12"
-    >
+    <div v-else-if="!order" class="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 text-center py-12">
       <p class="text-xs text-gray-500 font-medium">Pesanan tidak ditemukan.</p>
     </div>
 
     <!-- SATU CARD UNTUK SEMUA -->
-    <div
-      v-else
-      class="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 space-y-4"
-    >
+    <div v-else class="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 space-y-4">
       <!-- HEADER PESANAN -->
       <div class="flex items-center justify-between flex-wrap gap-2">
         <div>
@@ -40,12 +29,10 @@
             Dipesan {{ order.date }}
           </p>
         </div>
-        <span
-          :class="[
-            'text-[10px] font-bold px-2.5 py-0.5 rounded-full',
-            order.statusColor || 'bg-gray-100 text-gray-700',
-          ]"
-        >
+        <span :class="[
+          'text-[10px] font-bold px-2.5 py-0.5 rounded-full',
+          order.statusColor || 'bg-gray-100 text-gray-700',
+        ]">
           {{ order.status }}
         </span>
       </div>
@@ -62,16 +49,11 @@
           {{ order.shipping.fullAddress }}
         </p>
 
-        <div
-          class="mt-3 pt-3 border-t border-gray-50 flex items-center justify-between flex-wrap gap-2"
-        >
+        <div class="mt-3 pt-3 border-t border-gray-50 flex items-center justify-between flex-wrap gap-2">
           <p class="text-[11px] text-gray-500 font-medium">
             {{ order.shipping.courierLabel }}
           </p>
-          <p
-            v-if="order.shipping.resiNumber"
-            class="text-[11px] text-gray-500 font-medium"
-          >
+          <p v-if="order.shipping.resiNumber" class="text-[11px] text-gray-500 font-medium">
             No. Resi:
             <span class="font-bold text-gray-700">{{
               order.shipping.resiNumber
@@ -87,28 +69,29 @@
         </h2>
 
         <div class="space-y-3">
-          <div
-            v-for="item in order.items"
-            :key="item.id"
-            class="flex items-center gap-3"
-          >
-            <img
-              :src="item.image"
-              :alt="item.title"
-              class="w-12 h-12 object-cover rounded-lg border border-gray-100 shrink-0"
-            />
-            <div class="flex-1">
+          <div v-for="item in order.items" :key="item.id" class="flex items-center gap-3">
+            <img :src="item.image" :alt="item.title"
+              class="w-12 h-12 object-cover rounded-lg border border-gray-100 shrink-0" />
+            <div class="flex-1 min-w-0">
               <p class="text-xs font-bold text-gray-800">
                 {{ item.title }}
               </p>
-              <p
-                v-if="item.variantDescription"
-                class="text-[11px] text-gray-400 mt-0.5"
-              >
+              <p v-if="item.variantDescription" class="text-[11px] text-gray-400 mt-0.5">
                 {{ item.variantDescription }}
               </p>
               <p class="text-[11px] text-gray-400 mt-0.5">
                 {{ item.quantity }} x Rp {{ formatCurrency(item.price) }}
+              </p>
+
+              <!-- Proteksi produk (hanya jika ada) -->
+              <p v-if="item.protectionAmount > 0" class="text-[11px] text-gray-400 mt-0.5">
+                Proteksi Produk<span v-if="item.protectionPercent">
+                  ({{ item.protectionPercent }}%)</span>: Rp {{ formatCurrency(item.protectionAmount) }}
+              </p>
+
+              <!-- Catatan produk (tag [Air Bubble Wrap] sudah dibuang) -->
+              <p v-if="item.note" class="text-[11px] text-gray-400 mt-0.5 italic break-words">
+                Catatan: {{ item.note }}
               </p>
             </div>
 
@@ -118,29 +101,17 @@
 
             <!-- Hanya untuk pesanan COMPLETED -->
             <template v-if="order.status === 'COMPLETED'">
-              <div
-                v-if="item.review"
-                class="flex items-center gap-1.5 text-[11px] font-bold text-gray-500 bg-gray-50 px-3 py-1.5 rounded-lg shrink-0"
-              >
+              <div v-if="item.review"
+                class="flex items-center gap-1.5 text-[11px] font-bold text-gray-500 bg-gray-50 px-3 py-1.5 rounded-lg shrink-0">
                 <span class="flex">
-                  <span
-                    v-for="star in 5"
-                    :key="star"
-                    :class="
-                      star <= item.review.rating
-                        ? 'text-[#D4B26F]'
-                        : 'text-gray-200'
-                    "
-                    >★</span
-                  >
+                  <span v-for="star in 5" :key="star" :class="star <= item.review.rating
+                      ? 'text-[#D4B26F]'
+                      : 'text-gray-200'
+                    ">★</span>
                 </span>
               </div>
-              <button
-                v-else
-                type="button"
-                @click="openReviewModal(item)"
-                class="text-[11px] font-bold px-3 py-1.5 rounded-lg transition-colors shrink-0 text-[#E25C38] bg-[#FFF8F6] hover:bg-[#FFEDE6]"
-              >
+              <button v-else type="button" @click="openReviewModal(item)"
+                class="text-[11px] font-bold px-3 py-1.5 rounded-lg transition-colors shrink-0 text-[#E25C38] bg-[#FFF8F6] hover:bg-[#FFEDE6]">
                 Beri Ulasan
               </button>
             </template>
@@ -159,23 +130,23 @@
             <span>Subtotal</span>
             <span>Rp {{ formatCurrency(order.subtotal) }}</span>
           </div>
-          <div
-            v-if="order.shippingCost"
-            class="flex justify-between text-gray-500"
-          >
+          <div v-if="order.shippingCost" class="flex justify-between text-gray-500">
             <span>Ongkos Kirim</span>
             <span>Rp {{ formatCurrency(order.shippingCost) }}</span>
           </div>
-          <div
-            v-if="order.discount"
-            class="flex justify-between text-[#E25C38]"
-          >
+          <div v-if="order.protectionAmount > 0" class="flex justify-between text-gray-500">
+            <span>Proteksi Produk</span>
+            <span>Rp {{ formatCurrency(order.protectionAmount) }}</span>
+          </div>
+          <div v-if="order.bubbleWrapAmount > 0" class="flex justify-between text-gray-500">
+            <span>Air Bubble Wrap</span>
+            <span>Rp {{ formatCurrency(order.bubbleWrapAmount) }}</span>
+          </div>
+          <div v-if="order.discount" class="flex justify-between text-[#E25C38]">
             <span>Diskon</span>
             <span>- Rp {{ formatCurrency(order.discount) }}</span>
           </div>
-          <div
-            class="flex justify-between font-bold text-gray-900 pt-2 mt-2 border-t border-gray-100"
-          >
+          <div class="flex justify-between font-bold text-gray-900 pt-2 mt-2 border-t border-gray-100">
             <span>Total</span>
             <span>Rp {{ formatCurrency(order.totalPrice) }}</span>
           </div>
@@ -205,13 +176,8 @@
     </div>
 
     <!-- ==================== MODAL KONFIRMASI PESANAN DITERIMA ==================== -->
-    <div
-      v-if="isCompleteOrderModalOpen"
-      class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
-    >
-      <div
-        class="bg-white rounded-3xl max-w-sm w-full p-6 shadow-xl space-y-4 relative text-gray-900 text-center"
-      >
+    <div v-if="isCompleteOrderModalOpen" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+      <div class="bg-white rounded-3xl max-w-sm w-full p-6 shadow-xl space-y-4 relative text-gray-900 text-center">
         <h3 class="text-base font-extrabold text-gray-900">
           Konfirmasi Pesanan Diterima
         </h3>
@@ -221,18 +187,12 @@
         </p>
 
         <div class="flex items-center justify-center gap-2 pt-2">
-          <button
-            type="button"
-            @click="isCompleteOrderModalOpen = false"
-            class="flex-1 px-4 py-2.5 rounded-xl text-xs font-bold text-gray-700 bg-gray-100 hover:bg-gray-200 transition-colors"
-          >
+          <button type="button" @click="isCompleteOrderModalOpen = false"
+            class="flex-1 px-4 py-2.5 rounded-xl text-xs font-bold text-gray-700 bg-gray-100 hover:bg-gray-200 transition-colors">
             Batal
           </button>
-          <button
-            type="button"
-            @click="confirmCompleteOrder"
-            class="flex-1 px-4 py-2.5 bg-[#14120E] text-[#D4B26F] text-xs font-bold rounded-xl hover:bg-black transition-colors"
-          >
+          <button type="button" @click="confirmCompleteOrder"
+            class="flex-1 px-4 py-2.5 bg-[#14120E] text-[#D4B26F] text-xs font-bold rounded-xl hover:bg-black transition-colors">
             Ya, Konfirmasi
           </button>
         </div>
@@ -240,61 +200,33 @@
     </div>
 
     <!-- ==================== MODAL BERI ULASAN ==================== -->
-    <div
-      v-if="isReviewModalOpen"
-      class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
-    >
-      <div
-        class="bg-white rounded-3xl max-w-sm w-full p-6 shadow-xl space-y-4 relative text-gray-900"
-      >
+    <div v-if="isReviewModalOpen" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+      <div class="bg-white rounded-3xl max-w-sm w-full p-6 shadow-xl space-y-4 relative text-gray-900">
         <div class="flex items-center justify-between">
           <h3 class="text-base font-extrabold">Beri Ulasan Produk</h3>
-          <button
-            @click="isReviewModalOpen = false"
-            class="text-gray-400 hover:text-gray-600 text-lg font-bold"
-          >
+          <button @click="isReviewModalOpen = false" class="text-gray-400 hover:text-gray-600 text-lg font-bold">
             ✕
           </button>
         </div>
 
         <div class="flex justify-center gap-1">
-          <button
-            v-for="star in 5"
-            :key="star"
-            type="button"
-            @click="reviewForm.rating = star"
-            class="text-2xl leading-none focus:outline-none"
-          >
-            <span
-              :class="
-                star <= reviewForm.rating ? 'text-[#D4B26F]' : 'text-gray-200'
-              "
-              >★</span
-            >
+          <button v-for="star in 5" :key="star" type="button" @click="reviewForm.rating = star"
+            class="text-2xl leading-none focus:outline-none">
+            <span :class="star <= reviewForm.rating ? 'text-[#D4B26F]' : 'text-gray-200'
+              ">★</span>
           </button>
         </div>
 
-        <textarea
-          v-model="reviewForm.comment"
-          rows="3"
-          placeholder="Ceritakan pengalamanmu dengan produk ini..."
-          class="w-full border border-gray-300 rounded-xl px-3.5 py-2 text-xs focus:outline-none focus:border-gray-900 transition-colors"
-        ></textarea>
+        <textarea v-model="reviewForm.comment" rows="3" placeholder="Ceritakan pengalamanmu dengan produk ini..."
+          class="w-full border border-gray-300 rounded-xl px-3.5 py-2 text-xs focus:outline-none focus:border-gray-900 transition-colors"></textarea>
 
         <div class="flex gap-2 pt-1">
-          <button
-            type="button"
-            @click="isReviewModalOpen = false"
-            class="flex-1 px-4 py-2.5 rounded-xl text-xs font-bold text-gray-700 bg-gray-100 hover:bg-gray-200 transition-colors"
-          >
+          <button type="button" @click="isReviewModalOpen = false"
+            class="flex-1 px-4 py-2.5 rounded-xl text-xs font-bold text-gray-700 bg-gray-100 hover:bg-gray-200 transition-colors">
             Batal
           </button>
-          <button
-            type="button"
-            @click="submitReview"
-            :disabled="isSubmittingReview"
-            class="flex-1 px-4 py-2.5 bg-[#14120E] text-[#D4B26F] text-xs font-bold rounded-xl hover:bg-black transition-colors disabled:opacity-50"
-          >
+          <button type="button" @click="submitReview" :disabled="isSubmittingReview"
+            class="flex-1 px-4 py-2.5 bg-[#14120E] text-[#D4B26F] text-xs font-bold rounded-xl hover:bg-black transition-colors disabled:opacity-50">
             {{ isSubmittingReview ? "Mengirim..." : "Kirim Ulasan" }}
           </button>
         </div>
@@ -302,13 +234,8 @@
     </div>
 
     <!-- ==================== MODAL INFO (SUKSES/GAGAL) ==================== -->
-    <div
-      v-if="isInfoModalOpen"
-      class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
-    >
-      <div
-        class="bg-white rounded-3xl max-w-sm w-full p-6 shadow-xl space-y-4 relative text-gray-900 text-center"
-      >
+    <div v-if="isInfoModalOpen" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+      <div class="bg-white rounded-3xl max-w-sm w-full p-6 shadow-xl space-y-4 relative text-gray-900 text-center">
         <h3 class="text-base font-extrabold text-gray-900">
           {{ infoModalTitle }}
         </h3>
@@ -316,11 +243,8 @@
           {{ infoModalMessage }}
         </p>
 
-        <button
-          type="button"
-          @click="isInfoModalOpen = false"
-          class="w-full px-4 py-2.5 bg-[#14120E] text-[#D4B26F] text-xs font-bold rounded-xl hover:bg-black transition-colors"
-        >
+        <button type="button" @click="isInfoModalOpen = false"
+          class="w-full px-4 py-2.5 bg-[#14120E] text-[#D4B26F] text-xs font-bold rounded-xl hover:bg-black transition-colors">
           Tutup
         </button>
       </div>
@@ -337,6 +261,10 @@ const route = useRoute();
 
 const isLoading = ref(true);
 const order = ref(null);
+
+// Harus sama dengan nilai di halaman checkout
+const BUBBLE_WRAP_FEE = 10000;
+const BUBBLE_WRAP_TAG = "[Air Bubble Wrap]";
 
 const getOrderStatusColor = (status) => {
   switch (status) {
@@ -360,9 +288,32 @@ const getOrderStatusColor = (status) => {
 
 const formatCurrency = (value) => Number(value || 0).toLocaleString("id-ID");
 
+// Catatan produk tanpa tag bubble wrap (tag tidak ditampilkan ke pelanggan)
+const cleanNote = (note) =>
+  (note || "").split(BUBBLE_WRAP_TAG).join("").trim();
+
 const mapOrder = (raw) => {
   const shipping = raw.shipping || {};
   const courier = raw.courier || {};
+  const rawItems = raw.order_items || [];
+
+  // Bubble wrap flat per order: cukup ada satu produk yang membawa tag
+  const hasBubbleWrap = rawItems.some((item) =>
+    (item.note || "").includes(BUBBLE_WRAP_TAG),
+  );
+  const bubbleWrapAmount = hasBubbleWrap ? BUBBLE_WRAP_FEE : 0;
+
+  // Biaya bubble wrap ikut tertagih di courier.cost, jadi dipisahkan dari ongkir
+  const rawShippingCost = Number(raw.shipping_cost || courier.cost || 0);
+  const shippingCost = Math.max(0, rawShippingCost - bubbleWrapAmount);
+
+  const itemsProtectionSum = rawItems.reduce(
+    (acc, item) => acc + Number(item.product_protection_amount || 0),
+    0,
+  );
+  const protectionAmount = Number(
+    raw.product_protection_amount || itemsProtectionSum || 0,
+  );
 
   return {
     id: raw.id,
@@ -372,13 +323,15 @@ const mapOrder = (raw) => {
     statusColor: getOrderStatusColor(raw.status),
     date: raw.created_at
       ? new Date(raw.created_at).toLocaleDateString("id-ID", {
-          day: "numeric",
-          month: "short",
-          year: "numeric",
-        })
+        day: "numeric",
+        month: "short",
+        year: "numeric",
+      })
       : "",
     subtotal: raw.subtotal || 0,
-    shippingCost: raw.shipping_cost || courier.cost || 0,
+    shippingCost,
+    protectionAmount,
+    bubbleWrapAmount,
     discount: raw.discount_amount || 0,
     totalPrice: raw.total_amount || 0,
     shipping: {
@@ -397,7 +350,7 @@ const mapOrder = (raw) => {
         .join(" - "),
       resiNumber: courier.resi_number || null,
     },
-    items: (raw.order_items || []).map((item) => ({
+    items: rawItems.map((item) => ({
       id: item.id,
       productId: item.product_id,
       title: item.product_name,
@@ -407,6 +360,9 @@ const mapOrder = (raw) => {
         item.purchase_price || item.discount_price || item.actual_price || 0,
       subtotal: item.subtotal || 0,
       image: item.product_image,
+      note: cleanNote(item.note),
+      protectionAmount: Number(item.product_protection_amount || 0),
+      protectionPercent: Number(item.product_protection_percent || 0),
       review: item.review || null,
     })),
   };
